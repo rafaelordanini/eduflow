@@ -356,6 +356,7 @@
         API.getSubjects().then(function(subjects) {
             var area = document.getElementById('subjects-area');
             if (!area) return;
+            area.className = '';
             if (subjects.length === 0) { area.innerHTML = '<div class="empty-state"><i class="fas fa-book-open"></i><h3>Nenhuma matéria cadastrada</h3><p>Crie sua primeira matéria para começar.</p></div>'; return; }
             // Fetch lesson counts
             var promises = subjects.map(function(s) { return API.getLessons(s.id).then(function(l) { s._lessonCount = l.length; }); });
@@ -425,6 +426,7 @@
         API.getUsers().then(function(users) {
             var area = document.getElementById('users-area');
             if (!area) return;
+            area.className = '';
             var ac = users.filter(function(u){return u.role==='admin';}).length;
             var sc = users.filter(function(u){return u.role==='student';}).length;
             var rows = users.map(function(u) {
@@ -454,6 +456,7 @@
             var subjects = results[0], progressList = results[1];
             var area = document.getElementById('student-area');
             if (!area) return;
+            area.className = '';
             if (subjects.length === 0) { area.innerHTML = '<div class="empty-state"><i class="fas fa-book-open"></i><h3>Nenhuma matéria disponível</h3></div>'; return; }
             // Build progress map and fetch lesson counts
             var pMap = {};
