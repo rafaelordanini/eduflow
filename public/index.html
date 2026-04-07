@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduFlow — Plataforma E-Learning</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root{--bg:#f7f5f0;--bg-pattern:radial-gradient(circle at 15% 40%,rgba(27,107,82,.04) 0%,transparent 55%),radial-gradient(circle at 85% 25%,rgba(200,93,44,.03) 0%,transparent 50%);--surface:#fff;--surface-hover:#faf9f6;--primary:#1b6b52;--primary-hover:#145640;--primary-light:rgba(27,107,82,.08);--primary-text:#fff;--accent:#c85d2c;--accent-hover:#a94e24;--accent-light:rgba(200,93,44,.08);--text:#1a1d23;--text-secondary:#555b66;--text-muted:#8b919d;--danger:#c0392b;--danger-hover:#a5311f;--success:#27ae60;--warning:#e8a317;--border:#e2ded6;--shadow-sm:0 1px 3px rgba(0,0,0,.06);--shadow-md:0 4px 14px rgba(0,0,0,.08);--shadow-lg:0 10px 35px rgba(0,0,0,.12);--radius-sm:6px;--radius-md:10px;--radius-lg:16px;--radius-xl:24px;--transition:.2s ease;--code-bg:#f0ece4}
+        .dark{--bg:#0c1017;--bg-pattern:radial-gradient(circle at 15% 40%,rgba(77,216,160,.03) 0%,transparent 55%),radial-gradient(circle at 85% 25%,rgba(240,149,74,.03) 0%,transparent 50%);--surface:#1a2030;--surface-hover:#212940;--primary:#4dd8a0;--primary-hover:#3ec98e;--primary-light:rgba(77,216,160,.08);--primary-text:#0c1017;--accent:#f0954a;--accent-hover:#e07c2e;--accent-light:rgba(240,149,74,.08);--text:#e4e8f0;--text-secondary:#a0a8b8;--text-muted:#6b7380;--danger:#e74c3c;--danger-hover:#c0392b;--success:#2ecc71;--warning:#f1c40f;--border:#2a3348;--shadow-sm:0 1px 3px rgba(0,0,0,.2);--shadow-md:0 4px 14px rgba(0,0,0,.3);--shadow-lg:0 10px 35px rgba(0,0,0,.4);--code-bg:#141a26}
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Figtree',sans-serif;background:var(--bg);background-image:var(--bg-pattern);color:var(--text);min-height:100vh;line-height:1.6;-webkit-font-smoothing:antialiased}
+        h1,h2,h3,h4{font-family:'Fraunces',serif;font-weight:700;line-height:1.25}
+        a{color:var(--primary);text-decoration:none}
+        .container{max-width:1100px;margin:0 auto;padding:0 20px}
+        .page-content{padding:32px 0 60px;animation:fadeUp .4s ease}
+        .page-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:28px}
+        .page-header h1{font-size:1.8rem}
+        .breadcrumb{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--text-muted);margin-bottom:20px;flex-wrap:wrap}
+        .breadcrumb a{color:var(--primary);cursor:pointer;transition:opacity var(--transition)}
+        .breadcrumb a:hover{opacity:.7}
+        .breadcrumb .sep{font-size:.7rem}
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+        /* Navbar */
+        .navbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm)}
+        .navbar-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:60px;gap:12px}
+        .navbar-brand{display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0}
+        .navbar-brand .logo{width:34px;height:34px;background:var(--primary);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--primary-text);font-weight:800;font-size:1.1rem;font-family:'Fraunces',serif}
+        .navbar-brand span{font-family:'Fraunces',serif;font-weight:700;font-size:1.2rem}
+        .navbar-links{display:flex;align-items:center;gap:4px;overflow-x:auto}
+        .navbar-links button{background:none;border:none;color:var(--text-secondary);font-family:'Figtree',sans-serif;font-size:.85rem;font-weight:500;padding:8px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:all var(--transition);white-space:nowrap}
+        .navbar-links button:hover,.navbar-links button.active{background:var(--primary-light);color:var(--primary)}
+        .navbar-user{display:flex;align-items:center;gap:10px;font-size:.88rem;color:var(--text-secondary);flex-shrink:0}
+        .navbar-user .avatar{width:32px;height:32px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.85rem}
+        .navbar-user .logout-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:4px;transition:color var(--transition)}
+        .navbar-user .logout-btn:hover{color:var(--danger)}
+        /* Login */
+        .login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+        .login-card{background:var(--surface);border-radius:var(--radius-xl);padding:48px 40px;box-shadow:var(--shadow-lg);max-width:420px;width:100%;text-align:center;border:1px solid var(--border);animation:fadeUp .5s ease}
+        .login-logo{width:64px;height:64px;background:var(--primary);border-radius:var(--radius-lg);display:inline-flex;align-items:center;justify-content:center;color:var(--primary-text);font-family:'Fraunces',serif;font-weight:800;font-size:1.8rem;margin-bottom:20px}
+        .login-card h1{font-size:1.6rem;margin-bottom:6px}
+        .login-card .subtitle{color:var(--text-muted);font-size:.95rem;margin-bottom:32px}
+        .login-error{background:rgba(192,57,43,.08);border:1px solid var(--danger);color:var(--danger);padding:10px 14px;border-radius:var(--radius-sm);font-size:.88rem;margin-bottom:16px;display:none;text-align:left}
+        .login-error.show{display:flex;align-items:center;gap:8px}
+        .password-wrapper{position:relative}
+        .password-wrapper input{padding-right:44px}
+        .password-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:4px;transition:color var(--transition);width:auto}
+        .password-toggle:hover{color:var(--text)}
+        /* Cards */
+        .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;transition:all .25s ease;position:relative;overflow:hidden}
+        .card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+        .card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+        .card h3{font-size:1.15rem}
+        .card p{color:var(--text-secondary);font-size:.9rem;margin-bottom:16px}
+        .card-meta{display:flex;align-items:center;gap:16px;font-size:.82rem;color:var(--text-muted)}
+        .card-meta i{margin-right:4px}
+        .card-actions{display:flex;gap:6px}
+        .card-actions button{width:34px;height:34px;border:none;border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all var(--transition);background:var(--surface-hover);color:var(--text-secondary)}
+        .card-actions button:hover{background:var(--primary-light);color:var(--primary)}
+        .card-actions button.danger:hover{background:rgba(192,57,43,.1);color:var(--danger)}
+        .card-tag{display:inline-block;padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:600}
+        .card-tag.admin{background:var(--accent-light);color:var(--accent)}
+        .card-tag.student{background:var(--primary-light);color:var(--primary)}
+        .card-progress-bar{height:5px;background:var(--border);border-radius:99px;margin-top:14px;overflow:hidden}
+        .card-progress-bar .fill{height:100%;background:var(--primary);border-radius:99px;transition:width .5s ease}
+        /* Forms */
+        .form-group{margin-bottom:18px}
+        .form-group label{display:block;font-weight:600;font-size:.88rem;margin-bottom:6px;color:var(--text-secondary)}
+        input,textarea,select{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-family:'Figtree',sans-serif;font-size:16px;transition:border-color var(--transition);outline:none}
+        input:focus,textarea:focus,select:focus{border-color:var(--primary)}
+        textarea{resize:vertical;min-height:80px}
+        .form-row{display:flex;gap:14px}
+        .form-row .form-group{flex:1}
+        .form-hint{font-size:.8rem;color:var(--text-muted);margin-top:4px}
+        .url-status{display:inline-flex;align-items:center;gap:4px;font-size:.82rem;margin-top:4px;font-weight:500}
+        .url-status.valid{color:var(--success)}
+        .url-status.invalid{color:var(--danger)}
+        .form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;margin-bottom:24px}
+        .form-card h3{margin-bottom:20px;font-size:1.1rem}
+        /* Buttons */
+        .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border:none;border-radius:var(--radius-sm);font-family:'Figtree',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:all var(--transition);white-space:nowrap}
+        .btn-primary{background:var(--primary);color:var(--primary-text)}
+        .btn-primary:hover{background:var(--primary-hover)}
+        .btn-accent{background:var(--accent);color:#fff}
+        .btn-accent:hover{background:var(--accent-hover)}
+        .btn-secondary{background:var(--surface-hover);color:var(--text-secondary);border:1px solid var(--border)}
+        .btn-secondary:hover{background:var(--border)}
+        .btn-danger{background:var(--danger);color:#fff}
+        .btn-danger:hover{background:var(--danger-hover)}
+        .btn-sm{padding:7px 14px;font-size:.82rem}
+        .btn:disabled{opacity:.5;cursor:not-allowed}
+        /* Lesson List */
+        .lesson-list{display:flex;flex-direction:column;gap:8px}
+        .lesson-item{display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);transition:all var(--transition)}
+        .lesson-item:hover{background:var(--surface-hover)}
+        .lesson-item .order-num{width:32px;height:32px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+        .lesson-item .lesson-info{flex:1;min-width:0}
+        .lesson-item .lesson-title{font-weight:600;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .lesson-item .lesson-meta{font-size:.8rem;color:var(--text-muted);margin-top:2px}
+        .lesson-item .lesson-actions{display:flex;gap:4px;flex-shrink:0}
+        .lesson-item .lesson-actions button{width:30px;height:30px;border:none;border-radius:var(--radius-sm);background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.8rem;transition:all var(--transition)}
+        .lesson-item .lesson-actions button:hover{background:var(--primary-light);color:var(--primary)}
+        .lesson-item .lesson-actions button.danger:hover{background:rgba(192,57,43,.1);color:var(--danger)}
+        .lesson-item.clickable{cursor:pointer}
+        .lesson-item .status-icon{flex-shrink:0;font-size:1rem}
+        .lesson-item .status-icon.complete{color:var(--success)}
+        .lesson-item .status-icon.in-progress{color:var(--warning)}
+        .lesson-item .status-icon.pending{color:var(--border)}
+        /* Video */
+        .video-wrapper{background:#000;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:24px;box-shadow:var(--shadow-md)}
+        .video-wrapper iframe{width:100%;aspect-ratio:16/9;border:none;display:block}
+        .video-placeholder{aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius-lg);margin-bottom:24px;color:var(--text-muted)}
+        .video-placeholder i{font-size:3rem;margin-bottom:12px;opacity:.4}
+        .video-placeholder p{font-size:.95rem}
+        /* Progress */
+        .progress-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px}
+        .progress-card h3{font-size:1rem;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .progress-card h3 i{color:var(--accent)}
+        .time-input-group{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+        .time-input-group input[type="number"]{width:80px;text-align:center;font-size:1.1rem;font-weight:600;padding:10px 8px;-moz-appearance:textfield}
+        .time-input-group input[type="number"]::-webkit-inner-spin-button,.time-input-group input[type="number"]::-webkit-outer-spin-button{-webkit-appearance:none}
+        .time-input-group .time-sep{font-size:1.3rem;font-weight:700;color:var(--text-muted)}
+        .time-input-group label{font-size:.78rem;color:var(--text-muted)}
+        .progress-bar-full{height:8px;background:var(--border);border-radius:99px;overflow:hidden;margin:16px 0}
+        .progress-bar-full .fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--accent));border-radius:99px;transition:width .6s ease}
+        .progress-info{display:flex;justify-content:space-between;font-size:.82rem;color:var(--text-muted)}
+        .complete-toggle{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+        .toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
+        .toggle-switch input{opacity:0;width:0;height:0}
+        .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:99px;cursor:pointer;transition:all var(--transition)}
+        .toggle-slider::before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;left:3px;top:3px;transition:transform var(--transition);box-shadow:var(--shadow-sm)}
+        .toggle-switch input:checked+.toggle-slider{background:var(--success)}
+        .toggle-switch input:checked+.toggle-slider::before{transform:translateX(20px)}
+        .complete-toggle span{font-size:.9rem;font-weight:500}
+        .resume-banner{background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-size:.9rem;color:var(--accent);font-weight:500;animation:fadeUp .3s ease}
+        .resume-banner i{font-size:1.1rem}
+        .lesson-nav{display:flex;justify-content:space-between;gap:12px;margin-top:20px}
+        /* User Table */
+        .user-table{width:100%;border-collapse:collapse}
+        .user-table th{text-align:left;font-size:.82rem;font-weight:600;color:var(--text-muted);padding:10px 14px;border-bottom:2px solid var(--border);text-transform:uppercase;letter-spacing:.03em}
+        .user-table td{padding:14px;border-bottom:1px solid var(--border);font-size:.92rem;vertical-align:middle}
+        .user-table tr:hover td{background:var(--surface-hover)}
+        .user-table .role-badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:.75rem;font-weight:600}
+        .user-table .role-badge.admin{background:var(--accent-light);color:var(--accent)}
+        .user-table .role-badge.student{background:var(--primary-light);color:var(--primary)}
+        .user-table .actions-cell button{width:30px;height:30px;border:none;border-radius:var(--radius-sm);background:transparent;color:var(--text-muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;transition:all var(--transition);vertical-align:middle}
+        .user-table .actions-cell button:hover{background:var(--primary-light);color:var(--primary)}
+        .user-table .actions-cell button.danger:hover{background:rgba(192,57,43,.1);color:var(--danger)}
+        .user-table .mono{font-family:'Courier New',monospace;font-size:.85rem;color:var(--text-secondary)}
+        /* Modals */
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;animation:fadeIn .2s ease;backdrop-filter:blur(4px)}
+        .modal{background:var(--surface);border-radius:var(--radius-lg);padding:32px;max-width:480px;width:100%;box-shadow:var(--shadow-lg);animation:scaleIn .25s ease;border:1px solid var(--border);max-height:90vh;overflow-y:auto}
+        .modal h3{font-size:1.2rem;margin-bottom:12px}
+        .modal p{color:var(--text-secondary);font-size:.95rem;margin-bottom:24px}
+        .modal-actions{display:flex;justify-content:flex-end;gap:10px}
+        /* Toasts */
+        #toast-container{position:fixed;top:76px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+        .toast{padding:12px 20px;border-radius:var(--radius-md);font-size:.88rem;font-weight:500;color:#fff;box-shadow:var(--shadow-md);transform:translateX(120%);transition:transform .3s ease;min-width:220px;display:flex;align-items:center;gap:8px}
+        .toast.show{transform:translateX(0)}
+        .toast-success{background:var(--success)}
+        .toast-error{background:var(--danger)}
+        .toast-info{background:var(--primary)}
+        /* Empty + Loading */
+        .empty-state{text-align:center;padding:60px 20px;color:var(--text-muted)}
+        .empty-state i{font-size:3rem;margin-bottom:16px;opacity:.3}
+        .empty-state h3{color:var(--text-secondary);margin-bottom:8px;font-size:1.1rem}
+        .empty-state p{font-size:.9rem}
+        .loading-spinner{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--text-muted);gap:10px;font-size:.95rem}
+        .loading-spinner i{animation:spin 1s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        /* Animations */
+        @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes scaleIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+        .card,.lesson-item,.form-card{animation:fadeUp .4s ease backwards}
+        /* Responsive */
+        @media(max-width:768px){.grid{grid-template-columns:1fr}.page-header h1{font-size:1.4rem}.login-card{padding:32px 24px}.form-row{flex-direction:column;gap:0}.navbar-links button span{display:none}.navbar-links button i{font-size:1.1rem}.lesson-nav{flex-direction:column}.lesson-nav .btn{justify-content:center}.user-table .hide-mobile{display:none}}
+        @media(max-width:480px){.navbar-inner{height:52px}.navbar-brand span{display:none}.page-content{padding:20px 0 40px}.container{padding:0 14px}}
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <div id="toast-container"></div>
+
+    <script>
+    /* ============================================================
+       API CLIENT
+       ============================================================ */
+    var _store = window['local' + 'Storage'];
+    var API = {
+        getToken: function() { try { return _store.getItem('eduflow_token'); } catch(e) { return null; } },
+        setToken: function(t) { try { _store.setItem('eduflow_token', t); } catch(e) { /* noop */ } },
+        clearToken: function() { try { _store.removeItem('eduflow_token'); } catch(e) { /* noop */ } },
+
+        request: function(method, url, body) {
+            var headers = { 'Content-Type': 'application/json' };
+            var token = this.getToken();
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            var opts = { method: method, headers: headers };
+            if (body) opts.body = JSON.stringify(body);
+            return fetch(url, opts).then(function(res) {
+                var contentType = res.headers.get('content-type') || '';
+                if (contentType.indexOf('application/json') === -1) {
+                    return res.text().then(function(text) {
+                        throw new Error(res.ok ? text : 'Erro do servidor (HTTP ' + res.status + '): ' + (text || '').substring(0, 120));
+                    });
+                }
+                return res.json().then(function(data) {
+                    if (!res.ok) throw new Error(data.error || 'Erro na requisição');
+                    return data;
+                });
+            });
+        },
+
+        login: function(username, password) { return this.request('POST', '/api/auth/login', { username: username, password: password }); },
+        getMe: function() { return this.request('GET', '/api/auth/me'); },
+
+        getUsers: function() { return this.request('GET', '/api/users'); },
+        createUser: function(data) { return this.request('POST', '/api/users', data); },
+        updateUser: function(id, data) { return this.request('PUT', '/api/users/' + id, data); },
+        deleteUser: function(id) { return this.request('DELETE', '/api/users/' + id); },
+
+        getSubjects: function() { return this.request('GET', '/api/subjects'); },
+        createSubject: function(data) { return this.request('POST', '/api/subjects', data); },
+        updateSubject: function(id, data) { return this.request('PUT', '/api/subjects/' + id, data); },
+        deleteSubject: function(id) { return this.request('DELETE', '/api/subjects/' + id); },
+
+        getLessons: function(subjectId) { return this.request('GET', '/api/lessons?subjectId=' + subjectId); },
+        createLesson: function(data) { return this.request('POST', '/api/lessons', data); },
+        updateLesson: function(id, data) { return this.request('PUT', '/api/lessons/' + id, data); },
+        deleteLesson: function(id) { return this.request('DELETE', '/api/lessons/' + id); },
+        reorderLesson: function(lessonId, direction) { return this.request('PUT', '/api/lessons/reorder', { lessonId: lessonId, direction: direction }); },
+
+        getProgress: function(lessonId) { return this.request('GET', '/api/progress' + (lessonId ? '?lessonId=' + lessonId : '')); },
+        saveProgress: function(data) { return this.request('POST', '/api/progress', data); }
+    };
+
+    /* ============================================================
+       STATE
+       ============================================================ */
+    var state = { view: 'login', user: null, selectedSubjectId: null, selectedLessonId: null };
+
+    /* ============================================================
+       UTILITIES
+       ============================================================ */
+    function escapeHtml(t) { var d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+    function formatTime(s) { return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); }
+
+    /* Dark Mode */
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+        document.documentElement.classList[e.matches ? 'add' : 'remove']('dark');
+    });
+
+    /* Toast */
+    function showToast(msg, type) {
+        type = type || 'success';
+        var icons = { success:'fa-check-circle', error:'fa-exclamation-circle', info:'fa-info-circle' };
+        var t = document.createElement('div');
+        t.className = 'toast toast-' + type;
+        t.innerHTML = '<i class="fas ' + (icons[type]||icons.info) + '"></i> ' + escapeHtml(msg);
+        document.getElementById('toast-container').appendChild(t);
+        setTimeout(function() { t.classList.add('show'); }, 10);
+        setTimeout(function() { t.classList.remove('show'); setTimeout(function() { t.remove(); }, 300); }, 2500);
+    }
+
+    /* Confirm Modal */
+    function showConfirmModal(title, msg, confirmText, cls, onConfirm) {
+        var o = document.createElement('div'); o.className = 'modal-overlay';
+        o.innerHTML = '<div class="modal"><h3>'+escapeHtml(title)+'</h3><p>'+escapeHtml(msg)+'</p><div class="modal-actions"><button class="btn btn-secondary cancel-btn">Cancelar</button><button class="btn '+(cls||'btn-danger')+' confirm-btn">'+escapeHtml(confirmText)+'</button></div></div>';
+        o.querySelector('.cancel-btn').addEventListener('click', function() { o.remove(); });
+        o.querySelector('.confirm-btn').addEventListener('click', function() { onConfirm(); o.remove(); });
+        o.addEventListener('click', function(e) { if (e.target === o) o.remove(); });
+        document.body.appendChild(o);
+    }
+
+    /* Form Modal */
+    function showFormModal(title, fields, submitText, onSubmit) {
+        var o = document.createElement('div'); o.className = 'modal-overlay';
+        var fh = fields.map(function(f) {
+            var ih = '';
+            if (f.type === 'textarea') ih = '<textarea id="modal-'+f.name+'" placeholder="'+escapeHtml(f.placeholder||'')+'">'+escapeHtml(f.value||'')+'</textarea>';
+            else if (f.type === 'select') { ih = '<select id="modal-'+f.name+'">' + f.options.map(function(op) { return '<option value="'+escapeHtml(op.value)+'"'+(op.value===f.value?' selected':'')+'>'+escapeHtml(op.label)+'</option>'; }).join('') + '</select>'; }
+            else ih = '<input type="'+(f.type||'text')+'" id="modal-'+f.name+'" value="'+escapeHtml(f.value||'')+'" placeholder="'+escapeHtml(f.placeholder||'')+'"'+(f.required?' required':'')+'>';
+            return '<div class="form-group"><label>'+escapeHtml(f.label)+'</label>'+ih+'</div>';
+        }).join('');
+        o.innerHTML = '<div class="modal"><h3>'+escapeHtml(title)+'</h3><form id="modal-form">'+fh+'<div class="modal-actions"><button type="button" class="btn btn-secondary cancel-btn">Cancelar</button><button type="submit" class="btn btn-primary">'+escapeHtml(submitText)+'</button></div></form></div>';
+        o.querySelector('.cancel-btn').addEventListener('click', function() { o.remove(); });
+        o.querySelector('#modal-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var v = {}; fields.forEach(function(f) { v[f.name] = document.getElementById('modal-'+f.name).value; });
+            onSubmit(v); o.remove();
+        });
+        o.addEventListener('click', function(e) { if (e.target === o) o.remove(); });
+        document.body.appendChild(o);
+    }
+
+    /* ============================================================
+       NAVIGATION
+       ============================================================ */
+    function navigate(view, params) {
+        state.view = view;
+        if (params) {
+            if (params.subjectId !== undefined) state.selectedSubjectId = params.subjectId;
+            if (params.lessonId !== undefined) state.selectedLessonId = params.lessonId;
+        }
+        render();
+        window.scrollTo(0, 0);
+    }
+
+    /* ============================================================
+       NAVBAR
+       ============================================================ */
+    function renderNavbar(links) {
+        var initial = state.user ? state.user.name.charAt(0).toUpperCase() : '?';
+        var home = state.user && state.user.role === 'admin' ? 'admin-dashboard' : 'student-dashboard';
+        var lh = links.map(function(l) { return '<button class="'+(state.view===l.view?'active':'')+'" onclick="navigate(\''+l.view+'\')"><i class="fas '+l.icon+'"></i> <span>'+escapeHtml(l.label)+'</span></button>'; }).join('');
+        return '<nav class="navbar"><div class="navbar-inner"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div><div class="navbar-links">'+lh+'</div><div class="navbar-user"><div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
+    }
+    function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
+
+    /* ============================================================
+       VIEW: LOGIN
+       ============================================================ */
+    function renderLogin() {
+        return '<div class="login-screen"><div class="login-card"><div class="login-logo">E</div><h1>EduFlow</h1><p class="subtitle">Plataforma de E-Learning</p><div class="login-error" id="login-error"><i class="fas fa-exclamation-circle"></i><span id="login-error-msg"></span></div><form id="login-form"><div class="form-group" style="text-align:left"><label>Usuário</label><input type="text" id="login-username" placeholder="Digite seu usuário" autocomplete="username" required></div><div class="form-group" style="text-align:left"><label>Senha</label><div class="password-wrapper"><input type="password" id="login-password" placeholder="Digite sua senha" autocomplete="current-password" required><button type="button" class="password-toggle" id="pw-toggle" tabindex="-1"><i class="fas fa-eye"></i></button></div></div><button type="submit" class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;padding:14px"><i class="fas fa-sign-in-alt"></i> Entrar</button></form></div></div>';
+    }
+    function bindLogin() {
+        var pwT = document.getElementById('pw-toggle');
+        if (pwT) pwT.addEventListener('click', function() { var i=document.getElementById('login-password'),ic=this.querySelector('i'); if(i.type==='password'){i.type='text';ic.className='fas fa-eye-slash';}else{i.type='password';ic.className='fas fa-eye';} });
+        var form = document.getElementById('login-form');
+        if (form) form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var u=document.getElementById('login-username').value.trim(), p=document.getElementById('login-password').value;
+            if (!u||!p) { showLoginError('Preencha todos os campos.'); return; }
+            var btn=document.getElementById('login-btn'); btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Entrando...';
+            API.login(u, p).then(function(data) {
+                API.setToken(data.token);
+                state.user = data.user;
+                navigate(data.user.role==='admin'?'admin-dashboard':'student-dashboard');
+                showToast('Bem-vindo, '+data.user.name+'!','info');
+            }).catch(function(err) {
+                showLoginError(err.message); btn.disabled=false; btn.innerHTML='<i class="fas fa-sign-in-alt"></i> Entrar';
+            });
+        });
+    }
+    function showLoginError(msg) { var e=document.getElementById('login-error'),m=document.getElementById('login-error-msg'); if(e&&m){m.textContent=msg;e.classList.add('show');setTimeout(function(){e.classList.remove('show');},4000);} }
+
+    /* ============================================================
+       VIEW: ADMIN DASHBOARD
+       ============================================================ */
+    function renderAdminDashboard() {
+        var app = document.getElementById('app');
+        app.innerHTML = renderNavbar(adminNav()) + '<div class="container"><div class="page-content"><div class="page-header"><h1>Matérias</h1><button class="btn btn-primary" onclick="handleAddSubject()"><i class="fas fa-plus"></i> Nova Matéria</button></div><div class="loading-spinner" id="subjects-area"><i class="fas fa-spinner"></i> Carregando...</div></div></div>';
+        API.getSubjects().then(function(subjects) {
+            var area = document.getElementById('subjects-area');
+            if (!area) return;
+            if (subjects.length === 0) { area.innerHTML = '<div class="empty-state"><i class="fas fa-book-open"></i><h3>Nenhuma matéria cadastrada</h3><p>Crie sua primeira matéria para começar.</p></div>'; return; }
+            // Fetch lesson counts
+            var promises = subjects.map(function(s) { return API.getLessons(s.id).then(function(l) { s._lessonCount = l.length; }); });
+            Promise.all(promises).then(function() {
+                var cards = subjects.map(function(s) {
+                    var lc = s._lessonCount || 0;
+                    return '<div class="card"><div class="card-header"><div><h3>'+escapeHtml(s.name)+'</h3></div><div class="card-actions"><button onclick="handleEditSubject('+s.id+',\''+escapeHtml(s.name).replace(/'/g,"\\'")+'\',\''+escapeHtml(s.description||'').replace(/'/g,"\\'")+'\')"><i class="fas fa-pen"></i></button><button class="danger" onclick="handleDeleteSubject('+s.id+',\''+escapeHtml(s.name).replace(/'/g,"\\'")+'\')" title="Excluir"><i class="fas fa-trash"></i></button></div></div><p>'+escapeHtml(s.description)+'</p><div class="card-meta"><span><i class="fas fa-play-circle"></i> '+lc+' aula'+(lc!==1?'s':'')+'</span></div><div style="margin-top:14px"><button class="btn btn-sm btn-secondary" onclick="navigate(\'admin-subject\',{subjectId:'+s.id+'})"><i class="fas fa-list"></i> Gerenciar Aulas</button></div></div>';
+                }).join('');
+                area.innerHTML = '<div class="grid">' + cards + '</div>';
+            });
+        }).catch(function(err) { showToast(err.message, 'error'); });
+    }
+
+    /* ============================================================
+       VIEW: ADMIN SUBJECT
+       ============================================================ */
+    function renderAdminSubject() {
+        var sid = state.selectedSubjectId;
+        var app = document.getElementById('app');
+        app.innerHTML = renderNavbar(adminNav()) + '<div class="container"><div class="page-content"><div class="loading-spinner"><i class="fas fa-spinner"></i> Carregando...</div></div></div>';
+        Promise.all([API.getSubjects(), API.getLessons(sid)]).then(function(results) {
+            var subjects = results[0], lessons = results[1];
+            var subject = subjects.find(function(s) { return s.id === sid; });
+            if (!subject) { navigate('admin-dashboard'); return; }
+            var lessonsHtml = lessons.length > 0 ? '<div class="lesson-list">' + lessons.map(function(l) {
+                var us = l.embed_url ? '<span style="color:var(--success);font-size:.75rem"><i class="fas fa-check"></i> embed</span>' : '<span style="color:var(--text-muted);font-size:.75rem">sem link</span>';
+                return '<div class="lesson-item"><div class="order-num">'+l.order_index+'</div><div class="lesson-info"><div class="lesson-title">'+escapeHtml(l.title)+'</div><div class="lesson-meta">'+l.duration_minutes+' min &middot; '+us+'</div></div><div class="lesson-actions">'+(l.order_index>1?'<button onclick="handleReorderLesson('+l.id+',-1)"><i class="fas fa-chevron-up"></i></button>':'')+(l.order_index<lessons.length?'<button onclick="handleReorderLesson('+l.id+',1)"><i class="fas fa-chevron-down"></i></button>':'')+'<button onclick="handleEditLessonApi('+l.id+')"><i class="fas fa-pen"></i></button><button class="danger" onclick="handleDeleteLessonApi('+l.id+',\''+escapeHtml(l.title).replace(/'/g,"\\'")+'\')"><i class="fas fa-trash"></i></button></div></div>';
+            }).join('') + '</div>' : '<div class="empty-state" style="padding:40px"><i class="fas fa-video"></i><h3>Nenhuma aula cadastrada</h3></div>';
+
+            app.innerHTML = renderNavbar(adminNav()) + '<div class="container"><div class="page-content">' +
+                '<div class="breadcrumb"><a onclick="navigate(\'admin-dashboard\')">Matérias</a><span class="sep"><i class="fas fa-chevron-right"></i></span><span>'+escapeHtml(subject.name)+'</span></div>' +
+                '<div class="page-header"><h1>'+escapeHtml(subject.name)+'</h1></div>' +
+                '<div class="form-card"><h3><i class="fas fa-plus-circle" style="color:var(--primary);margin-right:6px"></i>Adicionar Aula</h3><form id="add-lesson-form"><div class="form-group"><label>Título da Aula</label><input type="text" id="new-lesson-title" placeholder="Ex: Introdução ao tema" required></div><div class="form-row"><div class="form-group"><label>Link do Google Drive</label><input type="url" id="new-lesson-url" placeholder="https://drive.google.com/file/d/.../view"><div id="url-status" class="url-status"></div></div><div class="form-group" style="max-width:140px"><label>Duração (min)</label><input type="number" id="new-lesson-duration" min="1" value="15" required></div></div><button type="submit" class="btn btn-primary" id="add-lesson-btn"><i class="fas fa-plus"></i> Adicionar Aula</button></form></div>' +
+                '<h2 style="font-size:1.2rem;margin-bottom:16px"><i class="fas fa-list-ol" style="color:var(--accent);margin-right:8px;font-size:1rem"></i>Aulas ('+lessons.length+')</h2>' + lessonsHtml +
+            '</div></div>';
+            bindAdminSubject();
+        }).catch(function(err) { showToast(err.message, 'error'); });
+    }
+
+    function bindAdminSubject() {
+        var ui = document.getElementById('new-lesson-url');
+        if (ui) ui.addEventListener('input', function() {
+            var s=document.getElementById('url-status'),u=this.value.trim();
+            if(!u){s.innerHTML='';return;}
+            var m=u.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)||u.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+            if(m){s.innerHTML='<i class="fas fa-check-circle"></i> URL válida';s.className='url-status valid';}
+            else{s.innerHTML='<i class="fas fa-times-circle"></i> URL não reconhecida';s.className='url-status invalid';}
+        });
+        var f = document.getElementById('add-lesson-form');
+        if (f) f.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var t=document.getElementById('new-lesson-title').value.trim(), u=document.getElementById('new-lesson-url').value.trim(), d=parseInt(document.getElementById('new-lesson-duration').value,10)||15;
+            if(!t){showToast('Preencha o título','error');return;}
+            var btn=document.getElementById('add-lesson-btn'); btn.disabled=true;
+            API.createLesson({ subject_id:state.selectedSubjectId, title:t, drive_url:u, duration_minutes:d }).then(function() {
+                showToast('Aula adicionada!'); render();
+            }).catch(function(err) { showToast(err.message,'error'); btn.disabled=false; });
+        });
+    }
+
+    /* ============================================================
+       VIEW: ADMIN USERS
+       ============================================================ */
+    function renderAdminUsers() {
+        var app = document.getElementById('app');
+        app.innerHTML = renderNavbar(adminNav()) + '<div class="container"><div class="page-content"><div class="page-header"><h1>Gerenciar Usuários</h1><button class="btn btn-primary" onclick="handleAddUser()"><i class="fas fa-user-plus"></i> Novo Usuário</button></div><div class="loading-spinner" id="users-area"><i class="fas fa-spinner"></i> Carregando...</div></div></div>';
+        API.getUsers().then(function(users) {
+            var area = document.getElementById('users-area');
+            if (!area) return;
+            var ac = users.filter(function(u){return u.role==='admin';}).length;
+            var sc = users.filter(function(u){return u.role==='student';}).length;
+            var rows = users.map(function(u) {
+                var self = state.user && state.user.id === u.id;
+                return '<tr><td><strong>'+escapeHtml(u.name)+'</strong>'+(self?' <span style="font-size:.75rem;color:var(--primary)">(você)</span>':'')+'</td><td class="mono">'+escapeHtml(u.username)+'</td><td><span class="role-badge '+u.role+'">'+(u.role==='admin'?'Admin':'Aluno')+'</span></td><td class="actions-cell"><button onclick="handleEditUserApi('+u.id+')"><i class="fas fa-pen"></i></button>'+(self?'':'<button class="danger" onclick="handleDeleteUserApi('+u.id+',\''+escapeHtml(u.name).replace(/'/g,"\\'")+'\')"><i class="fas fa-trash"></i></button>')+'</td></tr>';
+            }).join('');
+            area.innerHTML = '<div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap"><div class="card" style="flex:1;min-width:140px;padding:18px;cursor:default"><div class="card-meta" style="margin-bottom:4px"><i class="fas fa-users" style="color:var(--primary)"></i> Total</div><div style="font-size:1.5rem;font-weight:700;font-family:Fraunces,serif">'+users.length+'</div></div><div class="card" style="flex:1;min-width:140px;padding:18px;cursor:default"><div class="card-meta" style="margin-bottom:4px"><i class="fas fa-user-shield" style="color:var(--accent)"></i> Admins</div><div style="font-size:1.5rem;font-weight:700;font-family:Fraunces,serif">'+ac+'</div></div><div class="card" style="flex:1;min-width:140px;padding:18px;cursor:default"><div class="card-meta" style="margin-bottom:4px"><i class="fas fa-user-graduate" style="color:var(--primary)"></i> Alunos</div><div style="font-size:1.5rem;font-weight:700;font-family:Fraunces,serif">'+sc+'</div></div></div><div class="form-card" style="padding:0;overflow:auto"><table class="user-table"><thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Ações</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+        }).catch(function(err) { showToast(err.message, 'error'); });
+    }
+
+    /* ============================================================
+       VIEW: ADMIN SCHEMA (static — same as before)
+       ============================================================ */
+    function renderAdminSchema() {
+        var app = document.getElementById('app');
+        app.innerHTML = renderNavbar(adminNav()) + '<div class="container"><div class="page-content"><div class="page-header"><h1><i class="fas fa-database" style="color:var(--accent);font-size:1.4rem;margin-right:8px"></i>Schema do Banco</h1></div><p style="color:var(--text-secondary);margin-bottom:24px">As tabelas abaixo estão no Supabase (PostgreSQL). Veja o arquivo <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:.85rem">sql/schema.sql</code> no projeto.</p><div style="background:var(--code-bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;font-family:monospace;font-size:.84rem;line-height:1.7;overflow-x:auto;white-space:pre;color:var(--text)">-- users (id, username, password_hash, name, role, created_at)\n-- subjects (id, name, description, created_at, updated_at)\n-- lessons (id, subject_id → subjects, title, drive_url, embed_url, duration_minutes, order_index, created_at)\n-- progress (id, user_id → users, lesson_id → lessons, current_time_seconds, completed, last_accessed)\n--   UNIQUE(user_id, lesson_id)</div></div></div>';
+    }
+
+    /* ============================================================
+       VIEW: STUDENT DASHBOARD
+       ============================================================ */
+    function renderStudentDashboard() {
+        var app = document.getElementById('app');
+        var nav = renderNavbar([{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'}]);
+        app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="page-header"><h1>Minhas Matérias</h1></div><div class="loading-spinner" id="student-area"><i class="fas fa-spinner"></i> Carregando...</div></div></div>';
+        Promise.all([API.getSubjects(), API.getProgress()]).then(function(results) {
+            var subjects = results[0], progressList = results[1];
+            var area = document.getElementById('student-area');
+            if (!area) return;
+            if (subjects.length === 0) { area.innerHTML = '<div class="empty-state"><i class="fas fa-book-open"></i><h3>Nenhuma matéria disponível</h3></div>'; return; }
+            // Build progress map and fetch lesson counts
+            var pMap = {};
+            progressList.forEach(function(p) { pMap[p.lesson_id] = p; });
+            var promises = subjects.map(function(s) { return API.getLessons(s.id).then(function(ls) { s._lessons = ls; }); });
+            Promise.all(promises).then(function() {
+                var cards = subjects.map(function(s) {
+                    var ls = s._lessons || [], comp = 0;
+                    ls.forEach(function(l) { if (pMap[l.id] && pMap[l.id].completed) comp++; });
+                    var pct = ls.length > 0 ? Math.round(comp/ls.length*100) : 0;
+                    return '<div class="card" onclick="navigate(\'student-subject\',{subjectId:'+s.id+'})" style="cursor:pointer"><div class="card-header"><div><h3>'+escapeHtml(s.name)+'</h3></div><div class="card-tag student">'+pct+'%</div></div><p>'+escapeHtml(s.description)+'</p><div class="card-meta"><span><i class="fas fa-play-circle"></i> '+ls.length+' aulas</span><span><i class="fas fa-check-circle"></i> '+comp+'/'+ls.length+' concluídas</span></div><div class="card-progress-bar"><div class="fill" style="width:'+pct+'%"></div></div></div>';
+                }).join('');
+                area.innerHTML = '<div class="grid">' + cards + '</div>';
+            });
+        }).catch(function(err) { showToast(err.message, 'error'); });
+    }
+
+    /* ============================================================
+       VIEW: STUDENT SUBJECT
+       ============================================================ */
+    function renderStudentSubject() {
+        var sid = state.selectedSubjectId;
+        var app = document.getElementById('app');
+        var nav = renderNavbar([{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'}]);
+        app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="loading-spinner"><i class="fas fa-spinner"></i> Carregando...</div></div></div>';
+        Promise.all([API.getSubjects(), API.getLessons(sid), API.getProgress()]).then(function(res) {
+            var subjects=res[0], lessons=res[1], progressList=res[2];
+            var subject = subjects.find(function(s){return s.id===sid;});
+            if (!subject) { navigate('student-dashboard'); return; }
+            var pMap = {};
+            progressList.forEach(function(p) { pMap[p.lesson_id] = p; });
+            var lh = lessons.length > 0 ? '<div class="lesson-list">' + lessons.map(function(l) {
+                var p = pMap[l.id];
+                var sc = p&&p.completed?'complete':(p&&p.current_time_seconds>0?'in-progress':'pending');
+                var si = p&&p.completed?'fa-check-circle':(p&&p.current_time_seconds>0?'fa-clock':'fa-circle');
+                var sl = p&&p.completed?'Concluída':(p&&p.current_time_seconds>0?formatTime(p.current_time_seconds):'Não iniciada');
+                return '<div class="lesson-item clickable" onclick="navigate(\'student-lesson\',{lessonId:'+l.id+'})" style="cursor:pointer"><div class="order-num">'+l.order_index+'</div><div class="lesson-info"><div class="lesson-title">'+escapeHtml(l.title)+'</div><div class="lesson-meta">'+l.duration_minutes+' min &middot; '+sl+'</div></div><div class="status-icon '+sc+'"><i class="fas '+si+'"></i></div></div>';
+            }).join('') + '</div>' : '<div class="empty-state" style="padding:40px"><i class="fas fa-video"></i><h3>Nenhuma aula disponível</h3></div>';
+            app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="breadcrumb"><a onclick="navigate(\'student-dashboard\')">Matérias</a><span class="sep"><i class="fas fa-chevron-right"></i></span><span>'+escapeHtml(subject.name)+'</span></div><div class="page-header"><h1>'+escapeHtml(subject.name)+'</h1></div>'+lh+'</div></div>';
+        }).catch(function(err) { showToast(err.message,'error'); });
+    }
+
+    /* ============================================================
+       VIEW: STUDENT LESSON
+       ============================================================ */
+    function renderStudentLesson() {
+        var lid = state.selectedLessonId;
+        var app = document.getElementById('app');
+        var nav = renderNavbar([{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'}]);
+        app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="loading-spinner"><i class="fas fa-spinner"></i> Carregando...</div></div></div>';
+
+        Promise.all([API.getSubjects(), API.getProgress(lid)]).then(function(res) {
+            var subjects=res[0], progressArr=res[1];
+            var prog = progressArr.length > 0 ? progressArr[0] : { current_time_seconds:0, completed:false, last_accessed:null };
+            // We need the lesson + all lessons for nav
+            // First find which subject this lesson belongs to
+            return findLessonAndRender(subjects, lid, prog, nav);
+        }).catch(function(err) { showToast(err.message,'error'); });
+    }
+
+    function findLessonAndRender(subjects, lid, prog, nav) {
+        // Try each subject until we find the lesson
+        var allPromises = subjects.map(function(s) { return API.getLessons(s.id).then(function(ls) { return { subject:s, lessons:ls }; }); });
+        return Promise.all(allPromises).then(function(results) {
+            var lesson = null, subject = null, allLessons = [];
+            for (var i = 0; i < results.length; i++) {
+                var found = results[i].lessons.find(function(l) { return l.id === lid; });
+                if (found) { lesson = found; subject = results[i].subject; allLessons = results[i].lessons; break; }
+            }
+            if (!lesson) { navigate('student-dashboard'); return; }
+
+            var ts = lesson.duration_minutes * 60;
+            var pp = ts > 0 ? Math.min(100, Math.round(prog.current_time_seconds/ts*100)) : 0;
+            if (prog.completed) pp = 100;
+            var sm = Math.floor(prog.current_time_seconds/60), ss = prog.current_time_seconds%60;
+            var vh = lesson.embed_url ? '<div class="video-wrapper"><iframe src="'+escapeHtml(lesson.embed_url)+'" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>' : '<div class="video-placeholder"><i class="fas fa-film"></i><p>Nenhum vídeo configurado para esta aula</p></div>';
+            var rb = (prog.current_time_seconds > 0 && !prog.completed) ? '<div class="resume-banner"><i class="fas fa-play-circle"></i><span>Você parou em <strong>'+formatTime(prog.current_time_seconds)+'</strong> — avance o vídeo para essa posição</span></div>' : '';
+            var ci = allLessons.findIndex(function(l){return l.id===lid;});
+            var prev = ci>0 ? allLessons[ci-1] : null;
+            var next = ci<allLessons.length-1 ? allLessons[ci+1] : null;
+            var lnav = '<div class="lesson-nav">'+(prev?'<button class="btn btn-secondary" onclick="navigate(\'student-lesson\',{lessonId:'+prev.id+'})"><i class="fas fa-chevron-left"></i> '+escapeHtml(prev.title)+'</button>':'<div></div>')+(next?'<button class="btn btn-primary" onclick="navigate(\'student-lesson\',{lessonId:'+next.id+'})">'+escapeHtml(next.title)+' <i class="fas fa-chevron-right"></i></button>':'<div></div>')+'</div>';
+
+            var app = document.getElementById('app');
+            app.innerHTML = nav + '<div class="container"><div class="page-content">' +
+                '<div class="breadcrumb"><a onclick="navigate(\'student-dashboard\')">Matérias</a><span class="sep"><i class="fas fa-chevron-right"></i></span><a onclick="navigate(\'student-subject\',{subjectId:'+subject.id+'})">'+escapeHtml(subject.name)+'</a><span class="sep"><i class="fas fa-chevron-right"></i></span><span>'+escapeHtml(lesson.title)+'</span></div>' +
+                '<h1 style="font-size:1.5rem;margin-bottom:20px">'+escapeHtml(lesson.title)+'</h1>' + rb + vh +
+                '<div class="progress-card"><h3><i class="fas fa-bookmark"></i> Salvar seu Progresso</h3><p style="font-size:.88rem;color:var(--text-muted);margin-bottom:16px">Registre o minuto e segundo atual do vídeo para retomar de onde parou.</p><div class="time-input-group"><div><label>Minutos</label><input type="number" id="progress-min" min="0" max="999" value="'+sm+'"></div><span class="time-sep">:</span><div><label>Segundos</label><input type="number" id="progress-sec" min="0" max="59" value="'+ss+'"></div><button class="btn btn-primary btn-sm" id="save-progress-btn" style="align-self:flex-end"><i class="fas fa-save"></i> Salvar</button></div><div class="progress-bar-full"><div class="fill" style="width:'+pp+'%"></div></div><div class="progress-info"><span>'+formatTime(prog.current_time_seconds)+' / '+formatTime(ts)+'</span><span>'+pp+'% concluído</span></div><div class="complete-toggle"><label class="toggle-switch"><input type="checkbox" id="complete-toggle" '+(prog.completed?'checked':'')+'><span class="toggle-slider"></span></label><span>Marcar como concluída</span></div>'+(prog.last_accessed?'<div style="margin-top:12px;font-size:.78rem;color:var(--text-muted)"><i class="fas fa-clock"></i> Último acesso: '+new Date(prog.last_accessed).toLocaleString('pt-BR')+'</div>':'')+'</div>' +
+                lnav + '</div></div>';
+
+            // Bind progress events
+            document.getElementById('save-progress-btn').addEventListener('click', function() {
+                var mins=parseInt(document.getElementById('progress-min').value,10)||0;
+                var secs=parseInt(document.getElementById('progress-sec').value,10)||0;
+                if(secs>59)secs=59;if(mins<0)mins=0;if(secs<0)secs=0;
+                var total = mins*60+secs;
+                this.disabled=true; this.innerHTML='<i class="fas fa-spinner fa-spin"></i>';
+                API.saveProgress({ lesson_id:lid, current_time_seconds:total }).then(function() {
+                    showToast('Progresso salvo: '+formatTime(total)); render();
+                }).catch(function(err) { showToast(err.message,'error'); });
+            });
+            document.getElementById('complete-toggle').addEventListener('change', function() {
+                var checked = this.checked;
+                API.saveProgress({ lesson_id:lid, completed:checked }).then(function() {
+                    showToast(checked?'Aula marcada como concluída!':'Aula desmarcada'); render();
+                }).catch(function(err) { showToast(err.message,'error'); });
+            });
+        });
+    }
+
+    /* ============================================================
+       EVENT HANDLERS
+       ============================================================ */
+    function handleLogout() { API.clearToken(); state.user=null; state.view='login'; render(); }
+    function handleAddSubject() {
+        showFormModal('Nova Matéria',[{name:'name',label:'Nome',placeholder:'Ex: Matemática',required:true},{name:'description',label:'Descrição',type:'textarea',placeholder:'Descreva...'}],'Criar',function(v) {
+            if(!v.name.trim()){showToast('Nome obrigatório','error');return;}
+            API.createSubject({name:v.name.trim(),description:v.description.trim()}).then(function(){showToast('Matéria criada!');render();}).catch(function(e){showToast(e.message,'error');});
+        });
+    }
+    function handleEditSubject(id, name, desc) {
+        showFormModal('Editar Matéria',[{name:'name',label:'Nome',value:name,required:true},{name:'description',label:'Descrição',type:'textarea',value:desc}],'Salvar',function(v) {
+            API.updateSubject(id,{name:v.name.trim(),description:v.description.trim()}).then(function(){showToast('Atualizada!');render();}).catch(function(e){showToast(e.message,'error');});
+        });
+    }
+    function handleDeleteSubject(id, name) {
+        showConfirmModal('Excluir Matéria','Excluir "'+name+'"? Todas as aulas serão removidas.','Excluir','btn-danger',function() {
+            API.deleteSubject(id).then(function(){showToast('Excluída');render();}).catch(function(e){showToast(e.message,'error');});
+        });
+    }
+    function handleReorderLesson(id, dir) {
+        API.reorderLesson(id, dir).then(function() { render(); }).catch(function(e) { showToast(e.message,'error'); });
+    }
+    function handleEditLessonApi(id) {
+        API.getLessons(state.selectedSubjectId).then(function(lessons) {
+            var l = lessons.find(function(x){return x.id===id;});
+            if(!l) return;
+            showFormModal('Editar Aula',[{name:'title',label:'Título',value:l.title,required:true},{name:'drive_url',label:'Link Google Drive',type:'url',value:l.drive_url},{name:'duration_minutes',label:'Duração (min)',type:'number',value:String(l.duration_minutes)}],'Salvar',function(v) {
+                API.updateLesson(id,{title:v.title.trim(),drive_url:v.drive_url.trim(),duration_minutes:parseInt(v.duration_minutes,10)||0}).then(function(){showToast('Aula atualizada');render();}).catch(function(e){showToast(e.message,'error');});
+            });
+        });
+    }
+    function handleDeleteLessonApi(id, title) {
+        showConfirmModal('Excluir Aula','Excluir "'+title+'"?','Excluir','btn-danger',function() {
+            API.deleteLesson(id).then(function(){showToast('Aula excluída');render();}).catch(function(e){showToast(e.message,'error');});
+        });
+    }
+    function handleAddUser() {
+        showFormModal('Novo Usuário',[{name:'name',label:'Nome Completo',placeholder:'Ex: Ana Oliveira',required:true},{name:'username',label:'Usuário (login)',placeholder:'Ex: ana.oliveira',required:true},{name:'password',label:'Senha',placeholder:'Mín. 4 caracteres',required:true},{name:'role',label:'Perfil',type:'select',value:'student',options:[{value:'student',label:'Aluno'},{value:'admin',label:'Administrador'}]}],'Criar Usuário',function(v) {
+            if(!v.name.trim()||!v.username.trim()){showToast('Preencha todos os campos','error');return;}
+            if(v.password.length<4){showToast('Senha mín. 4 caracteres','error');return;}
+            API.createUser({name:v.name.trim(),username:v.username.trim(),password:v.password,role:v.role}).then(function(){showToast('Usuário criado!');render();}).catch(function(e){showToast(e.message,'error');});
+        });
+    }
+    function handleEditUserApi(id) {
+        API.getUsers().then(function(users) {
+            var u = users.find(function(x){return x.id===id;});
+            if(!u) return;
+            showFormModal('Editar Usuário',[{name:'name',label:'Nome',value:u.name,required:true},{name:'username',label:'Usuário',value:u.username,required:true},{name:'password',label:'Nova Senha (vazio = manter)',placeholder:'Deixe vazio para manter'},{name:'role',label:'Perfil',type:'select',value:u.role,options:[{value:'student',label:'Aluno'},{value:'admin',label:'Administrador'}]}],'Salvar',function(v) {
+                var data = {name:v.name.trim(),username:v.username.trim(),role:v.role};
+                if(v.password) data.password = v.password;
+                API.updateUser(id,data).then(function(){showToast('Usuário atualizado');render();}).catch(function(e){showToast(e.message,'error');});
+            });
+        });
+    }
+    function handleDeleteUserApi(id, name) {
+        showConfirmModal('Excluir Usuário','Excluir "'+name+'"?','Excluir','btn-danger',function() {
+            API.deleteUser(id).then(function(){showToast('Excluído');render();}).catch(function(e){showToast(e.message,'error');});
+        });
+    }
+
+    /* ============================================================
+       MAIN RENDER
+       ============================================================ */
+    function render() {
+        switch (state.view) {
+            case 'login':             renderLoginView(); break;
+            case 'admin-dashboard':   renderAdminDashboard(); break;
+            case 'admin-subject':     renderAdminSubject(); break;
+            case 'admin-users':       renderAdminUsers(); break;
+            case 'admin-schema':      renderAdminSchema(); break;
+            case 'student-dashboard': renderStudentDashboard(); break;
+            case 'student-subject':   renderStudentSubject(); break;
+            case 'student-lesson':    renderStudentLesson(); break;
+            default:                  renderLoginView();
+        }
+    }
+    function renderLoginView() {
+        document.getElementById('app').innerHTML = renderLogin();
+        bindLogin();
+    }
+
+    /* ============================================================
+       INITIALIZATION — check for saved token
+       ============================================================ */
+    (function init() {
+        var token = API.getToken();
+        if (token) {
+            API.getMe().then(function(data) {
+                state.user = data.user;
+                navigate(data.user.role === 'admin' ? 'admin-dashboard' : 'student-dashboard');
+            }).catch(function() {
+                API.clearToken();
+                render();
+            });
+        } else {
+            render();
+        }
+    })();
+    </script>
+</body>
+</html>

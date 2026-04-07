@@ -1,22 +1,18 @@
 {
-  "name": "eduflow",
-  "version": "1.0.0",
-  "description": "EduFlow — Plataforma E-Learning com Vercel + Supabase",
-  "private": true,
-  "scripts": {
-    "dev": "vercel dev",
-    "seed": "node scripts/seed.js"
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.45.0",
-    "bcryptjs": "^2.4.3",
-    "dotenv": "^16.4.5",
-    "jsonwebtoken": "^9.0.2"
-  },
-  "devDependencies": {
-    "vercel": "^37.0.0"
-  },
-  "engines": {
-    "node": ">=18"
-  }
+  "version": 2,
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/public/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
+  ]
 }
