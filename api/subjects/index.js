@@ -35,6 +35,41 @@ module.exports = async function handler(req, res) {
             return res.status(201).json(data);
         }
 
+        // ── PUT: atualizar matéria (admin, id via query param) ──
+        if (req.method === 'PUT') {
+            const user = requireAdmin(req, res);
+            if (!user) return;
+            const id = parseInt(req.query.id, 10);
+            if (!id) return res.status(400).json({ error: 'ID inválido.' });
+
+            const { name, description } = req.body || {};
+            const updates = {};
+            if (name) updates.name = name.trim();
+            if (description !== undefined) updates.description = description.trim();
+
+            const { data, error } = await supabase
+                .from('subjects')
+                .update(updates)
+                .eq('id', id)
+                .select()
+                .single();
+            if (error) return res.status(500).json({ error: error.message });
+            if (!data) return res.status(404).json({ error: 'Matéria não encontrada.' });
+            return res.status(200).json(data);
+        }
+
+        // ── DELETE: excluir matéria (admin, id via query param, cascade remove aulas) ──
+        if (req.method === 'DELETE') {
+            const user = requireAdmin(req, res);
+            if (!user) return;
+            const id = parseInt(req.query.id, 10);
+            if (!id) return res.status(400).json({ error: 'ID inválido.' });
+
+            const { error } = await supabase.from('subjects').delete().eq('id', id);
+            if (error) return res.status(500).json({ error: error.message });
+            return res.status(200).json({ success: true });
+        }
+
         return res.status(405).json({ error: 'Método não permitido' });
     } catch (err) {
         console.error('Subjects error:', err);

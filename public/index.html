@@ -218,18 +218,18 @@
 
         getUsers: function() { return this.request('GET', '/api/users'); },
         createUser: function(data) { return this.request('POST', '/api/users', data); },
-        updateUser: function(id, data) { return this.request('PUT', '/api/users/' + id, data); },
-        deleteUser: function(id) { return this.request('DELETE', '/api/users/' + id); },
+        updateUser: function(id, data) { return this.request('PUT', '/api/users?id=' + id, data); },
+        deleteUser: function(id) { return this.request('DELETE', '/api/users?id=' + id); },
 
         getSubjects: function() { return this.request('GET', '/api/subjects'); },
         createSubject: function(data) { return this.request('POST', '/api/subjects', data); },
-        updateSubject: function(id, data) { return this.request('PUT', '/api/subjects/' + id, data); },
-        deleteSubject: function(id) { return this.request('DELETE', '/api/subjects/' + id); },
+        updateSubject: function(id, data) { return this.request('PUT', '/api/subjects?id=' + id, data); },
+        deleteSubject: function(id) { return this.request('DELETE', '/api/subjects?id=' + id); },
 
         getLessons: function(subjectId) { return this.request('GET', '/api/lessons?subjectId=' + subjectId); },
         createLesson: function(data) { return this.request('POST', '/api/lessons', data); },
-        updateLesson: function(id, data) { return this.request('PUT', '/api/lessons/' + id, data); },
-        deleteLesson: function(id) { return this.request('DELETE', '/api/lessons/' + id); },
+        updateLesson: function(id, data) { return this.request('PUT', '/api/lessons?id=' + id, data); },
+        deleteLesson: function(id) { return this.request('DELETE', '/api/lessons?id=' + id); },
         reorderLesson: function(lessonId, direction) { return this.request('PUT', '/api/lessons/reorder', { lessonId: lessonId, direction: direction }); },
 
         getProgress: function(lessonId) { return this.request('GET', '/api/progress' + (lessonId ? '?lessonId=' + lessonId : '')); },
