@@ -1,0 +1,13 @@
+# ============================================
+# EduFlow — Variáveis de Ambiente
+# ============================================
+# Copie este arquivo para .env e preencha os valores
+
+# ── Supabase ──
+# Encontre em: https://supabase.com → seu projeto → Settings → API
+SUPABASE_URL=https://SEU-PROJETO.supabase.co
+SUPABASE_SERVICE_KEY=eyJhbGciOi...sua-service-role-key-aqui
+
+# ── JWT ──
+# Gere uma chave secreta forte (ex: openssl rand -hex 32)
+JWT_SECRET=sua-chave-secreta-muito-forte-aqui

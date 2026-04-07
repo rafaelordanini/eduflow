@@ -1,2 +1,3 @@
-# eduflow
-eduflow
+node_modules/
+.env
+.vercel/
