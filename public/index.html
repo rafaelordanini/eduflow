@@ -233,13 +233,15 @@
         reorderLesson: function(lessonId, direction) { return this.request('PUT', '/api/lessons/reorder', { lessonId: lessonId, direction: direction }); },
 
         getProgress: function(lessonId) { return this.request('GET', '/api/progress' + (lessonId ? '?lessonId=' + lessonId : '')); },
-        saveProgress: function(data) { return this.request('POST', '/api/progress', data); }
+        saveProgress: function(data) { return this.request('POST', '/api/progress', data); },
+
+        resetPassword: function(token, username, newPassword) { return this.request('POST', '/api/auth/reset', { token: token, username: username, newPassword: newPassword }); }
     };
 
     /* ============================================================
        STATE
        ============================================================ */
-    var state = { view: 'login', user: null, selectedSubjectId: null, selectedLessonId: null };
+    var state = { view: 'login', user: null, selectedSubjectId: null, selectedLessonId: null, resetToken: null };
 
     /* ============================================================
        UTILITIES
@@ -319,6 +321,37 @@
         return '<nav class="navbar"><div class="navbar-inner"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div><div class="navbar-links">'+lh+'</div><div class="navbar-user"><div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
     }
     function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
+
+    /* ============================================================
+       VIEW: RESET PASSWORD
+       ============================================================ */
+    function renderResetPassword() {
+        return '<div class="login-screen"><div class="login-card"><div class="login-logo">E</div><h1>EduFlow</h1><p class="subtitle">Recuperação de Senha</p><div class="login-error" id="reset-error"><i class="fas fa-exclamation-circle"></i><span id="reset-error-msg"></span></div><form id="reset-form"><div class="form-group" style="text-align:left"><label>Seu Usuário</label><input type="text" id="reset-username" placeholder="Digite seu usuário" autocomplete="username" required></div><div class="form-group" style="text-align:left"><label>Nova Senha</label><div class="password-wrapper"><input type="password" id="reset-password" placeholder="Mínimo de 4 caracteres" autocomplete="new-password" required><button type="button" class="password-toggle" id="pw-reset-toggle" tabindex="-1"><i class="fas fa-eye"></i></button></div></div><button type="submit" class="btn btn-primary" id="reset-btn" style="width:100%;justify-content:center;padding:14px"><i class="fas fa-key"></i> Redefinir Senha</button><div style="margin-top:16px;text-align:center"><a href="#" onclick="navigate(\'login\');return false;" style="font-size:.9rem;color:var(--text-muted)">Voltar ao Login</a></div></form></div></div>';
+    }
+    function bindResetPassword() {
+        var pwT = document.getElementById('pw-reset-toggle');
+        if (pwT) pwT.addEventListener('click', function() { var i=document.getElementById('reset-password'),ic=this.querySelector('i'); if(i.type==='password'){i.type='text';ic.className='fas fa-eye-slash';}else{i.type='password';ic.className='fas fa-eye';} });
+        var form = document.getElementById('reset-form');
+        if (form) form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var u=document.getElementById('reset-username').value.trim(), p=document.getElementById('reset-password').value;
+            if (!u||!p) { showResetError('Preencha todos os campos.'); return; }
+            var btn=document.getElementById('reset-btn'); btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Atualizando...';
+            API.resetPassword(state.resetToken, u, p).then(function() {
+                showToast('Senha redefinida com sucesso!', 'success');
+                // Remove the reset parameter from the URL cleanly
+                if(window.history && window.history.replaceState) {
+                    var cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({path:cleanUrl}, '', cleanUrl);
+                }
+                state.resetToken = null;
+                navigate('login');
+            }).catch(function(err) {
+                showResetError(err.message); btn.disabled=false; btn.innerHTML='<i class="fas fa-key"></i> Redefinir Senha';
+            });
+        });
+    }
+    function showResetError(msg) { var e=document.getElementById('reset-error'),m=document.getElementById('reset-error-msg'); if(e&&m){m.textContent=msg;e.classList.add('show');setTimeout(function(){e.classList.remove('show');},4000);} }
 
     /* ============================================================
        VIEW: LOGIN
@@ -633,6 +666,7 @@
     function render() {
         switch (state.view) {
             case 'login':             renderLoginView(); break;
+            case 'reset':             renderResetView(); break;
             case 'admin-dashboard':   renderAdminDashboard(); break;
             case 'admin-subject':     renderAdminSubject(); break;
             case 'admin-users':       renderAdminUsers(); break;
@@ -647,11 +681,25 @@
         document.getElementById('app').innerHTML = renderLogin();
         bindLogin();
     }
+    function renderResetView() {
+        document.getElementById('app').innerHTML = renderResetPassword();
+        bindResetPassword();
+    }
 
     /* ============================================================
        INITIALIZATION — check for saved token
        ============================================================ */
     (function init() {
+        var urlParams = new URLSearchParams(window.location.search);
+        var resetToken = urlParams.get('reset');
+
+        if (resetToken) {
+            API.clearToken();
+            state.resetToken = resetToken;
+            navigate('reset');
+            return;
+        }
+
         var token = API.getToken();
         if (token) {
             API.getMe().then(function(data) {
