@@ -371,7 +371,12 @@ A Vercel é o serviço gratuito que vai colocar sua plataforma no ar (acessível
     - **Value:** cole a chave secreta que você inventou
     - Clique **"Add"**
 
-11. Confira que as **3 variáveis** aparecem listadas abaixo do formulário
+    **Quarta variável (opcional - Recuperação de Senha):**
+    - **Key:** `RESET_SECRET_TOKEN`
+    - **Value:** crie uma palavra secreta para você recuperar sua senha (ex: `batata-123`)
+    - Clique **"Add"**
+
+11. Confira que as variáveis aparecem listadas abaixo do formulário
 12. Clique no botão azul **"Deploy"**
 13. **Aguarde 1-2 minutos** — vai aparecer um log de progresso
 14. Quando aparecer a tela de **"Congratulations!"** com confetes 🎉, o site está no ar!
@@ -407,6 +412,14 @@ Compartilhe a URL com seus alunos. Cada aluno entra com o usuário/senha que o a
 ---
 
 ## Após o Deploy — Tarefas do Dia a Dia
+
+### Como recuperar a senha esquecida
+
+1. Adicione o seu `RESET_SECRET_TOKEN` configurado na Vercel no final da sua URL do site usando `?reset=`.
+   - Exemplo: `https://eduflow-xxxxxx.vercel.app/?reset=batata-123`
+2. Você será levado a uma tela especial de recuperação de senha.
+3. Digite o seu nome de usuário (ex: `admin`) e a sua nova senha.
+4. Clique em "Redefinir Senha".
 
 ### Como trocar a senha do admin
 
