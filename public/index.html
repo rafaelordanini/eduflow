@@ -175,7 +175,38 @@
         @keyframes scaleIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
         .card,.lesson-item,.form-card{animation:fadeUp .4s ease backwards}
         /* Responsive */
-        @media(max-width:768px){.grid{grid-template-columns:1fr}.page-header h1{font-size:1.4rem}.login-card{padding:32px 24px}.form-row{flex-direction:column;gap:0}.navbar-links button span{display:none}.navbar-links button i{font-size:1.1rem}.lesson-nav{flex-direction:column}.lesson-nav .btn{justify-content:center}.user-table .hide-mobile{display:none}}
+        /* Planner */
+        .planner-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;margin-bottom:28px}
+        .hours-selector{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+        .hours-btn{padding:8px 18px;border:1.5px solid var(--border);border-radius:99px;background:var(--surface);color:var(--text-secondary);font-family:'Figtree',sans-serif;font-size:.9rem;font-weight:500;cursor:pointer;transition:all var(--transition)}
+        .hours-btn.active,.hours-btn:hover{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+        .plan-output{margin-top:8px}
+        .baron-header{display:flex;align-items:center;gap:14px;padding:20px 24px;background:linear-gradient(135deg,var(--primary),var(--primary-hover));border-radius:var(--radius-lg);color:#fff;margin-bottom:20px}
+        .baron-avatar{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:800;font-size:1.4rem;flex-shrink:0}
+        .baron-header .baron-msg{flex:1}
+        .baron-header .baron-msg h3{font-size:1rem;font-weight:600;opacity:.85;margin-bottom:4px}
+        .baron-header .baron-msg p{font-size:.95rem;line-height:1.5}
+        .plan-resumo{background:var(--accent-light);border:1px solid rgba(200,93,44,.2);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:20px;font-size:.92rem;color:var(--text);line-height:1.6}
+        .plan-blocks{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+        .plan-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 20px;display:flex;gap:16px;align-items:flex-start}
+        .plan-block.pausa{background:var(--surface-hover);border-style:dashed;opacity:.7}
+        .plan-block-time{font-size:.78rem;font-weight:700;color:var(--text-muted);white-space:nowrap;padding-top:2px;min-width:110px}
+        .plan-block-body{flex:1}
+        .plan-block-title{font-weight:700;font-size:.95rem;margin-bottom:4px}
+        .plan-block-desc{font-size:.85rem;color:var(--text-secondary);line-height:1.5}
+        .plan-block-tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+        .tag{display:inline-block;padding:2px 10px;border-radius:99px;font-size:.72rem;font-weight:600}
+        .tag-alta{background:rgba(192,57,43,.1);color:var(--danger)}
+        .tag-media{background:var(--accent-light);color:var(--accent)}
+        .tag-baixa{background:var(--primary-light);color:var(--primary)}
+        .tag-mat{background:var(--primary-light);color:var(--primary)}
+        .tag-tipo{background:rgba(0,0,0,.05);color:var(--text-muted)}
+        .plan-dica{background:var(--primary-light);border-radius:var(--radius-md);padding:14px 18px;font-size:.88rem;color:var(--text);display:flex;gap:10px;align-items:flex-start}
+        .plan-dica i{color:var(--primary);margin-top:2px;flex-shrink:0}
+        .plan-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;gap:12px;color:var(--text-muted)}
+        .plan-loading i{font-size:2rem;animation:spin 1s linear infinite;color:var(--primary)}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @media(max-width:768px){.grid{grid-template-columns:1fr}.page-header h1{font-size:1.4rem}.login-card{padding:32px 24px}.form-row{flex-direction:column;gap:0}.navbar-links button span{display:none}.navbar-links button i{font-size:1.1rem}.lesson-nav{flex-direction:column}.lesson-nav .btn{justify-content:center}.user-table .hide-mobile{display:none}.plan-block{flex-direction:column;gap:6px}.plan-block-time{min-width:auto}}
         @media(max-width:480px){.navbar-inner{height:52px}.navbar-brand span{display:none}.page-content{padding:20px 0 40px}.container{padding:0 14px}}
     </style>
 </head>
@@ -321,6 +352,7 @@
         return '<nav class="navbar"><div class="navbar-inner"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div><div class="navbar-links">'+lh+'</div><div class="navbar-user"><div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
     }
     function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
+    function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'}]; }
 
     /* ============================================================
        VIEW: RESET PASSWORD
@@ -479,11 +511,101 @@
     }
 
     /* ============================================================
+       VIEW: STUDENT PLANNER
+       ============================================================ */
+    function renderStudentPlanner() {
+        var app = document.getElementById('app');
+        var nav = renderNavbar(studentNav());
+        app.innerHTML = nav + '<div class="container"><div class="page-content">' +
+            '<div class="page-header"><h1><i class="fas fa-calendar-day" style="color:var(--primary);margin-right:10px"></i>Plano de Hoje</h1></div>' +
+            '<div class="planner-form" id="planner-form">' +
+              '<div class="planner-form-label">Quantas horas você tem disponíveis hoje?</div>' +
+              '<div class="hours-selector">' +
+                '<button class="hours-btn" onclick="selectHours(this,1)">1h</button>' +
+                '<button class="hours-btn" onclick="selectHours(this,2)">2h</button>' +
+                '<button class="hours-btn" onclick="selectHours(this,3)">3h</button>' +
+                '<button class="hours-btn" onclick="selectHours(this,4)">4h</button>' +
+                '<button class="hours-btn" onclick="selectHours(this,5)">5h</button>' +
+                '<button class="hours-btn" onclick="selectHours(this,6)">6h</button>' +
+                '<button class="hours-btn" onclick="selectHours(this,8)">8h</button>' +
+              '</div>' +
+              '<input type="hidden" id="planner-hours" value="3">' +
+              '<div style="margin-top:16px">' +
+                '<label style="font-size:.9rem;color:var(--text-secondary);font-weight:500">Observações (opcional)</label>' +
+                '<textarea id="planner-obs" placeholder="Ex: Hoje prefiro revisar, tenho prova semana que vem em HB…" style="width:100%;margin-top:6px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-family:\'Figtree\',sans-serif;font-size:.9rem;background:var(--bg);color:var(--text);resize:vertical;min-height:72px"></textarea>' +
+              '</div>' +
+              '<button class="btn" style="margin-top:16px;width:100%;justify-content:center;padding:14px" onclick="gerarPlano()">' +
+                '<i class="fas fa-magic"></i> Gerar Plano com IA' +
+              '</button>' +
+            '</div>' +
+            '<div id="plan-output" class="plan-output" style="display:none"></div>' +
+            '</div></div>';
+        // pre-select 3h
+        var btns = document.querySelectorAll('.hours-btn');
+        btns.forEach(function(b) { if (b.textContent === '3h') b.classList.add('active'); });
+    }
+
+    function selectHours(btn, h) {
+        document.querySelectorAll('.hours-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('planner-hours').value = h;
+    }
+
+    function gerarPlano() {
+        var hours = parseFloat(document.getElementById('planner-hours').value) || 3;
+        var obs = (document.getElementById('planner-obs').value || '').trim();
+        var out = document.getElementById('plan-output');
+        out.style.display = 'block';
+        out.innerHTML = '<div class="plan-loading"><i class="fas fa-spinner fa-spin"></i> O Barão está elaborando seu plano personalizado…</div>';
+        API.request('/api/generate-plan', {
+            method: 'POST',
+            body: JSON.stringify({ horasDisponiveis: hours, observacoes: obs })
+        }).then(function(plan) {
+            renderPlano(plan);
+        }).catch(function(err) {
+            out.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
+        });
+    }
+
+    function renderPlano(plan) {
+        var out = document.getElementById('plan-output');
+        var recTag = { 'Alta': 'tag-alta', 'Média': 'tag-media', 'Baixa': 'tag-baixa' };
+        var blocosHtml = (plan.blocos || []).map(function(b) {
+            var tags = '';
+            if (b.recorrencia) tags += '<span class="tag ' + (recTag[b.recorrencia] || '') + '">' + b.recorrencia + '</span>';
+            if (b.materia) tags += '<span class="tag tag-mat">' + escapeHtml(b.materia) + '</span>';
+            if (b.tipo) tags += '<span class="tag tag-tipo">' + escapeHtml(b.tipo) + '</span>';
+            return '<div class="plan-block">' +
+                '<div class="plan-block-time"><i class="fas fa-clock"></i> ' + escapeHtml(b.horario || '') + ' <span style="font-size:.8rem;color:var(--text-muted)">(' + (b.duracaoMin || '') + 'min)</span></div>' +
+                '<div class="plan-block-body">' +
+                  '<div style="font-weight:600;font-size:1rem;margin-bottom:4px">' + escapeHtml(b.titulo || '') + '</div>' +
+                  (b.descricao ? '<div style="font-size:.88rem;color:var(--text-secondary);margin-bottom:8px">' + escapeHtml(b.descricao) + '</div>' : '') +
+                  (tags ? '<div class="plan-block-tags">' + tags + '</div>' : '') +
+                '</div>' +
+            '</div>';
+        }).join('');
+        var pausasHtml = (plan.pausas || []).length ? '<div style="font-size:.85rem;color:var(--text-muted);margin-top:8px"><i class="fas fa-coffee"></i> Pausas: ' + plan.pausas.map(function(p){ return escapeHtml(p); }).join(' · ') + '</div>' : '';
+        out.innerHTML =
+            '<div class="baron-header">' +
+              '<div class="baron-avatar"><i class="fas fa-user-tie"></i></div>' +
+              '<div>' +
+                '<div style="font-weight:700;font-size:1.05rem">Barão do EduFlow</div>' +
+                '<div style="font-size:.88rem;color:var(--text-secondary)">' + escapeHtml(plan.saudacao || '') + '</div>' +
+              '</div>' +
+            '</div>' +
+            (plan.resumoDia ? '<div style="background:var(--primary-light);border-left:4px solid var(--primary);padding:14px 16px;border-radius:0 var(--radius-md) var(--radius-md) 0;margin-bottom:20px;font-size:.93rem;line-height:1.6">' + escapeHtml(plan.resumoDia) + '</div>' : '') +
+            '<div class="plan-blocks">' + blocosHtml + '</div>' +
+            pausasHtml +
+            (plan.dicaDoDia ? '<div class="plan-dica"><i class="fas fa-lightbulb"></i> <strong>Dica do dia:</strong> ' + escapeHtml(plan.dicaDoDia) + '</div>' : '') +
+            '<div style="text-align:center;margin-top:20px;font-size:.82rem;color:var(--text-muted)"><i class="fas fa-clock"></i> Total: ' + (plan.totalHorasEstudo || '') + 'h de estudo</div>';
+    }
+
+    /* ============================================================
        VIEW: STUDENT DASHBOARD
        ============================================================ */
     function renderStudentDashboard() {
         var app = document.getElementById('app');
-        var nav = renderNavbar([{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'}]);
+        var nav = renderNavbar(studentNav());
         app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="page-header"><h1>Minhas Matérias</h1></div><div class="loading-spinner" id="student-area"><i class="fas fa-spinner"></i> Carregando...</div></div></div>';
         Promise.all([API.getSubjects(), API.getProgress()]).then(function(results) {
             var subjects = results[0], progressList = results[1];
@@ -671,6 +793,7 @@
             case 'admin-subject':     renderAdminSubject(); break;
             case 'admin-users':       renderAdminUsers(); break;
             case 'admin-schema':      renderAdminSchema(); break;
+            case 'student-planner':   renderStudentPlanner(); break;
             case 'student-dashboard': renderStudentDashboard(); break;
             case 'student-subject':   renderStudentSubject(); break;
             case 'student-lesson':    renderStudentLesson(); break;
