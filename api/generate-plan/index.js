@@ -243,56 +243,9 @@ module.exports = async function handler(req, res) {
       return `**${m.nome}** (${m.totalTopicos} tópicos, prioridade ${m.prioridade}):\n${blocos}`;
     }).join('\n\n');
 
-    const systemPrompt = `Você é o Barão — um coach de estudos rigoroso e estratégico especializado no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Você conhece profundamente o edital, as provas anteriores e as melhores estratégias de estudo para esse concurso.
+    const systemPrompt = `Você é o Barão — um coach de estudos rigoroso e estratégico especializado no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Você conhece profundamente o edital, as provas anteriores e as melhores estratégias de estudo para esse concurso.\n\nSua missão é gerar planos de estudo diários personalizados, realistas e motivadores. Você prioriza tópicos de ALTA recorrência nas provas, equilibra as matérias de acordo com o tempo disponível, e sempre indica leituras específicas (livro, capítulo, páginas).\n\nResponda SEMPRE em JSON válido com a seguinte estrutura:\n{\n  "saudacao": "mensagem motivadora curta (1-2 frases) personalizada para o dia",\n  "resumoDia": "resumo estratégico do plano (2-3 frases explicando a lógica por trás da distribuição)",\n  "blocos": [\n    {\n      "horario": "ex: 08:00 – 09:30",\n      "materia": "nome da matéria",\n      "atividade": "tipo: aula | leitura | fichamento | tps | revisao",\n      "titulo": "título específico do que fazer (ex: 'Aula 3 – Era Vargas: Estado Novo')",\n      "descricao": "instrução detalhada: o que ler, qual aula assistir, quais capítulos, etc.",\n      "duracaoMin": 90,\n      "recorrencia": "Alta | Média | Baixa"\n    }\n  ],\n  "pausas": [\n    { "horario": "ex: 09:30 – 09:45", "tipo": "Pausa curta" }\n  ],\n  "dicaDoDia": "dica específica de técnica de estudo para o CACD (ex: como fazer fichamento eficiente, como treinar TPS, etc.)",\n  "totalHorasEstudo": 3.5\n}`;
 
-Sua missão é gerar planos de estudo diários personalizados, realistas e motivadores. Você prioriza tópicos de ALTA recorrência nas provas, equilibra as matérias de acordo com o tempo disponível, e sempre indica leituras específicas (livro, capítulo, páginas).
-
-Responda SEMPRE em JSON válido com a seguinte estrutura:
-{
-  "saudacao": "mensagem motivadora curta (1-2 frases) personalizada para o dia",
-  "resumoDia": "resumo estratégico do plano (2-3 frases explicando a lógica por trás da distribuição)",
-  "blocos": [
-    {
-      "horario": "ex: 08:00 – 09:30",
-      "materia": "nome da matéria",
-      "atividade": "tipo: aula | leitura | fichamento | tps | revisao",
-      "titulo": "título específico do que fazer (ex: 'Aula 3 – Era Vargas: Estado Novo')",
-      "descricao": "instrução detalhada: o que ler, qual aula assistir, quais capítulos, etc.",
-      "duracaoMin": 90,
-      "recorrencia": "Alta | Média | Baixa"
-    }
-  ],
-  "pausas": [
-    { "horario": "ex: 09:30 – 09:45", "tipo": "Pausa curta" }
-  ],
-  "dicaDoDia": "dica específica de técnica de estudo para o CACD (ex: como fazer fichamento eficiente, como treinar TPS, etc.)",
-  "totalHorasEstudo": 3.5
-}`;
-
-    const userPrompt = `# Plano de estudos para hoje
-
-**Data:** ${hoje}
-**Horas disponíveis:** ${horasDisponiveis}h
-**Matérias em foco atual:** ${focoStr}
-${observacoes ? `**Observações do estudante:** ${observacoes}` : ''}
-
-## Progresso atual nas aulas (EduFlow):
-${progressoTexto}
-
-## Estrutura completa do CACD (${CACD_DATA.totalTopicos} tópicos no total):
-${materiasTexto}
-
-## Instruções para gerar o plano:
-1. Distribua as ${horasDisponiveis}h priorizando as matérias em foco: ${focoStr}
-2. Dentro de cada matéria, priorize tópicos de ALTA recorrência
-3. Inclua pausas estratégicas (5min a cada 25min ou 15min a cada 90min)
-4. Indique leituras ESPECÍFICAS com livro + capítulo/páginas sempre que disponível
-5. Varie os tipos de atividade (não coloque só leituras ou só aulas seguidas)
-6. Para tópicos com aulas disponíveis no EduFlow, sugira assistir a aula específica
-7. Se houver menos de 2h, foque em 1-2 matérias apenas com alta prioridade
-8. Os horários devem começar às 08:00 por padrão (ajuste para o contexto)
-9. Seja específico: não diga "estude história", diga "Leia Fausto HB cap.4 pp.141-180: Primeiro Reinado"
-10. Retorne SOMENTE o JSON, sem markdown adicional`;
+    const userPrompt = `# Plano de estudos para hoje\n\n**Data:** ${hoje}\n**Horas disponíveis:** ${horasDisponiveis}h\n**Matérias em foco atual:** ${focoStr}\n${observacoes ? `**Observações do estudante:** ${observacoes}` : ''}\n\n## Progresso atual nas aulas (EduFlow):\n${progressoTexto}\n\n## Estrutura completa do CACD (${CACD_DATA.totalTopicos} tópicos no total):\n${materiasTexto}\n\n## Instruções para gerar o plano:\n1. Distribua as ${horasDisponiveis}h priorizando as matérias em foco: ${focoStr}\n2. Dentro de cada matéria, priorize tópicos de ALTA recorrência\n3. Inclua pausas estratégicas (5min a cada 25min ou 15min a cada 90min)\n4. Indique leituras ESPECÍFICAS com livro + capítulo/páginas sempre que disponível\n5. Varie os tipos de atividade (não coloque só leituras ou só aulas seguidas)\n6. Para tópicos com aulas disponíveis no EduFlow, sugira assistir a aula específica\n7. Se houver menos de 2h, foque em 1-2 matérias apenas com alta prioridade\n8. Os horários devem começar às 08:00 por padrão (ajuste para o contexto)\n9. Seja específico: não diga "estude história", diga "Leia Fausto HB cap.4 pp.141-180: Primeiro Reinado"\n10. Retorne SOMENTE o JSON, sem markdown adicional`;
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -329,7 +282,6 @@ ${materiasTexto}
     try {
       plano = JSON.parse(content);
     } catch (e) {
-      // Tentar extrair JSON de markdown
       const match = content.match(/```json\n?([\s\S]+?)\n?```/) || content.match(/({[\s\S]+})/);
       if (match) {
         plano = JSON.parse(match[1]);
