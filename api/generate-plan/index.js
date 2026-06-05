@@ -171,7 +171,7 @@ const CACD_DATA = {
   }
 };
 
-const OPENROUTER_MODEL = 'google/gemini-2.5-flash-preview-05-20';
+const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
 
 module.exports = async function handler(req, res) {
   try {
@@ -308,15 +308,14 @@ ${materiasTexto}
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.7,
-        response_format: { type: 'json_object' }
+        temperature: 0.7
       })
     });
 
     if (!response.ok) {
       const errText = await response.text();
       console.error('OpenRouter error:', errText);
-      return res.status(502).json({ error: 'Erro ao chamar o modelo de IA. Tente novamente.' });
+      return res.status(502).json({ error: 'Erro ao chamar o modelo de IA: ' + errText.substring(0, 200) });
     }
 
     const aiResponse = await response.json();
