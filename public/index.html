@@ -557,10 +557,7 @@
         var out = document.getElementById('plan-output');
         out.style.display = 'block';
         out.innerHTML = '<div class="plan-loading"><i class="fas fa-spinner fa-spin"></i> O Barão está elaborando seu plano personalizado…</div>';
-        API.request('/api/generate-plan', {
-            method: 'POST',
-            body: JSON.stringify({ horasDisponiveis: hours, observacoes: obs })
-        }).then(function(plan) {
+        API.request('POST', '/api/generate-plan', { horasDisponiveis: hours, observacoes: obs }).then(function(plan) {
             renderPlano(plan);
         }).catch(function(err) {
             out.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
