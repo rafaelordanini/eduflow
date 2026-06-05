@@ -3,7 +3,7 @@
 
 DO $$
 DECLARE
-  sid uuid;
+  sid integer;
 BEGIN
 
   -- História do Brasil
