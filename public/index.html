@@ -208,6 +208,60 @@
         @keyframes spin{to{transform:rotate(360deg)}}
         @media(max-width:768px){.grid{grid-template-columns:1fr}.page-header h1{font-size:1.4rem}.login-card{padding:32px 24px}.form-row{flex-direction:column;gap:0}.navbar-links button span{display:none}.navbar-links button i{font-size:1.1rem}.lesson-nav{flex-direction:column}.lesson-nav .btn{justify-content:center}.user-table .hide-mobile{display:none}.plan-block{flex-direction:column;gap:6px}.plan-block-time{min-width:auto}}
         @media(max-width:480px){.navbar-inner{height:52px}.navbar-brand span{display:none}.page-content{padding:20px 0 40px}.container{padding:0 14px}}
+        /* Plan History */
+        .history-section{margin-top:36px}
+        .history-section h2{font-size:1.15rem;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:var(--text-secondary)}
+        .history-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 20px;margin-bottom:10px;cursor:pointer;transition:all var(--transition)}
+        .history-card:hover{background:var(--surface-hover);box-shadow:var(--shadow-sm)}
+        .history-card-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+        .history-card-date{font-weight:700;font-size:.95rem}
+        .history-card-meta{font-size:.82rem;color:var(--text-muted)}
+        .history-card-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:none}
+        .history-card-body.open{display:block}
+        /* Macro Planner */
+        .macro-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;margin-bottom:28px}
+        .macro-form h2{font-size:1.15rem;margin-bottom:20px}
+        .macro-output{margin-top:8px}
+        .macro-semana{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:12px;overflow:hidden}
+        .macro-semana-header{padding:14px 20px;background:var(--primary-light);cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:.95rem}
+        .macro-semana-body{padding:16px 20px;display:none;border-top:1px solid var(--border)}
+        .macro-semana-body.open{display:block}
+        .macro-materia{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+        .macro-materia:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+        .macro-materia-name{font-weight:700;color:var(--primary);font-size:.95rem;margin-bottom:6px}
+        .macro-materia-topico{font-size:.88rem;color:var(--text-secondary);margin-bottom:6px}
+        .macro-atividade{display:flex;gap:8px;align-items:flex-start;font-size:.85rem;color:var(--text-secondary);margin-bottom:4px}
+        .macro-atividade i{color:var(--accent);margin-top:2px;flex-shrink:0}
+        .macro-leituras{font-size:.82rem;color:var(--text-muted);margin-top:6px;font-style:italic}
+        /* Lesson Readings */
+        .readings-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px}
+        .readings-section h3{font-size:1rem;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .readings-section h3 i{color:var(--primary)}
+        .reading-progress{font-size:.82rem;color:var(--text-muted);margin-bottom:14px}
+        .reading-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity var(--transition)}
+        .reading-item:last-child{border-bottom:none}
+        .reading-item:hover{opacity:.8}
+        .reading-item input[type="checkbox"]{width:18px;height:18px;accent-color:var(--primary);flex-shrink:0;cursor:pointer}
+        .reading-item label{flex:1;font-size:.9rem;cursor:pointer;line-height:1.4}
+        .reading-item.done label{text-decoration:line-through;color:var(--text-muted)}
+        /* Questions Section */
+        .questions-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px}
+        .questions-section h3{font-size:1rem;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .questions-section h3 i{color:var(--accent)}
+        .questao-card{background:var(--surface-hover);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin-bottom:12px}
+        .questao-enunciado{font-size:.92rem;line-height:1.6;font-weight:500;margin-bottom:14px}
+        .questao-opcao{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;transition:background var(--transition);margin-bottom:4px}
+        .questao-opcao:hover{background:var(--primary-light)}
+        .questao-opcao input[type="radio"]{margin-top:3px;accent-color:var(--primary);flex-shrink:0}
+        .questao-opcao label{flex:1;font-size:.88rem;cursor:pointer;line-height:1.5}
+        .questao-gabarito{margin-top:14px;padding:12px 16px;border-radius:var(--radius-sm);font-size:.88rem;display:none}
+        .questao-gabarito.show{display:block}
+        .questao-gabarito.correct{background:rgba(39,174,96,.1);border:1px solid var(--success);color:var(--success)}
+        .questao-gabarito.wrong{background:rgba(192,57,43,.08);border:1px solid var(--danger);color:var(--danger)}
+        .questao-explicacao{margin-top:10px;padding:12px 14px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.85rem;color:var(--text);line-height:1.6;display:none}
+        .questao-explicacao.show{display:block}
+        .questoes-score{text-align:center;padding:20px;font-size:1.1rem;font-weight:700;color:var(--primary);display:none}
+        .questoes-score.show{display:block}
     </style>
 </head>
 <body>
@@ -266,7 +320,11 @@
         getProgress: function(lessonId) { return this.request('GET', '/api/progress' + (lessonId ? '?lessonId=' + lessonId : '')); },
         saveProgress: function(data) { return this.request('POST', '/api/progress', data); },
 
-        resetPassword: function(token, username, newPassword) { return this.request('POST', '/api/auth/reset', { token: token, username: username, newPassword: newPassword }); }
+        resetPassword: function(token, username, newPassword) { return this.request('POST', '/api/auth/reset', { token: token, username: username, newPassword: newPassword }); },
+
+        generateMacroPlan: function(data) { return this.request('POST', '/api/generate-macro-plan', data); },
+        getPlansHistory: function() { return this.request('GET', '/api/plans-history'); },
+        generateQuestions: function(data) { return this.request('POST', '/api/generate-questions', data); }
     };
 
     /* ============================================================
@@ -352,7 +410,7 @@
         return '<nav class="navbar"><div class="navbar-inner"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div><div class="navbar-links">'+lh+'</div><div class="navbar-user"><div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
     }
     function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
-    function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'}]; }
+    function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-road',label:'Plano Mestre'}]; }
 
     /* ============================================================
        VIEW: RESET PASSWORD
@@ -539,10 +597,77 @@
               '</button>' +
             '</div>' +
             '<div id="plan-output" class="plan-output" style="display:none"></div>' +
+            '<div class="history-section" id="history-section" style="display:none">' +
+              '<h2><i class="fas fa-history"></i> Histórico de Planos</h2>' +
+              '<div id="history-list"><div class="loading-spinner"><i class="fas fa-spinner"></i> Carregando histórico...</div></div>' +
+            '</div>' +
             '</div></div>';
         // pre-select 3h
         var btns = document.querySelectorAll('.hours-btn');
         btns.forEach(function(b) { if (b.textContent === '3h') b.classList.add('active'); });
+        // auto-load history
+        loadPlansHistory();
+    }
+
+    function loadPlansHistory() {
+        API.getPlansHistory().then(function(plans) {
+            var section = document.getElementById('history-section');
+            var list = document.getElementById('history-list');
+            if (!section || !list) return;
+            if (!plans || plans.length === 0) { section.style.display = 'none'; return; }
+            section.style.display = 'block';
+            // Check if today's plan already exists and show it
+            var today = new Date().toISOString().split('T')[0];
+            var todayPlan = plans.find(function(p) { return p.plan_date === today; });
+            if (todayPlan) {
+                var out = document.getElementById('plan-output');
+                if (out && out.style.display === 'none') {
+                    out.style.display = 'block';
+                    renderPlano(todayPlan.plan_json);
+                }
+            }
+            list.innerHTML = plans.map(function(p, idx) {
+                var dateStr = p.plan_date ? new Date(p.plan_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '';
+                var blocos = (p.plan_json && p.plan_json.blocos) ? p.plan_json.blocos.length + ' blocos' : '';
+                return '<div class="history-card" onclick="toggleHistoryCard(this,' + idx + ')">' +
+                    '<div class="history-card-header">' +
+                      '<div><div class="history-card-date"><i class="fas fa-calendar-check" style="color:var(--primary);margin-right:6px"></i>' + escapeHtml(dateStr) + '</div>' +
+                      '<div class="history-card-meta">' + escapeHtml(p.hours_available + 'h disponíveis') + (p.focus_subjects ? ' · ' + escapeHtml(p.focus_subjects) : '') + (blocos ? ' · ' + blocos : '') + '</div></div>' +
+                      '<i class="fas fa-chevron-down" style="color:var(--text-muted);transition:transform .2s ease"></i>' +
+                    '</div>' +
+                    '<div class="history-card-body" id="hcb-' + idx + '">' +
+                      renderPlanoInline(p.plan_json) +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }).catch(function() { /* silently ignore */ });
+    }
+
+    function toggleHistoryCard(card, idx) {
+        var body = document.getElementById('hcb-' + idx);
+        var icon = card.querySelector('.fa-chevron-down,.fa-chevron-up');
+        if (!body) return;
+        var isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        if (icon) { icon.className = isOpen ? 'fas fa-chevron-down' : 'fas fa-chevron-up'; icon.style.transform = isOpen ? '' : 'rotate(180deg)'; }
+    }
+
+    function renderPlanoInline(plan) {
+        if (!plan) return '<p style="color:var(--text-muted);font-size:.88rem">Plano sem dados.</p>';
+        var recTag = { 'Alta': 'tag-alta', 'Média': 'tag-media', 'Baixa': 'tag-baixa' };
+        var blocosHtml = (plan.blocos || []).map(function(b) {
+            var tags = '';
+            if (b.recorrencia) tags += '<span class="tag ' + (recTag[b.recorrencia] || '') + '">' + b.recorrencia + '</span>';
+            if (b.materia) tags += '<span class="tag tag-mat">' + escapeHtml(b.materia) + '</span>';
+            return '<div class="plan-block">' +
+                '<div class="plan-block-time"><i class="fas fa-clock"></i> ' + escapeHtml(b.horario || '') + '</div>' +
+                '<div class="plan-block-body"><div style="font-weight:600;font-size:.9rem">' + escapeHtml(b.titulo || '') + '</div>' +
+                (b.descricao ? '<div style="font-size:.82rem;color:var(--text-secondary);margin-top:4px">' + escapeHtml(b.descricao) + '</div>' : '') +
+                (tags ? '<div class="plan-block-tags" style="margin-top:6px">' + tags + '</div>' : '') +
+                '</div></div>';
+        }).join('');
+        return '<div class="plan-blocks" style="margin-bottom:0">' + blocosHtml + '</div>' +
+            (plan.dicaDoDia ? '<div class="plan-dica" style="margin-top:10px"><i class="fas fa-lightbulb"></i> ' + escapeHtml(plan.dicaDoDia) + '</div>' : '');
     }
 
     function selectHours(btn, h) {
@@ -559,6 +684,7 @@
         out.innerHTML = '<div class="plan-loading"><i class="fas fa-spinner fa-spin"></i> O Barão está elaborando seu plano personalizado…</div>';
         API.request('POST', '/api/generate-plan', { horasDisponiveis: hours, observacoes: obs }).then(function(plan) {
             renderPlano(plan);
+            loadPlansHistory();
         }).catch(function(err) {
             out.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
         });
@@ -669,6 +795,152 @@
         }).catch(function(err) { showToast(err.message,'error'); });
     }
 
+    /* Readings per subject */
+    var LESSON_READINGS = {
+        'História do Brasil': ['Fausto HB caps.1-11', 'Linhares HGB caps.1-10', 'Schwarcz&Starling caps.1-4', 'Ricupero Diplomacia Partes I-V', 'Doratioto Maldita Guerra', 'Cervo HPEB caps.3,10,13-14', 'Gerson Moura Autonomia na Dependência', 'Angela Alonso Flores votos e balas'],
+        'História Mundial': ['Hobsbawm Era das Revoluções', 'Hobsbawm Era do Capital', 'Hobsbawm Era dos Impérios', 'Hobsbawm Era dos Extremos', 'Saraiva HRI caps.1-8', 'Burns v.1-2 caps. principais', 'Gaddis The Cold War', 'Kissinger O Mundo Restaurado'],
+        'Português': ['Cunha & Cintra Nova Gramática do Português Contemporâneo', 'Bechara Moderna Gramática Portuguesa', 'Bosi História Concisa da Literatura Brasileira', 'Jakobson Linguística e Comunicação'],
+        'Geografia': ['Magnoli Geografia caps. principais', 'Atlas Geográfico Escolar (IBGE)', 'relatórios do IPCC'],
+        'Política Internacional': ['Saraiva HRI caps.1-8', 'Herz & Hoffmann Organizações Internacionais', 'Cervo HPEB caps. principais'],
+        'Economia': ['Mankiw Introdução à Economia', 'Vasconcellos Economia Micro e Macro', 'Gremaud Economia Brasileira Contemporânea'],
+        'Direito Interno': ['Constituição Federal 1988', 'Di Pietro Direito Administrativo', 'Carvalho Filho Manual de Direito Administrativo'],
+        'Direito Internacional': ['Rezek Direito Internacional Público', 'Mazzuoli Curso de Direito Internacional Público', 'Convenção de Viena sobre Direito dos Tratados'],
+        'Inglês': ['Gramática Oxford Advanced Learner', 'Financial Times artigos recentes', 'The Economist artigos recentes'],
+        'Espanhol': ['Gramática española em uso (nível avançado)', 'El País artigos recentes'],
+        'Francês': ['Bescherelle La conjugaison', 'Le Monde artigos recentes', 'Grammaire progressive du français (nível avançado)']
+    };
+
+    function getReadingKey(userId, lessonId, idx) { return 'reading_' + userId + '_' + lessonId + '_' + idx; }
+
+    function renderReadingsSection(subjectName, lessonId) {
+        var readings = LESSON_READINGS[subjectName];
+        if (!readings || readings.length === 0) return '';
+        var userId = state.user ? state.user.id : 'anon';
+        var done = 0;
+        readings.forEach(function(r, i) {
+            try { if (_store.getItem(getReadingKey(userId, lessonId, i)) === '1') done++; } catch(e) {}
+        });
+        var itemsHtml = readings.map(function(r, i) {
+            var checked = false;
+            try { checked = _store.getItem(getReadingKey(userId, lessonId, i)) === '1'; } catch(e) {}
+            return '<div class="reading-item' + (checked ? ' done' : '') + '" id="ri-' + i + '">' +
+                '<input type="checkbox" id="rc-' + i + '" ' + (checked ? 'checked' : '') + ' onchange="toggleReading(' + lessonId + ',' + i + ',this.checked)">' +
+                '<label for="rc-' + i + '">' + escapeHtml(r) + '</label>' +
+            '</div>';
+        }).join('');
+        return '<div class="readings-section">' +
+            '<h3><i class="fas fa-book-open"></i> Leituras Recomendadas — ' + escapeHtml(subjectName) + '</h3>' +
+            '<div class="reading-progress" id="reading-progress-' + lessonId + '">' + done + '/' + readings.length + ' leituras feitas</div>' +
+            itemsHtml +
+        '</div>';
+    }
+
+    function toggleReading(lessonId, idx, checked) {
+        var userId = state.user ? state.user.id : 'anon';
+        try { _store.setItem(getReadingKey(userId, lessonId, idx), checked ? '1' : '0'); } catch(e) {}
+        var item = document.getElementById('ri-' + idx);
+        if (item) item.classList.toggle('done', checked);
+        // Update counter
+        var subjectName = null;
+        Object.keys(LESSON_READINGS).forEach(function(k) {
+            // find the currently rendered subject by checking rendered items
+        });
+        var total = 0, done = 0;
+        var allItems = document.querySelectorAll('.reading-item');
+        allItems.forEach(function(el, i) {
+            total++;
+            var cb = el.querySelector('input[type="checkbox"]');
+            if (cb && cb.checked) done++;
+        });
+        var prog = document.getElementById('reading-progress-' + lessonId);
+        if (prog) prog.textContent = done + '/' + total + ' leituras feitas';
+    }
+
+    function renderQuestionsSection(lessonId, subjectName, lessonTitle) {
+        return '<div class="questions-section">' +
+            '<h3><i class="fas fa-question-circle"></i> Questões CACD</h3>' +
+            '<p style="font-size:.88rem;color:var(--text-muted);margin-bottom:16px">Questões no estilo das provas TPS do CACD geradas por IA para este tópico.</p>' +
+            '<button class="btn btn-accent" id="gen-questions-btn" onclick="gerarQuestoes(' + lessonId + ',\'' + escapeHtml(subjectName).replace(/'/g,"\\'") + '\',\'' + escapeHtml(lessonTitle).replace(/'/g,"\\'") + '\')">' +
+              '<i class="fas fa-brain"></i> Gerar Questões' +
+            '</button>' +
+            '<div id="questions-output" style="margin-top:16px"></div>' +
+        '</div>';
+    }
+
+    function gerarQuestoes(lessonId, subjectName, lessonTitle) {
+        var btn = document.getElementById('gen-questions-btn');
+        var out = document.getElementById('questions-output');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando questões…'; }
+        out.innerHTML = '';
+        API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 5 }).then(function(data) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Regerar Questões'; }
+            renderQuestoes(data.questoes || [], out);
+        }).catch(function(err) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-brain"></i> Tentar Novamente'; }
+            out.innerHTML = '<div style="color:var(--danger);font-size:.88rem"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
+        });
+    }
+
+    function renderQuestoes(questoes, container) {
+        if (!questoes || questoes.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);font-size:.88rem">Nenhuma questão disponível.</p>'; return; }
+        var answered = {};
+        var html = questoes.map(function(q, qi) {
+            var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
+                var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
+                if (!text) return '';
+                return '<div class="questao-opcao"><input type="radio" name="q' + qi + '" id="q' + qi + op + '" value="' + op + '" onchange="selecionarOpcao(' + qi + ',\'' + op + '\')">' +
+                    '<label for="q' + qi + op + '"><strong>' + op + ')</strong> ' + escapeHtml(text) + '</label></div>';
+            }).join('');
+            return '<div class="questao-card" id="qcard-' + qi + '">' +
+                '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
+                opcoesHtml +
+                '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ',\'' + escapeHtml(q.gabarito || '') + '\',\'' + escapeHtml((q.explicacao || '').replace(/'/g,"\\'")) + '\')">' +
+                  '<i class="fas fa-check"></i> Conferir Resposta' +
+                '</button>' +
+                '<div class="questao-gabarito" id="qgab-' + qi + '"></div>' +
+                '<div class="questao-explicacao" id="qexp-' + qi + '">' + escapeHtml(q.explicacao || '') + '</div>' +
+            '</div>';
+        }).join('');
+        html += '<div class="questoes-score" id="questoes-score"></div>';
+        container.innerHTML = html;
+        container._questoes = questoes;
+    }
+
+    function selecionarOpcao(qi, op) {
+        // just UI feedback handled by radio
+    }
+
+    function conferirResposta(qi, gabarito, explicacao) {
+        var radios = document.querySelectorAll('input[name="q' + qi + '"]');
+        var selected = null;
+        radios.forEach(function(r) { if (r.checked) selected = r.value; });
+        var gabEl = document.getElementById('qgab-' + qi);
+        var expEl = document.getElementById('qexp-' + qi);
+        if (!selected) { showToast('Selecione uma opção antes de conferir', 'error'); return; }
+        var correct = selected === gabarito;
+        if (gabEl) {
+            gabEl.className = 'questao-gabarito show ' + (correct ? 'correct' : 'wrong');
+            gabEl.innerHTML = correct
+                ? '<i class="fas fa-check-circle"></i> Correto! A alternativa <strong>' + gabarito.toUpperCase() + '</strong> está correta.'
+                : '<i class="fas fa-times-circle"></i> Incorreto. A resposta correta é <strong>' + gabarito.toUpperCase() + '</strong>.';
+        }
+        if (expEl) expEl.classList.add('show');
+        // Update score
+        updateQuestoesScore();
+    }
+
+    function updateQuestoesScore() {
+        var scoreEl = document.getElementById('questoes-score');
+        if (!scoreEl) return;
+        var total = document.querySelectorAll('.questao-card').length;
+        var answered = document.querySelectorAll('.questao-gabarito.show').length;
+        var correct = document.querySelectorAll('.questao-gabarito.show.correct').length;
+        if (answered === total && total > 0) {
+            scoreEl.classList.add('show');
+            scoreEl.innerHTML = '<i class="fas fa-trophy" style="color:var(--accent);margin-right:8px"></i>Resultado: <strong>' + correct + '/' + total + '</strong> acertos';
+        }
+    }
+
     function findLessonAndRender(subjects, lid, prog, nav) {
         // Try each subject until we find the lesson
         var allPromises = subjects.map(function(s) { return API.getLessons(s.id).then(function(ls) { return { subject:s, lessons:ls }; }); });
@@ -691,11 +963,16 @@
             var next = ci<allLessons.length-1 ? allLessons[ci+1] : null;
             var lnav = '<div class="lesson-nav">'+(prev?'<button class="btn btn-secondary" onclick="navigate(\'student-lesson\',{lessonId:'+prev.id+'})"><i class="fas fa-chevron-left"></i> '+escapeHtml(prev.title)+'</button>':'<div></div>')+(next?'<button class="btn btn-primary" onclick="navigate(\'student-lesson\',{lessonId:'+next.id+'})">'+escapeHtml(next.title)+' <i class="fas fa-chevron-right"></i></button>':'<div></div>')+'</div>';
 
+            var readingsHtml = renderReadingsSection(subject.name, lid);
+            var questionsHtml = renderQuestionsSection(lid, subject.name, lesson.title);
+
             var app = document.getElementById('app');
             app.innerHTML = nav + '<div class="container"><div class="page-content">' +
                 '<div class="breadcrumb"><a onclick="navigate(\'student-dashboard\')">Matérias</a><span class="sep"><i class="fas fa-chevron-right"></i></span><a onclick="navigate(\'student-subject\',{subjectId:'+subject.id+'})">'+escapeHtml(subject.name)+'</a><span class="sep"><i class="fas fa-chevron-right"></i></span><span>'+escapeHtml(lesson.title)+'</span></div>' +
                 '<h1 style="font-size:1.5rem;margin-bottom:20px">'+escapeHtml(lesson.title)+'</h1>' + rb + vh +
+                readingsHtml +
                 '<div class="progress-card"><h3><i class="fas fa-bookmark"></i> Salvar seu Progresso</h3><p style="font-size:.88rem;color:var(--text-muted);margin-bottom:16px">Registre o minuto e segundo atual do vídeo para retomar de onde parou.</p><div class="time-input-group"><div><label>Minutos</label><input type="number" id="progress-min" min="0" max="999" value="'+sm+'"></div><span class="time-sep">:</span><div><label>Segundos</label><input type="number" id="progress-sec" min="0" max="59" value="'+ss+'"></div><button class="btn btn-primary btn-sm" id="save-progress-btn" style="align-self:flex-end"><i class="fas fa-save"></i> Salvar</button></div><div class="progress-bar-full"><div class="fill" style="width:'+pp+'%"></div></div><div class="progress-info"><span>'+formatTime(prog.current_time_seconds)+' / '+formatTime(ts)+'</span><span>'+pp+'% concluído</span></div><div class="complete-toggle"><label class="toggle-switch"><input type="checkbox" id="complete-toggle" '+(prog.completed?'checked':'')+'><span class="toggle-slider"></span></label><span>Marcar como concluída</span></div>'+(prog.last_accessed?'<div style="margin-top:12px;font-size:.78rem;color:var(--text-muted)"><i class="fas fa-clock"></i> Último acesso: '+new Date(prog.last_accessed).toLocaleString('pt-BR')+'</div>':'')+'</div>' +
+                questionsHtml +
                 lnav + '</div></div>';
 
             // Bind progress events
@@ -716,6 +993,88 @@
                 }).catch(function(err) { showToast(err.message,'error'); });
             });
         });
+    }
+
+    /* ============================================================
+       VIEW: STUDENT MACRO PLAN
+       ============================================================ */
+    function renderStudentMacroPlan() {
+        var app = document.getElementById('app');
+        var nav = renderNavbar(studentNav());
+        var today = new Date(); today.setMonth(today.getMonth() + 4);
+        var defaultDate = today.toISOString().split('T')[0];
+        app.innerHTML = nav + '<div class="container"><div class="page-content">' +
+            '<div class="page-header"><h1><i class="fas fa-road" style="color:var(--primary);margin-right:10px"></i>Plano Mestre CACD</h1></div>' +
+            '<div class="macro-form">' +
+              '<h2><i class="fas fa-cog" style="color:var(--accent);margin-right:8px"></i>Configurar Plano Macro</h2>' +
+              '<div class="form-row">' +
+                '<div class="form-group"><label>Data da Prova</label><input type="date" id="macro-data-prova" value="' + defaultDate + '"></div>' +
+                '<div class="form-group"><label>Horas de Estudo por Semana</label><input type="number" id="macro-horas" min="1" max="60" value="20"></div>' +
+              '</div>' +
+              '<div class="form-group"><label>Observações (opcional)</label><textarea id="macro-obs" placeholder="Ex: tenho mais tempo aos fins de semana, prefiro começar por história…" style="min-height:64px"></textarea></div>' +
+              '<button class="btn btn-primary" style="width:100%;justify-content:center;padding:14px" onclick="gerarMacroPlan()">' +
+                '<i class="fas fa-magic"></i> Gerar Plano Mestre com IA' +
+              '</button>' +
+            '</div>' +
+            '<div id="macro-output" class="macro-output" style="display:none"></div>' +
+            '</div></div>';
+    }
+
+    function gerarMacroPlan() {
+        var dataProva = document.getElementById('macro-data-prova').value;
+        var horasPorSemana = parseFloat(document.getElementById('macro-horas').value) || 20;
+        var observacoes = (document.getElementById('macro-obs').value || '').trim();
+        if (!dataProva) { showToast('Informe a data da prova', 'error'); return; }
+        var out = document.getElementById('macro-output');
+        out.style.display = 'block';
+        out.innerHTML = '<div class="plan-loading"><i class="fas fa-spinner fa-spin"></i><p>O Barão está elaborando seu Plano Mestre… isso pode levar alguns segundos.</p></div>';
+        API.generateMacroPlan({ dataProva: dataProva, horasPorSemana: horasPorSemana, observacoes: observacoes }).then(function(plano) {
+            renderMacroPlan(plano);
+        }).catch(function(err) {
+            out.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
+        });
+    }
+
+    function renderMacroPlan(plano) {
+        var out = document.getElementById('macro-output');
+        var semanasHtml = (plano.semanas || []).map(function(s, i) {
+            var materiasHtml = (s.materias || []).map(function(m) {
+                var atvsHtml = (m.atividades || []).map(function(a) {
+                    return '<div class="macro-atividade"><i class="fas fa-check-circle"></i><span><strong>' + escapeHtml(a.tipo || '') + '</strong> — ' + escapeHtml(a.descricao || '') + (a.horas ? ' (' + a.horas + 'h)' : '') + '</span></div>';
+                }).join('');
+                return '<div class="macro-materia">' +
+                    '<div class="macro-materia-name"><i class="fas fa-book-open" style="margin-right:6px"></i>' + escapeHtml(m.nome || '') + '</div>' +
+                    (m.topico ? '<div class="macro-materia-topico">' + escapeHtml(m.topico) + '</div>' : '') +
+                    atvsHtml +
+                    (m.leituras ? '<div class="macro-leituras"><i class="fas fa-bookmark" style="margin-right:4px"></i>' + escapeHtml(m.leituras) + '</div>' : '') +
+                '</div>';
+            }).join('');
+            var dateStr = '';
+            if (s.dataInicio && s.dataFim) dateStr = ' <span style="font-size:.8rem;font-weight:400;color:var(--text-secondary)">' + escapeHtml(s.dataInicio) + ' – ' + escapeHtml(s.dataFim) + '</span>';
+            return '<div class="macro-semana">' +
+                '<div class="macro-semana-header" onclick="toggleMacraSemana(this,' + i + ')">' +
+                  '<span><i class="fas fa-calendar-week" style="color:var(--primary);margin-right:8px"></i>Semana ' + (s.semana || (i+1)) + dateStr + '</span>' +
+                  '<i class="fas fa-chevron-down" style="color:var(--text-muted)"></i>' +
+                '</div>' +
+                '<div class="macro-semana-body" id="msb-' + i + '">' + materiasHtml + '</div>' +
+            '</div>';
+        }).join('');
+        out.innerHTML =
+            '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-hover));border-radius:var(--radius-lg);padding:20px 24px;color:#fff;margin-bottom:20px">' +
+              '<div style="font-weight:700;font-size:1.1rem;margin-bottom:6px"><i class="fas fa-map" style="margin-right:8px"></i>Plano Mestre Gerado</div>' +
+              '<div style="font-size:.92rem;opacity:.9;line-height:1.5">' + escapeHtml(plano.resumo || '') + '</div>' +
+              '<div style="margin-top:12px;font-size:.82rem;opacity:.8"><i class="fas fa-clock" style="margin-right:4px"></i>' + (plano.totalSemanas || '') + ' semanas · ' + (plano.totalHoras || '') + 'h totais</div>' +
+            '</div>' +
+            semanasHtml;
+    }
+
+    function toggleMacraSemana(header, idx) {
+        var body = document.getElementById('msb-' + idx);
+        var icon = header.querySelector('i.fa-chevron-down,i.fa-chevron-up');
+        if (!body) return;
+        var open = body.classList.contains('open');
+        body.classList.toggle('open', !open);
+        if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
     }
 
     /* ============================================================
@@ -793,8 +1152,9 @@
             case 'student-planner':   renderStudentPlanner(); break;
             case 'student-dashboard': renderStudentDashboard(); break;
             case 'student-subject':   renderStudentSubject(); break;
-            case 'student-lesson':    renderStudentLesson(); break;
-            default:                  renderLoginView();
+            case 'student-lesson':         renderStudentLesson(); break;
+            case 'student-macro-planner':  renderStudentMacroPlan(); break;
+            default:                       renderLoginView();
         }
     }
     function renderLoginView() {
