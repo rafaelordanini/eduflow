@@ -284,6 +284,19 @@
         .simulado-result{text-align:center;padding:32px}
         .simulado-score{font-size:3rem;font-weight:800;font-family:'Fraunces',serif;color:var(--primary)}
         .simulado-subject-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:.9rem}
+        /* Performance Dashboard */
+        .perf-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px}
+        .perf-bar{height:10px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:8px;margin-bottom:4px}
+        .perf-bar-fill{height:100%;border-radius:99px;transition:width .6s ease}
+        .subject-perf-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+        .subject-perf-row:last-child{border-bottom:none}
+        .subject-perf-name{min-width:160px;font-weight:600;font-size:.92rem}
+        .subject-perf-bar-wrap{flex:1;min-width:100px}
+        .subject-perf-stats{font-size:.82rem;color:var(--text-muted);white-space:nowrap}
+        .baron-recommend{background:var(--primary-light);border:1px solid var(--primary);border-radius:var(--radius-lg);padding:20px 24px;margin-bottom:20px;display:flex;gap:16px;align-items:flex-start}
+        .baron-recommend .baron-rec-msg{flex:1}
+        .baron-recommend .baron-rec-msg h3{font-size:1rem;margin-bottom:6px;color:var(--primary)}
+        .baron-recommend .baron-rec-msg p{font-size:.9rem;color:var(--text);line-height:1.5}
     </style>
 </head>
 <body>
@@ -494,7 +507,7 @@
         return '<nav class="navbar"><div class="navbar-inner"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div><div class="navbar-links">'+lh+'</div><div class="navbar-user"><div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
     }
     function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
-    function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-road',label:'Plano Mestre'},{view:'student-simulado',icon:'fa-pen-to-square',label:'Simulado'}]; }
+    function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-road',label:'Plano Mestre'},{view:'student-simulado',icon:'fa-pen-to-square',label:'Simulado'},{view:'student-performance',icon:'fa-chart-bar',label:'Desempenho'}]; }
 
     /* ============================================================
        VIEW: RESET PASSWORD
@@ -953,8 +966,12 @@
     }
 
     var _lessonQuestoesMeta = { lessonId: null, subjectName: null, lessonTitle: null, currentCount: 0 };
+    var _currentSubject = '';
+    var _currentLesson = '';
 
     function gerarQuestoes(lessonId, subjectName, lessonTitle) {
+        _currentSubject = subjectName || '';
+        _currentLesson = lessonTitle || '';
         var btn = document.getElementById('gen-questions-btn');
         var out = document.getElementById('questions-output');
         if (btn) { btn.disabled = true; btn.innerHTML = '<img src="/public/baron-reading-sm.png" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"> Gerando questões…'; }
@@ -1073,6 +1090,13 @@
         if (!selected) { showToast('Selecione uma opção antes de conferir', 'error'); return; }
         var gabarito = (q.gabarito || '').toLowerCase().trim();
         var correct = selected === gabarito;
+        // Fire-and-forget attempt recording
+        API.request('POST', '/api/record-attempt', {
+            subject: q.subject || _currentSubject,
+            topic: q.topic || _currentLesson,
+            question_id: q.question_id || null,
+            correct: correct
+        }).catch(function() {});
         if (gabEl) {
             gabEl.className = 'questao-gabarito show ' + (correct ? 'correct' : 'wrong');
             var baronImg = correct ? '/public/baron-thumbsup-sm.png' : '/public/baron-thinking-sm.png';
@@ -1420,6 +1444,7 @@
         var defaultDate = today.toISOString().split('T')[0];
         app.innerHTML = nav + '<div class="container"><div class="page-content">' +
             '<div class="page-header"><h1><i class="fas fa-road" style="color:var(--primary);margin-right:10px"></i>Plano Mestre CACD</h1></div>' +
+            '<div id="macro-overwrite-banner" style="display:none;background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:20px;font-size:.92rem;color:var(--text);line-height:1.5"></div>' +
             '<div class="macro-form">' +
               '<h2><i class="fas fa-cog" style="color:var(--accent);margin-right:8px"></i>Configurar Plano Macro</h2>' +
               '<div class="form-row">' +
@@ -1433,6 +1458,17 @@
             '</div>' +
             '<div id="macro-output" class="macro-output" style="display:none"></div>' +
             '</div></div>';
+        // Check for existing macro plan and show overwrite warning
+        API.request('GET', '/api/performance?action=check_macro').then(function(data) {
+            if (data && data.exists) {
+                var banner = document.getElementById('macro-overwrite-banner');
+                if (banner) {
+                    var createdDate = data.created_at ? new Date(data.created_at).toLocaleDateString('pt-BR') : '';
+                    banner.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:8px"></i>⚠️ Você já tem um Plano Mestre criado' + (createdDate ? ' em ' + createdDate : '') + '. Gerar um novo plano irá substituir o atual.';
+                    banner.style.display = 'block';
+                }
+            }
+        }).catch(function() {});
     }
 
     function gerarMacroPlan() {
@@ -1491,6 +1527,130 @@
         var open = body.classList.contains('open');
         body.classList.toggle('open', !open);
         if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
+    }
+
+    /* ============================================================
+       VIEW: STUDENT PERFORMANCE
+       ============================================================ */
+    function renderStudentPerformance() {
+        var app = document.getElementById('app');
+        var nav = renderNavbar(studentNav());
+        app.innerHTML = nav + '<div class="container"><div class="page-content">' +
+            '<div class="baron-header">' +
+              '<div class="baron-avatar"><img src="/public/baron-pointing-sm.png" alt="Barão" onerror="this.src=\'/public/baron-avatar.png\'"></div>' +
+              '<div class="baron-msg"><h3>Barão do EduFlow — Seu Coach Diplomático</h3><p>Acompanhe seu desempenho por matéria e foque nas áreas que precisam de mais atenção.</p></div>' +
+            '</div>' +
+            '<div class="loading-spinner" id="perf-area"><i class="fas fa-spinner"></i> Carregando desempenho...</div>' +
+            '</div></div>';
+
+        Promise.all([
+            API.request('GET', '/api/performance'),
+            API.request('GET', '/api/performance?action=macro')
+        ]).then(function(results) {
+            var data = results[0];
+            var macro = results[1];
+            var area = document.getElementById('perf-area');
+            if (!area) return;
+
+            var overall = data.overall || { total: 0, correct: 0, accuracy: 0 };
+            var subjects = data.subjects || [];
+            var weakSubjects = data.weakSubjects || [];
+
+            // Overall stats card
+            var overallHtml = '<div class="perf-card">' +
+                '<h3 style="margin-bottom:16px"><i class="fas fa-chart-pie" style="color:var(--accent);margin-right:8px"></i>Estatísticas Gerais</h3>' +
+                '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px">' +
+                  '<div style="flex:1;min-width:120px;text-align:center;padding:14px;background:var(--surface-hover);border-radius:var(--radius-md)">' +
+                    '<div style="font-size:2rem;font-weight:800;font-family:Fraunces,serif;color:var(--primary)">' + overall.total + '</div>' +
+                    '<div style="font-size:.82rem;color:var(--text-muted)">Questões Respondidas</div>' +
+                  '</div>' +
+                  '<div style="flex:1;min-width:120px;text-align:center;padding:14px;background:var(--surface-hover);border-radius:var(--radius-md)">' +
+                    '<div style="font-size:2rem;font-weight:800;font-family:Fraunces,serif;color:' + (overall.accuracy >= 70 ? 'var(--success)' : overall.accuracy >= 50 ? 'var(--warning)' : 'var(--danger)') + '">' + overall.accuracy + '%</div>' +
+                    '<div style="font-size:.82rem;color:var(--text-muted)">Aproveitamento Geral</div>' +
+                  '</div>' +
+                  '<div style="flex:1;min-width:120px;text-align:center;padding:14px;background:var(--surface-hover);border-radius:var(--radius-md)">' +
+                    '<div style="font-size:2rem;font-weight:800;font-family:Fraunces,serif;color:var(--primary)">' + overall.subjects_with_data + '</div>' +
+                    '<div style="font-size:.82rem;color:var(--text-muted)">Matérias Praticadas</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="perf-bar"><div class="perf-bar-fill" style="width:' + overall.accuracy + '%;background:' + (overall.accuracy >= 70 ? 'var(--success)' : overall.accuracy >= 50 ? 'var(--warning)' : 'var(--danger)') + '"></div></div>' +
+                '<div style="font-size:.8rem;color:var(--text-muted)">' + overall.correct + ' acertos de ' + overall.total + ' questões</div>' +
+            '</div>';
+
+            // Baron recommendation
+            var baronPose = overall.accuracy >= 70 ? 'baron-thumbsup-sm.png' : 'baron-thinking-sm.png';
+            var recSubject = weakSubjects.length > 0 ? weakSubjects[0].subject : null;
+            var recMsg = '';
+            if (overall.total === 0) {
+                recMsg = '<h3>Comece a praticar!</h3><p>Você ainda não respondeu nenhuma questão. Acesse uma aula e pratique questões para ver seu desempenho aqui.</p>';
+            } else if (recSubject) {
+                recMsg = '<h3>Foco recomendado: ' + escapeHtml(recSubject) + '</h3><p>Seu aproveitamento em ' + escapeHtml(recSubject) + ' está em ' + weakSubjects[0].accuracy + '%. O Barão recomenda intensificar a prática nesta matéria antes da prova.</p>';
+            } else {
+                recMsg = '<h3>Excelente desempenho!</h3><p>Todas as suas matérias estão com aproveitamento acima de 60%. Continue praticando para manter o ritmo!</p>';
+            }
+            var baronRecommendHtml = '<div class="baron-recommend">' +
+                '<img src="/public/' + baronPose + '" style="width:64px;height:64px;border-radius:50%;flex-shrink:0;border:2px solid var(--primary)" onerror="this.style.display=\'none\'">' +
+                '<div class="baron-rec-msg">' + recMsg + '</div>' +
+            '</div>';
+
+            // Per-subject table
+            var subjectsHtml = '<div class="perf-card">' +
+                '<h3 style="margin-bottom:16px"><i class="fas fa-book-open" style="color:var(--primary);margin-right:8px"></i>Desempenho por Matéria</h3>';
+            if (subjects.length === 0) {
+                subjectsHtml += '<p style="color:var(--text-muted);font-size:.9rem">Nenhuma questão respondida ainda. Pratique questões nas aulas para ver seu desempenho aqui.</p>';
+            } else {
+                subjectsHtml += subjects.sort(function(a,b){return a.accuracy - b.accuracy;}).map(function(s) {
+                    var color = s.accuracy >= 70 ? 'var(--success)' : s.accuracy >= 50 ? 'var(--warning)' : 'var(--danger)';
+                    return '<div class="subject-perf-row">' +
+                        '<div class="subject-perf-name">' + escapeHtml(s.subject) + '</div>' +
+                        '<div class="subject-perf-bar-wrap">' +
+                          '<div class="perf-bar"><div class="perf-bar-fill" style="width:' + s.accuracy + '%;background:' + color + '"></div></div>' +
+                        '</div>' +
+                        '<div class="subject-perf-stats">' + s.accuracy + '% &nbsp;·&nbsp; ' + s.correct + '/' + s.total + '</div>' +
+                    '</div>';
+                }).join('');
+            }
+            subjectsHtml += '</div>';
+
+            // Plano Mestre progress
+            var macroHtml = '<div class="perf-card">' +
+                '<h3 style="margin-bottom:12px"><i class="fas fa-road" style="color:var(--accent);margin-right:8px"></i>Plano Mestre</h3>';
+            if (macro && macro.data_prova) {
+                var provaDate = new Date(macro.data_prova + 'T12:00:00');
+                var daysLeft = Math.max(0, Math.ceil((provaDate - new Date()) / (1000 * 60 * 60 * 24)));
+                macroHtml += '<div style="font-size:.92rem;margin-bottom:12px">Data da prova: <strong>' + provaDate.toLocaleDateString('pt-BR') + '</strong> — <strong style="color:' + (daysLeft > 30 ? 'var(--success)' : daysLeft > 7 ? 'var(--warning)' : 'var(--danger)') + '">' + daysLeft + ' dias restantes</strong></div>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="navigate(\'student-macro-planner\')"><i class="fas fa-road"></i> Ver Plano Mestre</button>';
+            } else {
+                macroHtml += '<p style="color:var(--text-muted);font-size:.9rem;margin-bottom:12px">Você ainda não criou seu Plano Mestre de estudos.</p>' +
+                    '<button class="btn btn-primary btn-sm" onclick="navigate(\'student-macro-planner\')"><i class="fas fa-magic"></i> Crie seu Plano Mestre</button>';
+            }
+            macroHtml += '</div>';
+
+            // Weak spots with practice buttons
+            var weakHtml = '';
+            if (weakSubjects.length > 0) {
+                weakHtml = '<div class="perf-card">' +
+                    '<h3 style="margin-bottom:12px"><i class="fas fa-exclamation-triangle" style="color:var(--danger);margin-right:8px"></i>Pontos Fracos — Top 3</h3>';
+                weakHtml += weakSubjects.slice(0, 3).map(function(s) {
+                    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+                        '<div>' +
+                          '<div style="font-weight:600;font-size:.92rem">' + escapeHtml(s.subject) + '</div>' +
+                          '<div style="font-size:.8rem;color:var(--danger)">' + s.accuracy + '% aproveitamento (' + s.correct + '/' + s.total + ')</div>' +
+                        '</div>' +
+                        '<button class="btn btn-sm btn-accent" onclick="navigate(\'student-dashboard\')" title="Pratique ' + escapeHtml(s.subject) + '">' +
+                          '<i class="fas fa-dumbbell"></i> Praticar agora' +
+                        '</button>' +
+                    '</div>';
+                }).join('');
+                weakHtml += '</div>';
+            }
+
+            area.className = '';
+            area.innerHTML = overallHtml + baronRecommendHtml + macroHtml + subjectsHtml + weakHtml;
+        }).catch(function(err) {
+            var area = document.getElementById('perf-area');
+            if (area) area.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
+        });
     }
 
     /* ============================================================
@@ -1573,6 +1733,7 @@
             case 'student-lesson':         renderStudentLesson(); break;
             case 'student-macro-planner':  renderStudentMacroPlan(); break;
             case 'student-simulado':       renderStudentSimulado(); break;
+            case 'student-performance':    renderStudentPerformance(); break;
             default:                       renderLoginView();
         }
     }

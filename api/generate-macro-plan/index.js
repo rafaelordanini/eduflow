@@ -271,8 +271,9 @@ ${materiasTexto}
       }
     }
 
-    // Salvar plano no banco
+    // Salvar plano no banco (delete existing first, then insert — one plan per user)
     const supabase = getSupabase();
+    await supabase.from('macro_plans').delete().eq('user_id', user.id);
     await supabase.from('macro_plans').insert({
       user_id: user.id,
       plan_json: plano,
