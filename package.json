@@ -5,7 +5,11 @@
   "private": true,
   "scripts": {
     "dev": "vercel dev",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "import-exams": "node scripts/import-all-exams.js",
+    "import-exams:dry": "node scripts/import-all-exams.js --dry-run",
+    "generate-sql": "node scripts/generate-exams-sql.js",
+    "generate-sql:year": "node scripts/generate-exams-sql.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

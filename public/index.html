@@ -283,6 +283,15 @@
         .questions-section h3{font-size:1rem;margin-bottom:16px;display:flex;align-items:center;gap:8px}
         .questions-section h3 i{color:var(--accent)}
         .questao-card{background:var(--surface-hover);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px;margin-bottom:12px}
+        .topic-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:.72rem;font-weight:600;letter-spacing:.03em;margin-bottom:10px;cursor:default;user-select:none}
+        .topic-badge.definido{background:var(--primary-light);color:var(--primary)}
+        .topic-badge.indefinido{background:var(--surface-hover);color:var(--text-muted);border:1px dashed var(--border);cursor:pointer}
+        .topic-badge.indefinido:hover{background:var(--border);color:var(--text-secondary)}
+        .topic-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px}
+        .topic-modal{background:var(--surface);border-radius:var(--radius-lg);padding:28px;max-width:420px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.2)}
+        .topic-modal h3{font-size:1rem;margin-bottom:16px}
+        .topic-option{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:.9rem;transition:background var(--transition);border:1px solid transparent}
+        .topic-option:hover{background:var(--primary-light);border-color:var(--primary-light);color:var(--primary)}
         .questao-enunciado{font-size:.92rem;line-height:1.6;font-weight:500;margin-bottom:14px}
         .questao-opcao{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;transition:background var(--transition);margin-bottom:6px;border:1px solid transparent}
         .questao-opcao:hover{background:var(--primary-light);border-color:var(--primary-light)}
@@ -441,6 +450,64 @@
     // Safe single-quoted JS string literal for use inside HTML onclick="..." attributes
     function _js(s) { return "'" + String(s == null ? '' : s).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'"; }
     function _jsNull(s) { return (s == null) ? 'null' : _js(s); }
+
+    /* CACD topics per subject for classification */
+    var CACD_TOPICS = {
+        'Português': ['Interpretação de texto','Linguística textual','Gramática e sintaxe','Semântica e léxico','Literatura brasileira','Redação e estilo','Coerência e coesão'],
+        'Inglês': ['Reading comprehension','Vocabulary in context','Grammar and usage','Text interpretation','Diplomacy texts','International relations texts'],
+        'História do Brasil': ['Brasil Colônia','Independência e Império','República Velha','Era Vargas','Democracia 1945-64','Regime Militar','Redemocratização','Política Externa Brasileira','Economia brasileira'],
+        'História Mundial': ['Idade Moderna','Século XIX e Imperialismo','Primeira Guerra Mundial','Entreguerras','Segunda Guerra Mundial','Guerra Fria','Ordem pós-bipolar','América Latina','Ásia e África'],
+        'Política Internacional': ['Teoria das Relações Internacionais','Organismos internacionais','MERCOSUL e integração regional','Política externa comparada','Conflitos contemporâneos','Direitos humanos internacionais','Segurança internacional'],
+        'Economia': ['Microeconomia','Macroeconomia','Comércio internacional','Economia brasileira contemporânea','Finanças internacionais','Desenvolvimento econômico','Teoria econômica'],
+        'Direito Interno': ['Direito Constitucional','Direito Administrativo','Direito Civil','Direito do Trabalho','Processo Civil','Organização do Estado'],
+        'Direito Internacional': ['Direito Internacional Público','Tratados internacionais','Organizações internacionais','Imunidade diplomática','Direito do mar','Direito humanitário'],
+        'Geografia': ['Geopolítica','Geografia econômica','Questão ambiental','Urbanização','Brasil: espaço e território','Globalização e território']
+    };
+
+    function buildTopicBadge(questionId, subject, topic) {
+        if (topic) {
+            return '<span class="topic-badge definido" title="Tópico: ' + escapeHtml(topic) + '"><i class="fas fa-tag" style="font-size:.65rem"></i>' + escapeHtml(topic) + '</span>';
+        }
+        return '<span class="topic-badge indefinido" onclick="abrirModalTopico(' + _js(questionId) + ',' + _js(subject) + ')" title="Clique para classificar o tópico desta questão"><i class="fas fa-question-circle" style="font-size:.65rem"></i> indefinido</span>';
+    }
+
+    function abrirModalTopico(questionId, subject) {
+        var topics = CACD_TOPICS[subject] || [];
+        var topicsHtml = topics.map(function(t) {
+            return '<div class="topic-option" onclick="salvarTopico(' + _js(questionId) + ',' + _js(t) + ',this)">' +
+                '<i class="fas fa-tag" style="color:var(--primary);font-size:.8rem"></i>' + escapeHtml(t) + '</div>';
+        }).join('');
+        var overlay = document.createElement('div');
+        overlay.className = 'topic-modal-overlay';
+        overlay.id = 'topic-modal-overlay';
+        overlay.innerHTML = '<div class="topic-modal">' +
+            '<h3><i class="fas fa-tag" style="color:var(--primary);margin-right:8px"></i>Classificar tópico</h3>' +
+            '<p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">Matéria: <strong>' + escapeHtml(subject) + '</strong>. Selecione o tópico:</p>' +
+            '<div style="max-height:300px;overflow-y:auto">' + topicsHtml + '</div>' +
+            '<button class="btn btn-secondary" style="margin-top:16px;width:100%" onclick="fecharModalTopico()">Cancelar</button>' +
+        '</div>';
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) fecharModalTopico(); });
+        document.body.appendChild(overlay);
+    }
+
+    function fecharModalTopico() {
+        var el = document.getElementById('topic-modal-overlay');
+        if (el) el.remove();
+    }
+
+    function salvarTopico(questionId, topic, optEl) {
+        API.request('POST', '/api/questions', { action: 'update-topic', id: questionId, topic: topic }).then(function() {
+            // Update all badges for this question
+            document.querySelectorAll('[data-qid="' + questionId + '"]').forEach(function(badge) {
+                badge.className = 'topic-badge definido';
+                badge.title = 'Tópico: ' + topic;
+                badge.innerHTML = '<i class="fas fa-tag" style="font-size:.65rem"></i>' + escapeHtml(topic);
+                badge.removeAttribute('onclick');
+            });
+            fecharModalTopico();
+            showToast('Tópico salvo: ' + topic, 'success');
+        }).catch(function(err) { showToast('Erro ao salvar tópico: ' + err.message, 'error'); });
+    }
 
     var _baronPoseTimer = null;
     var BARON_POSES = {
@@ -956,7 +1023,7 @@
             var checkIcon = isDone ? '<i class="fas fa-check"></i>' : '';
             var mId = m.id || '';
             var actBtns = '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' +
-                '<button class="macro-link-btn lesson" style="font-size:.72rem;padding:3px 8px" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _js(m.nome || '') + ')">' +
+                '<button class="macro-link-btn lesson" style="font-size:.72rem;padding:3px 8px" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _js(m.nome || '') + ',' + _jsNull(m.topico) + ')">' +
                     '<i class="fas fa-play-circle"></i> Ver aulas</button>' +
                 '<button class="macro-link-btn exercise" style="font-size:.72rem;padding:3px 8px" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ')">' +
                     '<i class="fas fa-question-circle"></i> ' + (isRev ? 'Fazer exercícios' : 'Praticar questões') + '</button>' +
@@ -1373,7 +1440,8 @@
                         '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
                         '</label>';
                 }).join('');
-                return '<div class="questao-card" id="qcard-' + idx + '">' +
+                return '<div class="questao-card" id="qcard-' + idx + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
+                    buildTopicBadge(q.id, q.subject, q.topic) +
                     '<div class="questao-enunciado"><strong>Questão ' + (idx+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
                     opcoesHtml +
                     '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + idx + ')">' +
@@ -1416,7 +1484,8 @@
                     '</label>';
             }).join('');
             var fonte = q.fonte ? '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(q.fonte) + '</div>' : '';
-            return '<div class="questao-card" id="qcard-' + qi + '">' +
+            return '<div class="questao-card" id="qcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
+                buildTopicBadge(q.id, q.subject, q.topic) +
                 '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
                 fonte + opcoesHtml +
                 '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ')">' +
@@ -1671,8 +1740,8 @@
                     '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
                     '</label>';
             }).join('');
-            return '<div class="questao-card" id="sqcard-' + qi + '" style="border-left:3px solid var(--border)">' +
-                '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase">' + escapeHtml(q.subject || '') + '</div>' +
+            return '<div class="questao-card" id="sqcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '" style="border-left:3px solid var(--border)">' +
+                buildTopicBadge(q.id, q.subject, q.topic) +
                 '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
                 opcoesHtml +
             '</div>';
@@ -1780,7 +1849,8 @@
                 '</div>';
             }).join('');
             var expHtml = q.explicacao ? '<div style="margin-top:10px;padding:10px 12px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem;color:var(--text)">' + escapeHtml(q.explicacao) + '</div>' : '';
-            return '<div class="questao-card" style="border-left:3px solid ' + borderColor + '">' +
+            return '<div class="questao-card" data-qid="' + escapeHtml(String(q.id||'')) + '" style="border-left:3px solid ' + borderColor + '">' +
+                buildTopicBadge(q.id, q.subject, q.topic) +
                 '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px">' + escapeHtml(q.subject || '') + ' • ' + (correct ? '<span style="color:var(--success)">Correta</span>' : q.user_answer ? '<span style="color:var(--danger)">Errada</span>' : '<span style="color:var(--text-muted)">Não respondida</span>') + '</div>' +
                 '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
                 opcoesHtml + expHtml +
@@ -1895,7 +1965,7 @@
         }
 
         var linksHtml = '<div class="macro-links">';
-        linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _js(m.nome || '') + ')">' +
+        linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _js(m.nome || '') + ',' + _jsNull(m.topico) + ')">' +
             '<i class="fas fa-play-circle"></i> Ver aulas</button>';
         linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ')">' +
             (isRevisao ? '<i class="fas fa-pen-to-square"></i> Fazer exercícios' : '<i class="fas fa-question-circle"></i> Praticar questões') + '</button>';
@@ -2007,9 +2077,29 @@
         API.request('PUT', '/api/generate-macro-plan', { itemId: itemId, done: done }).catch(function() {});
     }
 
-    function abrirAulasPlano(subjectId, subjectName) {
+    function abrirAulasPlano(subjectId, subjectName, topico) {
+        function navigateToLesson(sid, sname) {
+            // If a topic hint is given, try to find the specific lesson
+            if (topico) {
+                API.request('GET', '/api/lessons?subjectId=' + encodeURIComponent(sid)).then(function(data) {
+                    var lessons = data && data.lessons ? data.lessons : (Array.isArray(data) ? data : []);
+                    var topicoLow = topico.toLowerCase();
+                    var match = lessons.find(function(l) {
+                        return (l.title || '').toLowerCase().indexOf(topicoLow) !== -1 ||
+                               topicoLow.indexOf((l.title || '').toLowerCase()) !== -1;
+                    });
+                    if (match) {
+                        navigate('student-lesson', { subjectId: sid, lessonId: match.id });
+                    } else {
+                        navigate('student-subject', { subjectId: sid });
+                    }
+                }).catch(function() { navigate('student-subject', { subjectId: sid }); });
+            } else {
+                navigate('student-subject', { subjectId: sid });
+            }
+        }
         if (subjectId) {
-            navigate('student-subject', { subjectId: subjectId });
+            navigateToLesson(subjectId, subjectName);
             return;
         }
         // Fallback: search subjects by name
@@ -2018,7 +2108,7 @@
             var found = (subs || []).find(function(s) {
                 return s.name && s.name.toLowerCase() === subjectName.toLowerCase();
             });
-            if (found) navigate('student-subject', { subjectId: found.id });
+            if (found) navigateToLesson(found.id, found.name);
             else { showToast('Nenhuma aula cadastrada para ' + subjectName + ' ainda', 'warning'); navigate('student-dashboard'); }
         }).catch(function() { navigate('student-dashboard'); });
     }
