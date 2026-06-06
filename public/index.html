@@ -1724,14 +1724,12 @@
         }
 
         var linksHtml = '<div class="macro-links">';
-        if (m.subject_id) {
-            linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + m.subject_id + ')">' +
-                '<i class="fas fa-play-circle"></i> Ver aulas</button>';
-        }
+        linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + (m.subject_id || 'null') + ',' + JSON.stringify(m.nome || '') + ')">' +
+            '<i class="fas fa-play-circle"></i> Ver aulas</button>';
         if (isRevisao) {
             linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + JSON.stringify(m.nome) + ')">' +
                 '<i class="fas fa-pen-to-square"></i> Fazer exercícios</button>';
-        } else if (m.subject_id) {
+        } else {
             linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + JSON.stringify(m.nome) + ')">' +
                 '<i class="fas fa-question-circle"></i> Praticar questões</button>';
         }
@@ -1832,9 +1830,20 @@
         API.request('PUT', '/api/generate-macro-plan', { itemId: itemId, done: done }).catch(function() {});
     }
 
-    function abrirAulasPlano(subjectId) {
-        if (!subjectId) { showToast('Aulas não vinculadas para esta matéria', 'warning'); return; }
-        navigate('student-subject', { subjectId: subjectId });
+    function abrirAulasPlano(subjectId, subjectName) {
+        if (subjectId) {
+            navigate('student-subject', { subjectId: subjectId });
+            return;
+        }
+        // Fallback: search subjects by name
+        if (!subjectName) { showToast('Aulas não encontradas para esta matéria', 'warning'); return; }
+        API.request('GET', '/api/subjects').then(function(subs) {
+            var found = (subs || []).find(function(s) {
+                return s.name && s.name.toLowerCase() === subjectName.toLowerCase();
+            });
+            if (found) navigate('student-subject', { subjectId: found.id });
+            else { showToast('Nenhuma aula cadastrada para ' + subjectName + ' ainda', 'warning'); navigate('student-dashboard'); }
+        }).catch(function() { navigate('student-dashboard'); });
     }
 
     function abrirRevisaoPlano(subjectName) {

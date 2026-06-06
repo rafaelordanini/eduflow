@@ -215,9 +215,9 @@ module.exports = async function handler(req, res) {
 
     const supabase = getSupabase();
 
-    // GET — return current plan
+    // GET — return current plan (auto-migrate old plans that lack enrichment)
     if (req.method === 'GET') {
-      const { data, error } = await supabase
+      const { data: mp, error } = await supabase
         .from('macro_plans')
         .select('*')
         .eq('user_id', user.id)
@@ -225,7 +225,19 @@ module.exports = async function handler(req, res) {
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return res.status(200).json(data || null);
+      if (!mp) return res.status(200).json(null);
+
+      // Check if plan needs enrichment (old plans lack id/tipo/done on items)
+      const firstItem = mp.plan_json?.semanas?.[0]?.materias?.[0];
+      if (firstItem && !firstItem.id) {
+        const { data: subjects } = await supabase.from('subjects').select('id, name');
+        const subjectMap = {};
+        (subjects || []).forEach(s => { subjectMap[s.name] = s.id; subjectMap[s.name.toLowerCase()] = s.id; });
+        enrichPlan(mp.plan_json, subjectMap);
+        await supabase.from('macro_plans').update({ plan_json: mp.plan_json }).eq('id', mp.id);
+      }
+
+      return res.status(200).json(mp);
     }
 
     // PUT — mark/unmark a plan item as done
