@@ -1,6 +1,20 @@
 {
   "version": 2,
   "framework": null,
+  "functions": {
+    "api/auth/index.js":                { "memory": 256, "maxDuration": 10 },
+    "api/baron-chat/index.js":          { "memory": 256, "maxDuration": 30 },
+    "api/generate-macro-plan/index.js": { "memory": 256, "maxDuration": 30 },
+    "api/generate-plan/index.js":       { "memory": 256, "maxDuration": 30 },
+    "api/generate-questions/index.js":  { "memory": 256, "maxDuration": 30 },
+    "api/lessons/index.js":             { "memory": 256, "maxDuration": 10 },
+    "api/performance/index.js":         { "memory": 256, "maxDuration": 10 },
+    "api/progress/index.js":            { "memory": 256, "maxDuration": 10 },
+    "api/questions/index.js":           { "memory": 256, "maxDuration": 10 },
+    "api/simulado/index.js":            { "memory": 256, "maxDuration": 30 },
+    "api/subjects/index.js":            { "memory": 256, "maxDuration": 10 },
+    "api/users/index.js":               { "memory": 256, "maxDuration": 10 }
+  },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/public/index.html" }
   ],
