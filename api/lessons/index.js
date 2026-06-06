@@ -134,6 +134,26 @@ module.exports = async function handler(req, res) {
             return res.status(200).json({ success: true });
         }
 
+        // PUT — reorder lesson (replaces /api/lessons/reorder)
+        if (req.method === 'PUT') {
+            const admin = requireAdmin(req, res);
+            if (!admin) return;
+            const { lessonId, direction } = req.body || {};
+            if (!lessonId || (direction !== 1 && direction !== -1)) {
+                return res.status(400).json({ error: 'lessonId e direction (1 ou -1) são obrigatórios.' });
+            }
+            const { data: lesson } = await supabase.from('lessons').select('*').eq('id', lessonId).single();
+            if (!lesson) return res.status(404).json({ error: 'Aula não encontrada.' });
+            const { data: all } = await supabase.from('lessons').select('id, order_index').eq('subject_id', lesson.subject_id).order('order_index');
+            const idx = all.findIndex(function(l) { return l.id === lessonId; });
+            const swapIdx = idx + direction;
+            if (swapIdx < 0 || swapIdx >= all.length) return res.status(400).json({ error: 'Não é possível mover nessa direção.' });
+            const tempOrder = all[idx].order_index;
+            await supabase.from('lessons').update({ order_index: all[swapIdx].order_index }).eq('id', all[idx].id);
+            await supabase.from('lessons').update({ order_index: tempOrder }).eq('id', all[swapIdx].id);
+            return res.status(200).json({ success: true });
+        }
+
         return res.status(405).json({ error: 'Método não permitido' });
     } catch (err) {
         console.error('Lessons error:', err);

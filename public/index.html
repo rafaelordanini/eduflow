@@ -370,8 +370,8 @@
             });
         },
 
-        login: function(username, password) { return this.request('POST', '/api/auth/login', { username: username, password: password }); },
-        getMe: function() { return this.request('GET', '/api/auth/me'); },
+        login: function(username, password) { return this.request('POST', '/api/auth', { action: 'login', username: username, password: password }); },
+        getMe: function() { return this.request('GET', '/api/auth'); },
 
         getUsers: function() { return this.request('GET', '/api/users'); },
         createUser: function(data) { return this.request('POST', '/api/users', data); },
@@ -387,12 +387,12 @@
         createLesson: function(data) { return this.request('POST', '/api/lessons', data); },
         updateLesson: function(id, data) { return this.request('PUT', '/api/lessons?id=' + id, data); },
         deleteLesson: function(id) { return this.request('DELETE', '/api/lessons?id=' + id); },
-        reorderLesson: function(lessonId, direction) { return this.request('PUT', '/api/lessons/reorder', { lessonId: lessonId, direction: direction }); },
+        reorderLesson: function(lessonId, direction) { return this.request('PUT', '/api/lessons', { lessonId: lessonId, direction: direction }); },
 
         getProgress: function(lessonId) { return this.request('GET', '/api/progress' + (lessonId ? '?lessonId=' + lessonId : '')); },
         saveProgress: function(data) { return this.request('POST', '/api/progress', data); },
 
-        resetPassword: function(token, username, newPassword) { return this.request('POST', '/api/auth/reset', { token: token, username: username, newPassword: newPassword }); },
+        resetPassword: function(token, username, newPassword) { return this.request('POST', '/api/auth', { action: 'reset', token: token, username: username, newPassword: newPassword }); },
 
         generateMacroPlan: function(data) { return this.request('POST', '/api/generate-macro-plan', data); },
         getPlansHistory: function() { return this.request('GET', '/api/generate-plan'); },
