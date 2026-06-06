@@ -269,6 +269,14 @@
         .questao-explicacao.show{display:block}
         .questoes-score{text-align:center;padding:20px;font-size:1.1rem;font-weight:700;color:var(--primary);display:none}
         .questoes-score.show{display:block}
+        .simulado-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;margin-bottom:20px}
+        .simulado-option{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer}
+        .simulado-option:last-child{border-bottom:none}
+        .simulado-timer{font-size:1.2rem;font-weight:700;color:var(--primary);font-family:'Fraunces',serif}
+        .simulado-progress{font-size:.85rem;color:var(--text-muted)}
+        .simulado-result{text-align:center;padding:32px}
+        .simulado-score{font-size:3rem;font-weight:800;font-family:'Fraunces',serif;color:var(--primary)}
+        .simulado-subject-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:.9rem}
     </style>
 </head>
 <body>
@@ -334,7 +342,14 @@
 
         generateMacroPlan: function(data) { return this.request('POST', '/api/generate-macro-plan', data); },
         getPlansHistory: function() { return this.request('GET', '/api/plans-history'); },
-        generateQuestions: function(data) { return this.request('POST', '/api/generate-questions', data); }
+        generateQuestions: function(data) { return this.request('POST', '/api/generate-questions', data); },
+        getQuestions: function(params) {
+            var qs = Object.keys(params||{}).map(function(k){return k+'='+encodeURIComponent(params[k]);}).join('&');
+            return this.request('GET', '/api/questions' + (qs ? '?' + qs : ''));
+        },
+        createSimulado: function(data) { return this.request('POST', '/api/simulado', Object.assign({action:'create'}, data)); },
+        submitSimulado: function(simuladoId, respostas) { return this.request('POST', '/api/simulado', {action:'submit', simuladoId:simuladoId, respostas:respostas}); },
+        getSimulados: function(limit) { return this.request('GET', '/api/simulado' + (limit ? '?limit='+limit : '')); }
     };
 
     /* ============================================================
@@ -420,7 +435,7 @@
         return '<nav class="navbar"><div class="navbar-inner"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div><div class="navbar-links">'+lh+'</div><div class="navbar-user"><div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
     }
     function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
-    function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-road',label:'Plano Mestre'}]; }
+    function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-road',label:'Plano Mestre'},{view:'student-simulado',icon:'fa-pen-to-square',label:'Simulado'}]; }
 
     /* ============================================================
        VIEW: RESET PASSWORD
@@ -877,17 +892,82 @@
         '</div>';
     }
 
+    var _lessonQuestoesMeta = { lessonId: null, subjectName: null, lessonTitle: null, currentCount: 0 };
+
     function gerarQuestoes(lessonId, subjectName, lessonTitle) {
         var btn = document.getElementById('gen-questions-btn');
         var out = document.getElementById('questions-output');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando questões…'; }
         out.innerHTML = '';
+        _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0 };
         API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 5 }).then(function(data) {
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Regerar Questões'; }
-            renderQuestoes(data.questoes || [], out);
+            var questoes = data.questoes || [];
+            _lessonQuestoesMeta.currentCount = questoes.length;
+            renderQuestoes(questoes, out);
+            appendMaisQuestoesBtn(out, lessonId, subjectName, lessonTitle, questoes.length);
         }).catch(function(err) {
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-brain"></i> Tentar Novamente'; }
             out.innerHTML = '<div style="color:var(--danger);font-size:.88rem"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
+        });
+    }
+
+    function appendMaisQuestoesBtn(container, lessonId, subjectName, lessonTitle, currentCount) {
+        var existing = container.querySelector('.mais-questoes-btn');
+        if (existing) existing.remove();
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-secondary mais-questoes-btn';
+        btn.style.marginTop = '12px';
+        btn.innerHTML = '<i class="fas fa-plus"></i> Mais questões';
+        btn.onclick = function() { gerarMaisQuestoes(lessonId, subjectName, lessonTitle, currentCount); };
+        container.appendChild(btn);
+    }
+
+    function gerarMaisQuestoes(lessonId, subjectName, lessonTitle, currentCount) {
+        var out = document.getElementById('questions-output');
+        var maisBtn = out ? out.querySelector('.mais-questoes-btn') : null;
+        if (maisBtn) { maisBtn.disabled = true; maisBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando…'; }
+        API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 5, offset: currentCount, forceNew: true }).then(function(data) {
+            var newQuestoes = data.questoes || [];
+            var newCount = currentCount + newQuestoes.length;
+            // Append new question cards
+            var tempDiv = document.createElement('div');
+            var startIdx = currentCount;
+            var html = newQuestoes.map(function(q, qi) {
+                var idx = startIdx + qi;
+                var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
+                    var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
+                    if (!text) return '';
+                    return '<label class="questao-opcao" for="q' + idx + op + '">' +
+                        '<input type="radio" name="q' + idx + '" id="q' + idx + op + '" value="' + op + '">' +
+                        '<span class="opcao-letra">' + op + ')</span>' +
+                        '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
+                        '</label>';
+                }).join('');
+                return '<div class="questao-card" id="qcard-' + idx + '">' +
+                    '<div class="questao-enunciado"><strong>Questão ' + (idx+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
+                    opcoesHtml +
+                    '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + idx + ')">' +
+                      '<i class="fas fa-check"></i> Conferir Resposta' +
+                    '</button>' +
+                    '<div class="questao-gabarito" id="qgab-' + idx + '"></div>' +
+                    '<div class="questao-explicacao" id="qexp-' + idx + '">' + escapeHtml(q.explicacao || '') + '</div>' +
+                '</div>';
+            }).join('');
+            tempDiv.innerHTML = html;
+            // Remove mais btn, insert new cards before score, re-add mais btn
+            if (maisBtn) maisBtn.remove();
+            var scoreEl = out.querySelector('.questoes-score');
+            while (tempDiv.firstChild) {
+                if (scoreEl) out.insertBefore(tempDiv.firstChild, scoreEl);
+                else out.appendChild(tempDiv.firstChild);
+            }
+            // Extend _questoesAtivas
+            _questoesAtivas = _questoesAtivas.concat(newQuestoes);
+            appendMaisQuestoesBtn(out, lessonId, subjectName, lessonTitle, newCount);
+        }).catch(function(err) {
+            if (maisBtn) { maisBtn.disabled = false; maisBtn.innerHTML = '<i class="fas fa-plus"></i> Mais questões'; }
+            showToast('Erro ao gerar mais questões: ' + err.message, 'error');
         });
     }
 
@@ -1169,6 +1249,7 @@
             case 'student-subject':   renderStudentSubject(); break;
             case 'student-lesson':         renderStudentLesson(); break;
             case 'student-macro-planner':  renderStudentMacroPlan(); break;
+            case 'student-simulado':       renderStudentSimulado(); break;
             default:                       renderLoginView();
         }
     }
