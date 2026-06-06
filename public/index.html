@@ -238,15 +238,35 @@
         .macro-output{margin-top:8px}
         .macro-semana{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:12px;overflow:hidden}
         .macro-semana-header{padding:14px 20px;background:var(--primary-light);cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:.95rem}
+        .macro-semana-header .sem-progress{font-size:.78rem;color:var(--text-muted);font-weight:400;margin-left:8px}
         .macro-semana-body{padding:16px 20px;display:none;border-top:1px solid var(--border)}
         .macro-semana-body.open{display:block}
-        .macro-materia{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)}
-        .macro-materia:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
-        .macro-materia-name{font-weight:700;color:var(--primary);font-size:.95rem;margin-bottom:6px}
-        .macro-materia-topico{font-size:.88rem;color:var(--text-secondary);margin-bottom:6px}
-        .macro-atividade{display:flex;gap:8px;align-items:flex-start;font-size:.85rem;color:var(--text-secondary);margin-bottom:4px}
+        .macro-materia{margin-bottom:12px;padding:12px 14px;border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface-hover);position:relative}
+        .macro-materia.done-item{opacity:.6}
+        .macro-materia.tipo-revisao{border-left:3px solid var(--accent)}
+        .macro-materia.tipo-estudo{border-left:3px solid var(--primary)}
+        .macro-materia-header{display:flex;align-items:flex-start;gap:10px}
+        .macro-check{width:18px;height:18px;border-radius:4px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:.7rem;color:#fff;transition:all .2s}
+        .macro-check.checked{background:var(--success);border-color:var(--success)}
+        .macro-check.checked-rev{background:var(--accent);border-color:var(--accent)}
+        .macro-materia-body{flex:1;min-width:0}
+        .macro-materia-name{font-weight:700;font-size:.92rem;margin-bottom:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+        .macro-materia-topico{font-size:.84rem;color:var(--text-secondary);margin-bottom:6px}
+        .macro-atividade{display:flex;gap:8px;align-items:flex-start;font-size:.82rem;color:var(--text-secondary);margin-bottom:4px}
         .macro-atividade i{color:var(--accent);margin-top:2px;flex-shrink:0}
-        .macro-leituras{font-size:.82rem;color:var(--text-muted);margin-top:6px;font-style:italic}
+        .macro-leituras{font-size:.8rem;color:var(--text-muted);margin-top:6px;font-style:italic}
+        .macro-links{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+        .macro-link-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:var(--radius-sm);font-size:.78rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;text-decoration:none}
+        .macro-link-btn.lesson{background:var(--primary-light);color:var(--primary)}
+        .macro-link-btn.lesson:hover{background:var(--primary);color:#fff}
+        .macro-link-btn.exercise{background:var(--accent-light);color:var(--accent)}
+        .macro-link-btn.exercise:hover{background:var(--accent);color:#fff}
+        .macro-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:700}
+        .macro-badge.estudo{background:var(--primary-light);color:var(--primary)}
+        .macro-badge.revisao{background:var(--accent-light);color:var(--accent)}
+        /* Review practice modal */
+        .review-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
+        .review-modal{background:var(--surface);border-radius:var(--radius-xl);padding:28px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;position:relative}
         /* Lesson Readings */
         .readings-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;margin-bottom:20px}
         .readings-section h3{font-size:1rem;margin-bottom:16px;display:flex;align-items:center;gap:8px}
@@ -1622,8 +1642,7 @@
             '<div class="loading-spinner" id="macro-main-area"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>' +
             '</div></div>';
 
-        // Load existing plan first
-        API.request('GET', '/api/performance?action=macro').then(function(macro) {
+        API.request('GET', '/api/generate-macro-plan').then(function(macro) {
             var area = document.getElementById('macro-main-area');
             if (!area) return;
 
@@ -1633,7 +1652,7 @@
 
             var formHtml = '<div class="macro-form" id="macro-gen-form">' +
                 '<h2><i class="fas fa-cog" style="color:var(--accent);margin-right:8px"></i>' + (existingDate ? 'Substituir Plano Mestre' : 'Configurar Plano Mestre') + '</h2>' +
-                (existingDate ? '<div style="background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:.88rem"><i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:6px"></i>Você já tem um Plano Mestre criado em ' + existingDate + '. Gerar um novo irá <strong>substituir o atual</strong>.</div>' : '') +
+                (existingDate ? '<div style="background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:.88rem"><i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:6px"></i>Você já tem um Plano Mestre criado em ' + existingDate + '. Gerar um novo irá <strong>substituir o atual e as revisões espaçadas serão recalculadas</strong>.</div>' : '') +
                 '<div class="form-row">' +
                   '<div class="form-group"><label>Data da Prova</label><input type="date" id="macro-data-prova" value="' + (macro && macro.data_prova ? macro.data_prova : defaultDate) + '"></div>' +
                   '<div class="form-group"><label>Horas de Estudo por Semana</label><input type="number" id="macro-horas" min="1" max="60" value="20"></div>' +
@@ -1646,12 +1665,12 @@
               '<div id="macro-output" class="macro-output" style="display:none"></div>';
 
             if (macro && macro.plan_json) {
-                // Show existing plan + collapse form by default
                 area.className = '';
                 area.innerHTML = '<div style="display:flex;gap:12px;align-items:center;margin-bottom:20px">' +
                     '<img src="/public/baron-pointing-sm.png" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--primary)" onerror="this.style.display=\'none\'">' +
                     '<div><div style="font-weight:700;font-size:1.05rem">Seu Plano Mestre está ativo</div>' +
-                    '<div style="font-size:.85rem;color:var(--text-muted)">Criado em ' + existingDate + ' · Prova em ' + (macro.data_prova ? new Date(macro.data_prova + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</div></div>' +
+                    '<div style="font-size:.85rem;color:var(--text-muted)">Criado em ' + existingDate + ' · Prova em ' + (macro.data_prova ? new Date(macro.data_prova + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</div>' +
+                    '<div style="font-size:.8rem;color:var(--text-muted);margin-top:3px"><i class="fas fa-info-circle" style="color:var(--accent)"></i> As revisões espaçadas estão programadas automaticamente</div></div>' +
                     '<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="document.getElementById(\'macro-gen-form-wrap\').style.display=document.getElementById(\'macro-gen-form-wrap\').style.display===\'none\'?\'block\':\'none\'">' +
                       '<i class="fas fa-sync"></i> Recriar plano' +
                     '</button></div>' +
@@ -1660,27 +1679,7 @@
                 tempDiv.className = 'macro-output';
                 tempDiv.style.display = 'block';
                 area.appendChild(tempDiv);
-                // Render the saved plan
-                var savedOut = tempDiv;
-                var plano = macro.plan_json;
-                var semanasHtml = (plano.semanas || []).map(function(s, i) {
-                    var materiasHtml = (s.materias || []).map(function(m) {
-                        var atvsHtml = (m.atividades || []).map(function(a) {
-                            return '<div class="macro-atividade"><i class="fas fa-check-circle"></i><span><strong>' + escapeHtml(a.tipo || '') + '</strong> — ' + escapeHtml(a.descricao || '') + (a.horas ? ' (' + a.horas + 'h)' : '') + '</span></div>';
-                        }).join('');
-                        return '<div class="macro-materia"><div class="macro-materia-name"><i class="fas fa-book-open" style="margin-right:6px"></i>' + escapeHtml(m.nome || '') + '</div>' +
-                            (m.topico ? '<div class="macro-materia-topico">' + escapeHtml(m.topico) + '</div>' : '') +
-                            atvsHtml + (m.leituras ? '<div class="macro-leituras"><i class="fas fa-bookmark" style="margin-right:4px"></i>' + escapeHtml(m.leituras) + '</div>' : '') + '</div>';
-                    }).join('');
-                    var dateStr = s.dataInicio && s.dataFim ? ' <span style="font-size:.8rem;font-weight:400;color:var(--text-secondary)">' + escapeHtml(s.dataInicio) + ' – ' + escapeHtml(s.dataFim) + '</span>' : '';
-                    return '<div class="macro-semana"><div class="macro-semana-header" onclick="toggleMacraSemana(this,' + i + ')"><span><i class="fas fa-calendar-week" style="color:var(--primary);margin-right:8px"></i>Semana ' + (s.semana || (i+1)) + dateStr + '</span><i class="fas fa-chevron-down" style="color:var(--text-muted)"></i></div><div class="macro-semana-body" id="msb-' + i + '">' + materiasHtml + '</div></div>';
-                }).join('');
-                savedOut.innerHTML =
-                    '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-hover));border-radius:var(--radius-lg);padding:20px 24px;color:#fff;margin-bottom:20px">' +
-                      '<div style="font-weight:700;font-size:1.1rem;margin-bottom:6px"><i class="fas fa-map" style="margin-right:8px"></i>Plano Mestre</div>' +
-                      '<div style="font-size:.92rem;opacity:.9;line-height:1.5">' + escapeHtml(plano.resumo || '') + '</div>' +
-                      '<div style="margin-top:12px;font-size:.82rem;opacity:.8"><i class="fas fa-clock" style="margin-right:4px"></i>' + (plano.totalSemanas || '') + ' semanas · ' + (plano.totalHoras || '') + 'h totais</div>' +
-                    '</div>' + semanasHtml;
+                renderMacroPlan(macro.plan_json, tempDiv);
             } else {
                 area.className = '';
                 area.innerHTML = formHtml;
@@ -1698,44 +1697,107 @@
         if (!dataProva) { showToast('Informe a data da prova', 'error'); return; }
         var out = document.getElementById('macro-output');
         out.style.display = 'block';
-        out.innerHTML = '<div class="plan-loading"><img src="/public/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>O Barão está elaborando seu Plano Mestre… isso pode levar alguns segundos.</p></div>';
+        out.innerHTML = '<div class="plan-loading"><img src="/public/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>O Barão está elaborando seu Plano Mestre com revisões espaçadas… isso pode levar alguns segundos.</p></div>';
         baronFloatPose('reading', 15000);
         API.generateMacroPlan({ dataProva: dataProva, horasPorSemana: horasPorSemana, observacoes: observacoes }).then(function(plano) {
-            renderMacroPlan(plano);
+            renderMacroPlan(plano, out);
         }).catch(function(err) {
             out.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
         });
     }
 
-    function renderMacroPlan(plano) {
-        var out = document.getElementById('macro-output');
-        var semanasHtml = (plano.semanas || []).map(function(s, i) {
-            var materiasHtml = (s.materias || []).map(function(m) {
-                var atvsHtml = (m.atividades || []).map(function(a) {
-                    return '<div class="macro-atividade"><i class="fas fa-check-circle"></i><span><strong>' + escapeHtml(a.tipo || '') + '</strong> — ' + escapeHtml(a.descricao || '') + (a.horas ? ' (' + a.horas + 'h)' : '') + '</span></div>';
-                }).join('');
-                return '<div class="macro-materia">' +
-                    '<div class="macro-materia-name"><i class="fas fa-book-open" style="margin-right:6px"></i>' + escapeHtml(m.nome || '') + '</div>' +
-                    (m.topico ? '<div class="macro-materia-topico">' + escapeHtml(m.topico) + '</div>' : '') +
-                    atvsHtml +
-                    (m.leituras ? '<div class="macro-leituras"><i class="fas fa-bookmark" style="margin-right:4px"></i>' + escapeHtml(m.leituras) + '</div>' : '') +
-                '</div>';
+    function buildMateriaHtml(m) {
+        var isRevisao = m.tipo === 'revisao';
+        var isDone = !!m.done;
+        var checkClass = isDone ? (isRevisao ? 'checked-rev' : 'checked') : '';
+        var checkIcon = isDone ? '<i class="fas fa-check"></i>' : '';
+        var itemId = m.id || '';
+
+        var badge = '<span class="macro-badge ' + (isRevisao ? 'revisao' : 'estudo') + '">' +
+            (isRevisao ? '<i class="fas fa-rotate-left" style="margin-right:3px"></i>Revisão espaçada' : '<i class="fas fa-book-open" style="margin-right:3px"></i>Estudo') + '</span>';
+
+        var atvsHtml = '';
+        if (!isRevisao) {
+            atvsHtml = (m.atividades || []).map(function(a) {
+                return '<div class="macro-atividade"><i class="fas fa-chevron-right"></i><span><strong>' + escapeHtml(a.tipo || '') + '</strong> — ' + escapeHtml(a.descricao || '') + (a.horas ? ' (' + a.horas + 'h)' : '') + '</span></div>';
             }).join('');
-            var dateStr = '';
-            if (s.dataInicio && s.dataFim) dateStr = ' <span style="font-size:.8rem;font-weight:400;color:var(--text-secondary)">' + escapeHtml(s.dataInicio) + ' – ' + escapeHtml(s.dataFim) + '</span>';
+        }
+
+        var linksHtml = '<div class="macro-links">';
+        if (m.subject_id) {
+            linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + m.subject_id + ')">' +
+                '<i class="fas fa-play-circle"></i> Ver aulas</button>';
+        }
+        if (isRevisao) {
+            linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + JSON.stringify(m.nome) + ')">' +
+                '<i class="fas fa-pen-to-square"></i> Fazer exercícios</button>';
+        } else if (m.subject_id) {
+            linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + JSON.stringify(m.nome) + ')">' +
+                '<i class="fas fa-question-circle"></i> Praticar questões</button>';
+        }
+        linksHtml += '</div>';
+
+        return '<div class="macro-materia tipo-' + (isRevisao ? 'revisao' : 'estudo') + (isDone ? ' done-item' : '') + '" id="mitem-' + escapeHtml(itemId) + '">' +
+            '<div class="macro-materia-header">' +
+              '<div class="macro-check ' + checkClass + '" onclick="toggleMacraItem(' + JSON.stringify(itemId) + ',' + JSON.stringify(!isDone) + ')" title="Marcar como ' + (isDone ? 'não feito' : 'concluído') + '">' + checkIcon + '</div>' +
+              '<div class="macro-materia-body">' +
+                '<div class="macro-materia-name">' + escapeHtml(m.nome || '') + badge + '</div>' +
+                (m.topico ? '<div class="macro-materia-topico">' + escapeHtml(m.topico) + '</div>' : '') +
+                atvsHtml +
+                (m.leituras ? '<div class="macro-leituras"><i class="fas fa-bookmark" style="margin-right:4px"></i>' + escapeHtml(m.leituras) + '</div>' : '') +
+                linksHtml +
+              '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    function renderMacroPlan(plano, container) {
+        var out = container || document.getElementById('macro-output');
+        if (!out) return;
+        var semanasHtml = (plano.semanas || []).map(function(s, i) {
+            var materias = s.materias || [];
+            var total = materias.length;
+            var done = materias.filter(function(m){ return m.done; }).length;
+            var progressStr = done + '/' + total + ' itens concluídos';
+            var materiasHtml = materias.map(buildMateriaHtml).join('');
+            var dateStr = s.dataInicio && s.dataFim
+                ? ' <span style="font-size:.8rem;font-weight:400;color:var(--text-secondary)">' + escapeHtml(s.dataInicio) + ' – ' + escapeHtml(s.dataFim) + '</span>'
+                : '';
+            // Auto-open current week (check if today falls in this week)
+            var isCurrentWeek = false;
+            if (s.dataInicio && s.dataFim) {
+                var now = new Date().toISOString().split('T')[0];
+                isCurrentWeek = now >= s.dataInicio && now <= s.dataFim;
+            }
             return '<div class="macro-semana">' +
                 '<div class="macro-semana-header" onclick="toggleMacraSemana(this,' + i + ')">' +
-                  '<span><i class="fas fa-calendar-week" style="color:var(--primary);margin-right:8px"></i>Semana ' + (s.semana || (i+1)) + dateStr + '</span>' +
-                  '<i class="fas fa-chevron-down" style="color:var(--text-muted)"></i>' +
+                  '<span><i class="fas fa-calendar-week" style="color:var(--primary);margin-right:8px"></i>Semana ' + (s.semana || (i+1)) + dateStr +
+                  '<span class="sem-progress">' + escapeHtml(progressStr) + '</span></span>' +
+                  '<i class="fas fa-chevron-down" style="color:var(--text-muted);transition:transform .2s"></i>' +
                 '</div>' +
-                '<div class="macro-semana-body" id="msb-' + i + '">' + materiasHtml + '</div>' +
+                '<div class="macro-semana-body' + (isCurrentWeek ? ' open' : '') + '" id="msb-' + i + '">' + materiasHtml + '</div>' +
             '</div>';
         }).join('');
+
+        var totalItems = 0, doneItems = 0;
+        (plano.semanas || []).forEach(function(s) {
+            (s.materias || []).forEach(function(m) { totalItems++; if (m.done) doneItems++; });
+        });
+        var pct = totalItems > 0 ? Math.round(doneItems / totalItems * 100) : 0;
+
         out.innerHTML =
             '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-hover));border-radius:var(--radius-lg);padding:20px 24px;color:#fff;margin-bottom:20px">' +
-              '<div style="font-weight:700;font-size:1.1rem;margin-bottom:6px"><i class="fas fa-map" style="margin-right:8px"></i>Plano Mestre Gerado</div>' +
+              '<div style="font-weight:700;font-size:1.1rem;margin-bottom:6px"><i class="fas fa-map" style="margin-right:8px"></i>Plano Mestre CACD</div>' +
               '<div style="font-size:.92rem;opacity:.9;line-height:1.5">' + escapeHtml(plano.resumo || '') + '</div>' +
               '<div style="margin-top:12px;font-size:.82rem;opacity:.8"><i class="fas fa-clock" style="margin-right:4px"></i>' + (plano.totalSemanas || '') + ' semanas · ' + (plano.totalHoras || '') + 'h totais</div>' +
+              '<div style="margin-top:10px">' +
+                '<div style="font-size:.8rem;opacity:.8;margin-bottom:4px">Progresso geral: ' + doneItems + '/' + totalItems + ' itens (' + pct + '%)</div>' +
+                '<div style="background:rgba(255,255,255,.2);border-radius:99px;height:6px"><div style="background:#fff;border-radius:99px;height:100%;width:' + pct + '%;transition:width .5s"></div></div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;font-size:.82rem">' +
+              '<span><span class="macro-badge estudo">Estudo</span> novo conteúdo com leituras</span>' +
+              '<span><span class="macro-badge revisao">Revisão espaçada</span> exercícios de fixação (gerados automaticamente)</span>' +
             '</div>' +
             semanasHtml;
     }
@@ -1747,6 +1809,98 @@
         var open = body.classList.contains('open');
         body.classList.toggle('open', !open);
         if (icon) icon.style.transform = open ? '' : 'rotate(180deg)';
+    }
+
+    function toggleMacraItem(itemId, done) {
+        if (!itemId) return;
+        var el = document.getElementById('mitem-' + itemId);
+        if (!el) return;
+        var checkEl = el.querySelector('.macro-check');
+        var isRevisao = el.classList.contains('tipo-revisao');
+        if (done) {
+            checkEl.className = 'macro-check ' + (isRevisao ? 'checked-rev' : 'checked');
+            checkEl.innerHTML = '<i class="fas fa-check"></i>';
+            el.classList.add('done-item');
+        } else {
+            checkEl.className = 'macro-check';
+            checkEl.innerHTML = '';
+            el.classList.remove('done-item');
+        }
+        // Update the onclick to reflect new state
+        checkEl.setAttribute('onclick', 'toggleMacraItem(' + JSON.stringify(itemId) + ',' + JSON.stringify(!done) + ')');
+        // Save to server (fire and forget)
+        API.request('PUT', '/api/generate-macro-plan', { itemId: itemId, done: done }).catch(function() {});
+    }
+
+    function abrirAulasPlano(subjectId) {
+        if (!subjectId) { showToast('Aulas não vinculadas para esta matéria', 'warning'); return; }
+        navigate('student-subject', { subjectId: subjectId });
+    }
+
+    function abrirRevisaoPlano(subjectName) {
+        if (!subjectName) return;
+        // Open practice modal for this subject
+        var overlay = document.createElement('div');
+        overlay.className = 'review-modal-overlay';
+        overlay.id = 'review-modal-overlay';
+        overlay.innerHTML = '<div class="review-modal">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+              '<h2 style="font-size:1.15rem"><i class="fas fa-pen-to-square" style="color:var(--accent);margin-right:8px"></i>Revisão: ' + escapeHtml(subjectName) + '</h2>' +
+              '<button onclick="document.getElementById(\'review-modal-overlay\').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-muted)">✕</button>' +
+            '</div>' +
+            '<div id="review-modal-body"><i class="fas fa-spinner fa-spin"></i> Carregando questões de revisão…</div>' +
+        '</div>';
+        document.body.appendChild(overlay);
+
+        API.request('GET', '/api/questions?subject=' + encodeURIComponent(subjectName) + '&source=exam&limit=10').then(function(data) {
+            var qs = (data && data.questions) || [];
+            var body = document.getElementById('review-modal-body');
+            if (!body) return;
+            if (qs.length === 0) {
+                body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted)">' +
+                    '<i class="fas fa-database" style="font-size:2rem;margin-bottom:12px"></i>' +
+                    '<p>Ainda não há questões de prova nesta matéria no banco.</p>' +
+                    '<p style="font-size:.85rem;margin-top:8px">As questões do CACD TPS 2023+ estão sendo carregadas progressivamente. Em breve haverá mais questões disponíveis.</p>' +
+                '</div>';
+                return;
+            }
+            var html = '<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px">' + qs.length + ' questões de prova real (CACD TPS) • Julgue cada item como Certo ou Errado</div>';
+            qs.forEach(function(q, qi) {
+                var qId = 'rev-q-' + qi;
+                html += '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
+                    '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
+                    '<div style="font-size:.9rem;line-height:1.6;margin-bottom:12px;white-space:pre-wrap">' + escapeHtml(q.enunciado || '') + '</div>' +
+                    '<div style="display:flex;gap:10px">' +
+                      '<button class="btn btn-secondary btn-sm" id="' + qId + '-a" onclick="conferirRevisao(' + JSON.stringify(qId) + ',' + JSON.stringify(q.id) + ',' + JSON.stringify(q.gabarito) + ',' + JSON.stringify(subjectName) + ',\'a\')">Certo</button>' +
+                      '<button class="btn btn-secondary btn-sm" id="' + qId + '-b" onclick="conferirRevisao(' + JSON.stringify(qId) + ',' + JSON.stringify(q.id) + ',' + JSON.stringify(q.gabarito) + ',' + JSON.stringify(subjectName) + ',\'b\')">Errado</button>' +
+                    '</div>' +
+                    '<div id="' + qId + '-result" style="margin-top:10px;font-size:.85rem;display:none"></div>' +
+                    (q.explicacao ? '<div id="' + qId + '-exp" style="display:none;margin-top:8px;padding:10px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem">' + escapeHtml(q.explicacao) + '</div>' : '') +
+                '</div>';
+            });
+            body.innerHTML = html;
+        }).catch(function() {
+            var body = document.getElementById('review-modal-body');
+            if (body) body.innerHTML = '<p style="color:var(--danger)">Erro ao carregar questões.</p>';
+        });
+    }
+
+    function conferirRevisao(qId, questionId, gabarito, subjectName, answer) {
+        var correct = answer === gabarito;
+        var resultEl = document.getElementById(qId + '-result');
+        var expEl = document.getElementById(qId + '-exp');
+        var btnA = document.getElementById(qId + '-a');
+        var btnB = document.getElementById(qId + '-b');
+        if (btnA) btnA.disabled = true;
+        if (btnB) btnB.disabled = true;
+        if (resultEl) {
+            resultEl.style.display = 'block';
+            resultEl.innerHTML = correct
+                ? '<span style="color:var(--success);font-weight:700"><i class="fas fa-check-circle"></i> Correto! ' + (gabarito === 'a' ? 'Certo' : 'Errado') + '</span>'
+                : '<span style="color:var(--danger);font-weight:700"><i class="fas fa-times-circle"></i> Incorreto. A resposta é ' + (gabarito === 'a' ? 'Certo' : 'Errado') + '</span>';
+        }
+        if (expEl) expEl.style.display = 'block';
+        API.request('POST', '/api/questions', { action: 'record', subject: subjectName, question_id: questionId || null, correct: correct }).catch(function(){});
     }
 
     /* ============================================================

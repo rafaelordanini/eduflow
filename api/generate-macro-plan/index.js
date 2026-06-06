@@ -158,13 +158,100 @@ const CACD_DATA = {
 
 const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
 
+// Enrich plan: add IDs, spaced repetition review items, subject_id references, done flags
+function enrichPlan(plano, subjectMap) {
+  const n = (plano.semanas || []).length;
+  // Tag study items
+  plano.semanas.forEach((sem, wi) => {
+    sem.materias = (sem.materias || []).map((m, mi) => {
+      const sid = subjectMap[m.nome] || null;
+      return { ...m, id: 'w' + (wi + 1) + '-m' + mi, tipo: 'estudo', done: false, subject_id: sid };
+    });
+  });
+
+  // Collect study items for spaced repetition
+  const studyItems = [];
+  plano.semanas.forEach((sem, wi) => {
+    sem.materias.forEach(m => {
+      if (m.tipo === 'estudo') studyItems.push({ wi, nome: m.nome, topico: m.topico, subject_id: m.subject_id });
+    });
+  });
+
+  // Track added reviews per (week, subject) to avoid duplicates
+  const added = {};
+  studyItems.forEach(({ wi, nome, topico, subject_id }) => {
+    [1, 2, 4].forEach(function(interval) {
+      const targetWi = wi + interval;
+      if (targetWi >= n) return;
+      const key = targetWi + ':' + nome;
+      if (added[key]) return;
+      // Skip if subject is being actively studied that week already
+      const targetSem = plano.semanas[targetWi];
+      const alreadyStudied = targetSem.materias.some(function(m) { return m.tipo === 'estudo' && m.nome === nome; });
+      if (alreadyStudied) return;
+      added[key] = true;
+      targetSem.materias.push({
+        id: 'rev-w' + (wi + 1) + '-' + nome.replace(/\s+/g, '') + '-d' + (interval * 7),
+        nome: nome,
+        topico: 'Revisão espaçada: ' + (topico || nome),
+        tipo: 'revisao',
+        done: false,
+        subject_id: subject_id,
+        atividades: [{ tipo: 'revisao', descricao: 'Fazer exercícios de ' + nome + ' (revisão espaçada em ' + (interval * 7) + ' dias)', horas: 1 }],
+        leituras: '',
+      });
+    });
+  });
+
+  return plano;
+}
+
 module.exports = async function handler(req, res) {
   try {
     if (cors(req, res)) return;
-    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
     const user = requireAuth(req, res);
     if (!user) return;
+
+    const supabase = getSupabase();
+
+    // GET — return current plan
+    if (req.method === 'GET') {
+      const { data, error } = await supabase
+        .from('macro_plans')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return res.status(200).json(data || null);
+    }
+
+    // PUT — mark/unmark a plan item as done
+    if (req.method === 'PUT') {
+      const { itemId, done } = req.body || {};
+      if (!itemId || typeof done !== 'boolean') {
+        return res.status(400).json({ error: 'Informe itemId e done (boolean).' });
+      }
+      const { data: mp, error: fetchErr } = await supabase
+        .from('macro_plans').select('id, plan_json').eq('user_id', user.id)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (fetchErr || !mp) return res.status(404).json({ error: 'Plano não encontrado.' });
+
+      let found = false;
+      (mp.plan_json.semanas || []).forEach(function(sem) {
+        (sem.materias || []).forEach(function(m) {
+          if (m.id === itemId) { m.done = done; found = true; }
+        });
+      });
+      if (!found) return res.status(404).json({ error: 'Item não encontrado no plano.' });
+
+      await supabase.from('macro_plans').update({ plan_json: mp.plan_json }).eq('id', mp.id);
+      return res.status(200).json({ ok: true });
+    }
+
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
     const { dataProva, horasPorSemana, observacoes } = req.body || {};
 
@@ -256,7 +343,6 @@ ${materiasTexto}
 
     const aiResponse = await response.json();
     const content = aiResponse.choices?.[0]?.message?.content;
-
     if (!content) return res.status(502).json({ error: 'Resposta vazia do modelo de IA.' });
 
     let plano;
@@ -264,15 +350,23 @@ ${materiasTexto}
       plano = JSON.parse(content);
     } catch (e) {
       const match = content.match(/```json\n?([\s\S]+?)\n?```/) || content.match(/({[\s\S]+})/);
-      if (match) {
-        plano = JSON.parse(match[1]);
-      } else {
-        return res.status(502).json({ error: 'Resposta do modelo não está em formato válido.' });
-      }
+      if (match) plano = JSON.parse(match[1]);
+      else return res.status(502).json({ error: 'Resposta do modelo não está em formato válido.' });
     }
 
-    // Salvar plano no banco (delete existing first, then insert — one plan per user)
-    const supabase = getSupabase();
+    // Fetch subjects to build name→id map for lesson links
+    const { data: subjects } = await supabase.from('subjects').select('id, name');
+    const subjectMap = {};
+    (subjects || []).forEach(s => {
+      subjectMap[s.name] = s.id;
+      // Also map common name variations
+      subjectMap[s.name.toLowerCase()] = s.id;
+    });
+
+    // Enrich plan with IDs, spaced repetition items, subject_id, done flags
+    enrichPlan(plano, subjectMap);
+
+    // Persist plan (replace any existing)
     await supabase.from('macro_plans').delete().eq('user_id', user.id);
     await supabase.from('macro_plans').insert({
       user_id: user.id,
