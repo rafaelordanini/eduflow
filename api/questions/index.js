@@ -119,6 +119,15 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
+      // action=update-topic — any authenticated user can classify a topic
+      if (action === 'update-topic') {
+        const { id, topic } = req.body;
+        if (!id) return res.status(400).json({ error: 'id é obrigatório.' });
+        const { error } = await supabase.from('questions').update({ topic: topic || null }).eq('id', id);
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(200).json({ ok: true });
+      }
+
       // action=import-exam permite autenticação por IMPORT_SECRET (sem JWT)
       const importSecret = process.env.IMPORT_SECRET;
       const providedSecret = req.headers['x-import-secret'];
@@ -127,15 +136,6 @@ module.exports = async function handler(req, res) {
       if (!hasSecretAuth) {
         const admin = requireAdmin(req, res);
         if (!admin) return;
-      }
-
-      // action=update-topic — update topic for a specific question
-      if (action === 'update-topic') {
-        const { id, topic } = req.body;
-        if (!id) return res.status(400).json({ error: 'id é obrigatório.' });
-        const { error } = await supabase.from('questions').update({ topic: topic || null }).eq('id', id);
-        if (error) return res.status(500).json({ error: error.message });
-        return res.status(200).json({ ok: true });
       }
 
       // action=import-exam — AI-assisted import from raw exam text
