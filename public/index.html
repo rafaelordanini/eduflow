@@ -2078,25 +2078,27 @@
     }
 
     function abrirAulasPlano(subjectId, subjectName, topico) {
+        function scoreMatch(title, topic) {
+            var t = (title || '').toLowerCase(), p = (topic || '').toLowerCase();
+            if (t.indexOf(p) !== -1 || p.indexOf(t) !== -1) return 2;
+            var words = p.split(/\s+/).filter(function(w) { return w.length > 3; });
+            var hits = words.filter(function(w) { return t.indexOf(w) !== -1; }).length;
+            return hits;
+        }
         function navigateToLesson(sid, sname) {
-            // If a topic hint is given, try to find the specific lesson
-            if (topico) {
-                API.request('GET', '/api/lessons?subjectId=' + encodeURIComponent(sid)).then(function(data) {
-                    var lessons = data && data.lessons ? data.lessons : (Array.isArray(data) ? data : []);
-                    var topicoLow = topico.toLowerCase();
-                    var match = lessons.find(function(l) {
-                        return (l.title || '').toLowerCase().indexOf(topicoLow) !== -1 ||
-                               topicoLow.indexOf((l.title || '').toLowerCase()) !== -1;
+            API.request('GET', '/api/lessons?subjectId=' + encodeURIComponent(sid)).then(function(data) {
+                var lessons = data && data.lessons ? data.lessons : (Array.isArray(data) ? data : []);
+                if (!lessons.length) { navigate('student-subject', { subjectId: sid }); return; }
+                var best = null, bestScore = 0;
+                if (topico) {
+                    lessons.forEach(function(l) {
+                        var s = scoreMatch(l.title, topico);
+                        if (s > bestScore) { bestScore = s; best = l; }
                     });
-                    if (match) {
-                        navigate('student-lesson', { subjectId: sid, lessonId: match.id });
-                    } else {
-                        navigate('student-subject', { subjectId: sid });
-                    }
-                }).catch(function() { navigate('student-subject', { subjectId: sid }); });
-            } else {
-                navigate('student-subject', { subjectId: sid });
-            }
+                }
+                var target = (best && bestScore > 0) ? best : lessons[0];
+                navigate('student-lesson', { subjectId: sid, lessonId: target.id });
+            }).catch(function() { navigate('student-subject', { subjectId: sid }); });
         }
         if (subjectId) {
             navigateToLesson(subjectId, subjectName);
