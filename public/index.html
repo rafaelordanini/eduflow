@@ -468,6 +468,7 @@
         if (topic) {
             return '<span class="topic-badge definido" title="Tópico: ' + escapeHtml(topic) + '"><i class="fas fa-tag" style="font-size:.65rem"></i>' + escapeHtml(topic) + '</span>';
         }
+        if (!questionId) return '';
         return '<span class="topic-badge indefinido" onclick="abrirModalTopico(' + _js(questionId) + ',' + _js(subject) + ')" title="Clique para classificar o tópico desta questão"><i class="fas fa-question-circle" style="font-size:.65rem"></i> indefinido</span>';
     }
 
@@ -1849,8 +1850,9 @@
                 '</div>';
             }).join('');
             var expHtml = q.explicacao ? '<div style="margin-top:10px;padding:10px 12px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem;color:var(--text)">' + escapeHtml(q.explicacao) + '</div>' : '';
-            return '<div class="questao-card" data-qid="' + escapeHtml(String(q.id||'')) + '" style="border-left:3px solid ' + borderColor + '">' +
-                buildTopicBadge(q.id, q.subject, q.topic) +
+            var qid = q.id || q.question_id || '';
+            return '<div class="questao-card" data-qid="' + escapeHtml(String(qid)) + '" style="border-left:3px solid ' + borderColor + '">' +
+                buildTopicBadge(qid, q.subject, q.topic) +
                 '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px">' + escapeHtml(q.subject || '') + ' • ' + (correct ? '<span style="color:var(--success)">Correta</span>' : q.user_answer ? '<span style="color:var(--danger)">Errada</span>' : '<span style="color:var(--text-muted)">Não respondida</span>') + '</div>' +
                 '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
                 opcoesHtml + expHtml +
