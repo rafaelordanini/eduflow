@@ -438,6 +438,9 @@
        ============================================================ */
     function escapeHtml(t) { var d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
     function formatTime(s) { return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); }
+    // Safe single-quoted JS string literal for use inside HTML onclick="..." attributes
+    function _js(s) { return "'" + String(s == null ? '' : s).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'"; }
+    function _jsNull(s) { return (s == null) ? 'null' : _js(s); }
 
     var _baronPoseTimer = null;
     var BARON_POSES = {
@@ -712,8 +715,8 @@
         var home = state.user && state.user.role === 'admin' ? 'admin-dashboard' : 'student-dashboard';
         var lh = links.map(function(l) { return '<button class="'+(state.view===l.view?'active':'')+'" onclick="navigate(\''+l.view+'\')"><i class="fas '+l.icon+'"></i> <span>'+escapeHtml(l.label)+'</span></button>'; }).join('');
         var timerBtn = (state.user && state.user.role !== 'admin') ? '<button class="btn btn-accent btn-sm" onclick="openStudyTimer()" style="display:flex;align-items:center;gap:6px"><i class="fas fa-clock"></i> Estudar Agora</button>' : '';
-        var backBtn = _navHistory.length > 0 ? '<button onclick="goBack()" title="Voltar" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;padding:6px 10px;border-radius:var(--radius-sm);display:flex;align-items:center;gap:5px;transition:all var(--transition)" onmouseover="this.style.background=\'var(--surface-hover)\'" onmouseout="this.style.background=\'none\'"><i class="fas fa-arrow-left"></i> Voltar</button>' : '';
-        return '<nav class="navbar"><div class="navbar-inner"><div style="display:flex;align-items:center;gap:8px"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div>'+backBtn+'</div><div class="navbar-links">'+lh+'</div><div class="navbar-user">'+timerBtn+'<div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
+        var backBtn = _navHistory.length > 0 ? '<button onclick="goBack()" title="Voltar" style="background:none;border:none;color:var(--text-muted);cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all var(--transition);flex-shrink:0" onmouseover="this.style.background=\'var(--surface-hover)\';this.style.color=\'var(--primary)\'" onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-muted)\'"><i class="fas fa-arrow-left"></i></button>' : '';
+        return '<nav class="navbar"><div class="navbar-inner"><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div>'+backBtn+'</div><div class="navbar-links">'+lh+'</div><div class="navbar-user">'+timerBtn+'<div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
     }
     function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
     function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-road',label:'Plano Mestre'},{view:'student-simulado',icon:'fa-pen-to-square',label:'Simulado'},{view:'student-performance',icon:'fa-chart-bar',label:'Desempenho'}]; }
@@ -953,13 +956,13 @@
             var checkIcon = isDone ? '<i class="fas fa-check"></i>' : '';
             var mId = m.id || '';
             var actBtns = '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' +
-                '<button class="macro-link-btn lesson" style="font-size:.72rem;padding:3px 8px" onclick="abrirAulasPlano(' + (m.subject_id || 'null') + ',' + JSON.stringify(m.nome || '') + ')">' +
+                '<button class="macro-link-btn lesson" style="font-size:.72rem;padding:3px 8px" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _js(m.nome || '') + ')">' +
                     '<i class="fas fa-play-circle"></i> Ver aulas</button>' +
-                '<button class="macro-link-btn exercise" style="font-size:.72rem;padding:3px 8px" onclick="abrirRevisaoPlano(' + JSON.stringify(m.nome || '') + ')">' +
+                '<button class="macro-link-btn exercise" style="font-size:.72rem;padding:3px 8px" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ')">' +
                     '<i class="fas fa-question-circle"></i> ' + (isRev ? 'Fazer exercícios' : 'Praticar questões') + '</button>' +
             '</div>';
             return '<div id="mitem-' + escapeHtml(mId) + '" class="macro-materia tipo-' + (isRev ? 'revisao' : 'estudo') + (isDone ? ' done-item' : '') + '" style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">' +
-                '<div class="macro-check ' + checkClass + '" style="margin-top:1px;flex-shrink:0" onclick="toggleMacraItem(' + JSON.stringify(mId) + ',' + JSON.stringify(!isDone) + ')" title="Marcar como ' + (isDone ? 'pendente' : 'concluído') + '">' + checkIcon + '</div>' +
+                '<div class="macro-check ' + checkClass + '" style="margin-top:1px;flex-shrink:0" onclick="toggleMacraItem(' + _js(mId) + ',' + !isDone + ')" title="Marcar como ' + (isDone ? 'pendente' : 'concluído') + '">' + checkIcon + '</div>' +
                 '<div style="flex:1;min-width:0">' +
                   '<div style="font-size:.85rem;font-weight:' + (isDone ? '400' : '600') + ';color:' + (isDone ? 'var(--text-muted)' : 'var(--text)') + (isDone ? ';text-decoration:line-through' : '') + '">' +
                     '<span class="macro-badge ' + (isRev ? 'revisao' : 'estudo') + '" style="margin-right:5px">' + (isRev ? 'Revisão' : 'Estudo') + '</span>' +
@@ -1528,8 +1531,24 @@
             });
             document.getElementById('complete-toggle').addEventListener('change', function() {
                 var checked = this.checked;
+                var subjectNameForPlan = subject.name;
                 API.saveProgress({ lesson_id:lid, completed:checked }).then(function() {
-                    showToast(checked?'Aula marcada como concluída!':'Aula desmarcada'); render();
+                    showToast(checked?'Aula marcada como concluída!':'Aula desmarcada');
+                    if (checked) {
+                        // Find and check matching study item in active Plano Mestre week
+                        API.request('GET', '/api/generate-macro-plan').then(function(macro) {
+                            if (!macro || !macro.plan_json) return;
+                            var today = new Date().toISOString().split('T')[0];
+                            var sem = (macro.plan_json.semanas || []).find(function(s) { return s.dataInicio && s.dataFim && today >= s.dataInicio && today <= s.dataFim; });
+                            if (!sem) return;
+                            var item = (sem.materias || []).find(function(m) { return m.tipo === 'estudo' && !m.done && m.nome && m.nome.toLowerCase() === subjectNameForPlan.toLowerCase(); });
+                            if (item && item.id) {
+                                API.request('PUT', '/api/generate-macro-plan', { itemId: item.id, done: true }).catch(function() {});
+                                showToast('Plano Mestre atualizado: ' + subjectNameForPlan + ' marcado como concluído!', 'success');
+                            }
+                        }).catch(function() {});
+                    }
+                    render();
                 }).catch(function(err) { showToast(err.message,'error'); });
             });
         });
@@ -1876,20 +1895,15 @@
         }
 
         var linksHtml = '<div class="macro-links">';
-        linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + (m.subject_id || 'null') + ',' + JSON.stringify(m.nome || '') + ')">' +
+        linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _js(m.nome || '') + ')">' +
             '<i class="fas fa-play-circle"></i> Ver aulas</button>';
-        if (isRevisao) {
-            linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + JSON.stringify(m.nome) + ')">' +
-                '<i class="fas fa-pen-to-square"></i> Fazer exercícios</button>';
-        } else {
-            linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + JSON.stringify(m.nome) + ')">' +
-                '<i class="fas fa-question-circle"></i> Praticar questões</button>';
-        }
+        linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ')">' +
+            (isRevisao ? '<i class="fas fa-pen-to-square"></i> Fazer exercícios' : '<i class="fas fa-question-circle"></i> Praticar questões') + '</button>';
         linksHtml += '</div>';
 
         return '<div class="macro-materia tipo-' + (isRevisao ? 'revisao' : 'estudo') + (isDone ? ' done-item' : '') + '" id="mitem-' + escapeHtml(itemId) + '">' +
             '<div class="macro-materia-header">' +
-              '<div class="macro-check ' + checkClass + '" onclick="toggleMacraItem(' + JSON.stringify(itemId) + ',' + JSON.stringify(!isDone) + ')" title="Marcar como ' + (isDone ? 'não feito' : 'concluído') + '">' + checkIcon + '</div>' +
+              '<div class="macro-check ' + checkClass + '" onclick="toggleMacraItem(' + _js(itemId) + ',' + !isDone + ')" title="Marcar como ' + (isDone ? 'não feito' : 'concluído') + '">' + checkIcon + '</div>' +
               '<div class="macro-materia-body">' +
                 '<div class="macro-materia-name">' + escapeHtml(m.nome || '') + badge + '</div>' +
                 (m.topico ? '<div class="macro-materia-topico">' + escapeHtml(m.topico) + '</div>' : '') +
@@ -1976,8 +1990,19 @@
             checkEl.innerHTML = '';
             el.classList.remove('done-item');
         }
-        // Update the onclick to reflect new state
-        checkEl.setAttribute('onclick', 'toggleMacraItem(' + JSON.stringify(itemId) + ',' + JSON.stringify(!done) + ')');
+        // Update the onclick to reflect new state using safe single-quoted JS strings
+        checkEl.setAttribute('onclick', 'toggleMacraItem(' + _js(itemId) + ',' + !done + ')');
+        // Update all progress bars that reference this panel (both master-week-panel and macro-output)
+        ['master-week-panel', 'macro-output'].forEach(function(panelId) {
+            var panel = document.getElementById(panelId);
+            if (!panel) return;
+            var items = panel.querySelectorAll('.macro-materia');
+            var total = items.length, doneCount = 0;
+            items.forEach(function(item) { if (item.classList.contains('done-item')) doneCount++; });
+            var pct = total > 0 ? Math.round(doneCount / total * 100) : 0;
+            var bar = panel.querySelector('.fill[style*="width"]');
+            if (bar) bar.style.width = pct + '%';
+        });
         // Save to server (fire and forget)
         API.request('PUT', '/api/generate-macro-plan', { itemId: itemId, done: done }).catch(function() {});
     }
