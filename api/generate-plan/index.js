@@ -176,6 +176,19 @@ const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
 module.exports = async function handler(req, res) {
   try {
     if (cors(req, res)) return;
+    // GET → return plans history (replaces /api/plans-history)
+    if (req.method === 'GET') {
+      const supabaseG = getSupabase();
+      const { data, error } = await supabaseG
+        .from('daily_plans')
+        .select('id, plan_date, hours_available, focus_subjects, plan_json')
+        .eq('user_id', user.id)
+        .order('plan_date', { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return res.status(200).json(data || []);
+    }
+
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
     const user = requireAuth(req, res);

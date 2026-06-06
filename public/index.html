@@ -395,7 +395,7 @@
         resetPassword: function(token, username, newPassword) { return this.request('POST', '/api/auth/reset', { token: token, username: username, newPassword: newPassword }); },
 
         generateMacroPlan: function(data) { return this.request('POST', '/api/generate-macro-plan', data); },
-        getPlansHistory: function() { return this.request('GET', '/api/plans-history'); },
+        getPlansHistory: function() { return this.request('GET', '/api/generate-plan'); },
         generateQuestions: function(data) { return this.request('POST', '/api/generate-questions', data); },
         getQuestions: function(params) {
             var qs = Object.keys(params||{}).map(function(k){return k+'='+encodeURIComponent(params[k]);}).join('&');
@@ -586,7 +586,7 @@
         var durationMs = new Date() - _studyTimerStart;
         var durationMin = Math.max(1, Math.round(durationMs / 60000));
         // Save session
-        API.request('POST', '/api/study-session', {
+        API.request('POST', '/api/performance', {
             subject: _studyTimerSubject,
             durationMinutes: durationMin,
             startedAt: _studyTimerStart.toISOString()
@@ -1265,7 +1265,8 @@
         var gabarito = (q.gabarito || '').toLowerCase().trim();
         var correct = selected === gabarito;
         // Fire-and-forget attempt recording
-        API.request('POST', '/api/record-attempt', {
+        API.request('POST', '/api/questions', {
+            action: 'record',
             subject: q.subject || _currentSubject,
             topic: q.topic || _currentLesson,
             question_id: q.question_id || null,

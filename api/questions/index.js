@@ -30,6 +30,20 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      const { action } = req.body || {};
+
+      // action=record — save a question attempt (replaces /api/record-attempt)
+      if (action === 'record') {
+        const { subject, topic, question_id, correct } = req.body;
+        if (!subject) return res.status(400).json({ error: 'Campo subject é obrigatório.' });
+        if (typeof correct !== 'boolean') return res.status(400).json({ error: 'Campo correct deve ser boolean.' });
+        const { error } = await supabase.from('question_attempts').insert({
+          user_id: user.id, subject, topic: topic || null, question_id: question_id || null, correct
+        });
+        if (error) return res.status(500).json({ error: error.message });
+        return res.status(200).json({ ok: true });
+      }
+
       const admin = requireAdmin(req, res);
       if (!admin) return;
 

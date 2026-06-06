@@ -53,6 +53,26 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ exists: false });
     }
 
+    // POST (no action) — save study session (replaces /api/study-session)
+    if (req.method === 'POST' && !action) {
+      const { subject, durationMinutes, startedAt } = req.body || {};
+      if (!subject) return res.status(400).json({ error: 'Campo subject é obrigatório.' });
+      if (!durationMinutes || durationMinutes < 1) return res.status(400).json({ error: 'durationMinutes inválido.' });
+      const { data: sd, error: se } = await supabase.from('study_sessions')
+        .insert({ user_id: user.id, subject: subject.trim(), duration_minutes: durationMinutes, started_at: startedAt || new Date().toISOString() })
+        .select('id').single();
+      if (se) return res.status(500).json({ error: se.message });
+      return res.status(200).json({ ok: true, id: sd.id });
+    }
+
+    // GET ?action=study-sessions
+    if (req.method === 'GET' && action === 'study') {
+      const { data, error } = await supabase.from('study_sessions')
+        .select('*').eq('user_id', user.id).order('started_at', { ascending: false }).limit(30);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.status(200).json(data || []);
+    }
+
     // GET — performance stats
     if (req.method === 'GET') {
       const { data: attempts, error } = await supabase
