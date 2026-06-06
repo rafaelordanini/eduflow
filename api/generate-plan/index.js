@@ -173,9 +173,20 @@ const CACD_DATA = {
 
 const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
 
+// Find which week of the Plano Mestre contains today's date
+function getCurrentMasterWeek(planJson) {
+  const today = new Date().toISOString().split('T')[0];
+  if (!planJson || !planJson.semanas) return null;
+  return planJson.semanas.find(s => s.dataInicio && s.dataFim && today >= s.dataInicio && today <= s.dataFim) || null;
+}
+
 module.exports = async function handler(req, res) {
   try {
     if (cors(req, res)) return;
+
+    const user = requireAuth(req, res);
+    if (!user) return;
+
     // GET → return plans history (replaces /api/plans-history)
     if (req.method === 'GET') {
       const supabaseG = getSupabase();
@@ -190,9 +201,6 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-
-    const user = requireAuth(req, res);
-    if (!user) return;
 
     const {
       horasDisponiveis,
@@ -240,10 +248,31 @@ module.exports = async function handler(req, res) {
       });
     }
 
+    // Fetch Plano Mestre to find current week context
+    const { data: macroPlanRow } = await supabase
+      .from('macro_plans')
+      .select('plan_json, data_prova')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const currentWeek = macroPlanRow ? getCurrentMasterWeek(macroPlanRow.plan_json) : null;
+
     const hoje = studyDate || new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const focoStr = focoMaterias && focoMaterias.length > 0
-      ? focoMaterias.join(', ')
-      : CACD_DATA.focoAtual.join(', ');
+
+    // If there's a Plano Mestre, derive focus from current week's study items
+    let focoStr;
+    if (focoMaterias && focoMaterias.length > 0) {
+      focoStr = focoMaterias.join(', ');
+    } else if (currentWeek) {
+      const studySubjects = (currentWeek.materias || [])
+        .filter(m => m.tipo === 'estudo' && !m.done)
+        .map(m => m.nome);
+      focoStr = studySubjects.length > 0 ? studySubjects.join(', ') : CACD_DATA.focoAtual.join(', ');
+    } else {
+      focoStr = CACD_DATA.focoAtual.join(', ');
+    }
 
     // Progresso formatado para o prompt
     const progressoTexto = Object.entries(progressBySubject)
@@ -258,7 +287,55 @@ module.exports = async function handler(req, res) {
 
     const systemPrompt = `Você é o Barão — um coach de estudos rigoroso e estratégico especializado no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Você conhece profundamente o edital, as provas anteriores e as melhores estratégias de estudo para esse concurso.\n\nSua missão é gerar planos de estudo diários personalizados, realistas e motivadores. Você prioriza tópicos de ALTA recorrência nas provas, equilibra as matérias de acordo com o tempo disponível, e sempre indica leituras específicas (livro, capítulo, páginas).\n\nResponda SEMPRE em JSON válido com a seguinte estrutura:\n{\n  "saudacao": "mensagem motivadora curta (1-2 frases) personalizada para o dia",\n  "resumoDia": "resumo estratégico do plano (2-3 frases explicando a lógica por trás da distribuição)",\n  "blocos": [\n    {\n      "horario": "ex: 08:00 – 09:30",\n      "materia": "nome da matéria",\n      "atividade": "tipo: aula | leitura | fichamento | tps | revisao",\n      "titulo": "título específico do que fazer (ex: 'Aula 3 – Era Vargas: Estado Novo')",\n      "descricao": "instrução detalhada: o que ler, qual aula assistir, quais capítulos, etc.",\n      "duracaoMin": 90,\n      "recorrencia": "Alta | Média | Baixa"\n    }\n  ],\n  "pausas": [\n    { "horario": "ex: 09:30 – 09:45", "tipo": "Pausa curta" }\n  ],\n  "dicaDoDia": "dica específica de técnica de estudo para o CACD (ex: como fazer fichamento eficiente, como treinar TPS, etc.)",\n  "totalHorasEstudo": 3.5\n}`;
 
-    const userPrompt = `# Plano de estudos para hoje\n\n**Data:** ${hoje}\n**Horas disponíveis:** ${horasDisponiveis}h\n**Matérias em foco atual:** ${focoStr}\n${observacoes ? `**Observações do estudante:** ${observacoes}` : ''}\n\n## Progresso atual nas aulas (EduFlow):\n${progressoTexto}\n\n## Estrutura completa do CACD (${CACD_DATA.totalTopicos} tópicos no total):\n${materiasTexto}\n\n## Instruções para gerar o plano:\n1. Distribua as ${horasDisponiveis}h priorizando as matérias em foco: ${focoStr}\n2. Dentro de cada matéria, priorize tópicos de ALTA recorrência\n3. Inclua pausas estratégicas (5min a cada 25min ou 15min a cada 90min)\n4. Indique leituras ESPECÍFICAS com livro + capítulo/páginas sempre que disponível\n5. Varie os tipos de atividade (não coloque só leituras ou só aulas seguidas)\n6. Para tópicos com aulas disponíveis no EduFlow, sugira assistir a aula específica\n7. Se houver menos de 2h, foque em 1-2 matérias apenas com alta prioridade\n8. Os horários devem começar às 08:00 por padrão (ajuste para o contexto)\n9. Seja específico: não diga "estude história", diga "Leia Fausto HB cap.4 pp.141-180: Primeiro Reinado"\n10. Retorne SOMENTE o JSON, sem markdown adicional`;
+    // Build Plano Mestre week context string
+    let macroPlanContext = '';
+    if (currentWeek) {
+      const semanaNum = currentWeek.semana;
+      const daysToExam = macroPlanRow.data_prova
+        ? Math.max(0, Math.floor((new Date(macroPlanRow.data_prova) - new Date()) / 86400000))
+        : null;
+
+      const itemLines = (currentWeek.materias || []).map(m => {
+        const status = m.done ? '✅ Concluído' : '⬜ Pendente';
+        const tipo = m.tipo === 'revisao' ? '[REVISÃO ESPAÇADA]' : '[ESTUDO]';
+        const leit = m.leituras ? ` — Leituras: ${m.leituras}` : '';
+        return `  ${tipo} ${m.nome}: ${m.topico} ${status}${leit}`;
+      }).join('\n');
+
+      macroPlanContext = `\n\n## Plano Mestre — Semana ${semanaNum} (semana atual):
+${daysToExam !== null ? `Faltam ${daysToExam} dias para a prova.\n` : ''}${itemLines}
+
+⚠️ O plano de hoje DEVE ser coerente com esta semana do Plano Mestre:
+- Priorize os itens de ESTUDO pendentes (⬜) desta semana
+- Para itens de REVISÃO ESPAÇADA pendentes, inclua um bloco de exercícios
+- Itens já marcados como ✅ Concluído podem ser omitidos ou apenas revisados brevemente
+- Adapte a carga horária ao tempo disponível (${horasDisponiveis}h)`;
+    }
+
+    const userPrompt = `# Plano de estudos para hoje
+
+**Data:** ${hoje}
+**Horas disponíveis:** ${horasDisponiveis}h
+**Matérias em foco atual:** ${focoStr}
+${observacoes ? `**Observações do estudante:** ${observacoes}` : ''}
+
+## Progresso atual nas aulas (EduFlow):
+${progressoTexto}${macroPlanContext}
+
+## Estrutura completa do CACD (${CACD_DATA.totalTopicos} tópicos no total):
+${materiasTexto}
+
+## Instruções para gerar o plano:
+1. Distribua as ${horasDisponiveis}h priorizando as matérias em foco: ${focoStr}
+2. Dentro de cada matéria, priorize tópicos de ALTA recorrência
+3. Inclua pausas estratégicas (5min a cada 25min ou 15min a cada 90min)
+4. Indique leituras ESPECÍFICAS com livro + capítulo/páginas sempre que disponível
+5. Varie os tipos de atividade (não coloque só leituras ou só aulas seguidas)
+6. Para tópicos com aulas disponíveis no EduFlow, sugira assistir a aula específica
+7. Se houver menos de 2h, foque em 1-2 matérias apenas com alta prioridade
+8. Os horários devem começar às 08:00 por padrão (ajuste para o contexto)
+9. Seja específico: não diga "estude história", diga "Leia Fausto HB cap.4 pp.141-180: Primeiro Reinado"
+10. Retorne SOMENTE o JSON, sem markdown adicional`;
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -313,6 +390,9 @@ module.exports = async function handler(req, res) {
       focus_subjects: focoStr,
       plan_json: plano,
     }, { onConflict: 'user_id,plan_date' });
+
+    // Attach current master week so frontend can render it
+    if (currentWeek) plano._masterWeek = currentWeek;
 
     return res.status(200).json(plano);
 
