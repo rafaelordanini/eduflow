@@ -1089,6 +1089,254 @@
     }
 
     /* ============================================================
+       VIEW: STUDENT SIMULADO
+       ============================================================ */
+    var _simuladoAtivo = null; // { id, questoes, respostas, timer, timerInterval }
+    var _simuladoTimer = 0;
+    var _simuladoTimerInterval = null;
+
+    var CACD_SUBJECTS = ['Português','História do Brasil','História Mundial','Política Internacional','Economia','Direito Interno','Direito Internacional','Geografia','Inglês','Inglês','Inglês'];
+    var CACD_SUBJECTS_LIST = ['Português','História do Brasil','História Mundial','Política Internacional','Economia','Direito Interno','Direito Internacional','Geografia','Inglês'];
+
+    function renderStudentSimulado() {
+        var app = document.getElementById('app');
+        var nav = renderNavbar(studentNav());
+
+        // If simulado is active, show it
+        if (_simuladoAtivo) {
+            renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
+            return;
+        }
+
+        var subjectCheckboxes = CACD_SUBJECTS_LIST.map(function(s, i) {
+            return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
+                '<input type="checkbox" id="sim-sub-' + i + '" value="' + escapeHtml(s) + '" style="width:16px;height:16px;accent-color:var(--primary)">' +
+                '<label for="sim-sub-' + i + '" style="flex:1;font-size:.9rem">' + escapeHtml(s) + '</label>' +
+                '<input type="number" id="sim-sub-count-' + i + '" min="1" max="20" value="5" style="width:60px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;background:var(--surface)">' +
+                '</div>';
+        }).join('');
+
+        var fonteOptions = function(prefix) {
+            return ['<label class="simulado-option"><input type="radio" name="fonte-'+prefix+'" value="real" style="accent-color:var(--primary)"> Questões de provas anteriores</label>',
+                    '<label class="simulado-option"><input type="radio" name="fonte-'+prefix+'" value="ai" checked style="accent-color:var(--primary)"> Questões geradas pela IA</label>',
+                    '<label class="simulado-option"><input type="radio" name="fonte-'+prefix+'" value="mixed" style="accent-color:var(--primary)"> Misturar (provas + IA)</label>'].join('');
+        };
+
+        app.innerHTML = nav + '<div class="container"><div class="page-content">' +
+            '<h1 style="margin-bottom:6px"><i class="fas fa-pen-to-square"></i> Simulado</h1>' +
+            '<p style="color:var(--text-muted);font-size:.9rem;margin-bottom:24px">Teste seus conhecimentos com simulados no estilo CACD.</p>' +
+
+            '<div class="simulado-card">' +
+                '<h2 style="margin-bottom:4px;font-size:1.15rem"><i class="fas fa-landmark"></i> Simulado CACD</h2>' +
+                '<p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">65 questões distribuídas pelas 9 matérias do CACD, conforme distribuição oficial.</p>' +
+                fonteOptions('cacd') +
+                '<button class="btn btn-primary" style="margin-top:16px;width:100%" id="btn-iniciar-cacd">' +
+                    '<i class="fas fa-play"></i> Iniciar Simulado CACD' +
+                '</button>' +
+            '</div>' +
+
+            '<div class="simulado-card">' +
+                '<h2 style="margin-bottom:4px;font-size:1.15rem"><i class="fas fa-sliders"></i> Simulado Personalizado</h2>' +
+                '<p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">Escolha as matérias e quantidade de questões.</p>' +
+                '<div style="margin-bottom:16px">' +
+                    '<label style="font-size:.85rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:10px">Matérias e quantidade de questões</label>' +
+                    subjectCheckboxes +
+                '</div>' +
+                fonteOptions('custom') +
+                '<button class="btn btn-primary" style="margin-top:16px;width:100%" id="btn-criar-custom">' +
+                    '<i class="fas fa-play"></i> Criar Simulado' +
+                '</button>' +
+            '</div>' +
+        '</div></div>';
+
+        document.getElementById('btn-iniciar-cacd').addEventListener('click', function() {
+            var fonte = document.querySelector('input[name="fonte-cacd"]:checked');
+            criarSimulado('cacd', { fonte: fonte ? fonte.value : 'ai' });
+        });
+
+        document.getElementById('btn-criar-custom').addEventListener('click', function() {
+            var subjects = [];
+            CACD_SUBJECTS_LIST.forEach(function(s, i) {
+                var cb = document.getElementById('sim-sub-' + i);
+                if (cb && cb.checked) {
+                    var cnt = parseInt(document.getElementById('sim-sub-count-' + i).value) || 5;
+                    subjects.push({ subject: s, count: cnt });
+                }
+            });
+            if (subjects.length === 0) { showToast('Selecione ao menos uma matéria', 'error'); return; }
+            var fonte = document.querySelector('input[name="fonte-custom"]:checked');
+            criarSimulado('custom', { subjects: subjects, fonte: fonte ? fonte.value : 'ai' });
+        });
+    }
+
+    function criarSimulado(tipo, config) {
+        var btn = document.getElementById(tipo === 'cacd' ? 'btn-iniciar-cacd' : 'btn-criar-custom');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparando simulado…'; }
+
+        API.createSimulado({ tipo: tipo, config: config }).then(function(data) {
+            _simuladoAtivo = { id: data.simuladoId, questoes: data.questoes, respostas: {} };
+            renderSimuladoAtivo(data.simuladoId, data.questoes);
+        }).catch(function(err) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-play"></i> ' + (tipo === 'cacd' ? 'Iniciar Simulado CACD' : 'Criar Simulado'); }
+            showToast('Erro ao criar simulado: ' + err.message, 'error');
+        });
+    }
+
+    function renderSimuladoAtivo(simuladoId, questoes) {
+        var app = document.getElementById('app');
+        var nav = renderNavbar(studentNav());
+
+        // Start timer
+        if (_simuladoTimerInterval) clearInterval(_simuladoTimerInterval);
+        _simuladoTimer = 0;
+        _simuladoTimerInterval = setInterval(function() {
+            _simuladoTimer++;
+            var el = document.getElementById('simulado-timer');
+            if (el) el.textContent = formatTime(_simuladoTimer);
+        }, 1000);
+
+        var questoesHtml = (questoes || []).map(function(q, qi) {
+            var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
+                var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
+                if (!text) return '';
+                return '<label class="questao-opcao" for="sq' + qi + op + '">' +
+                    '<input type="radio" name="sq' + qi + '" id="sq' + qi + op + '" value="' + op + '" onchange="registrarResposta(' + qi + ',this.value)">' +
+                    '<span class="opcao-letra">' + op + ')</span>' +
+                    '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
+                    '</label>';
+            }).join('');
+            return '<div class="questao-card" id="sqcard-' + qi + '" style="border-left:3px solid var(--border)">' +
+                '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase">' + escapeHtml(q.subject || '') + '</div>' +
+                '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
+                opcoesHtml +
+            '</div>';
+        }).join('');
+
+        app.innerHTML = nav + '<div class="container"><div class="page-content">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">' +
+                '<div>' +
+                    '<h1 style="margin:0;font-size:1.3rem">Simulado em Andamento</h1>' +
+                    '<div class="simulado-progress" id="simulado-answered">0/' + questoes.length + ' respondidas</div>' +
+                '</div>' +
+                '<div style="text-align:right">' +
+                    '<div class="simulado-timer" id="simulado-timer">00:00</div>' +
+                '</div>' +
+            '</div>' +
+            questoesHtml +
+            '<div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);text-align:center">' +
+                '<button class="btn btn-primary" id="btn-finalizar-simulado" onclick="finalizarSimulado(' + simuladoId + ',' + questoes.length + ')">' +
+                    '<i class="fas fa-flag-checkered"></i> Finalizar Simulado' +
+                '</button>' +
+                '<p style="font-size:.8rem;color:var(--text-muted);margin-top:8px">Questões não respondidas serão contadas como erradas.</p>' +
+            '</div>' +
+        '</div></div>';
+    }
+
+    function registrarResposta(qi, value) {
+        if (_simuladoAtivo) {
+            _simuladoAtivo.respostas[qi] = value;
+            var answered = Object.keys(_simuladoAtivo.respostas).length;
+            var total = _simuladoAtivo.questoes ? _simuladoAtivo.questoes.length : 0;
+            var el = document.getElementById('simulado-answered');
+            if (el) el.textContent = answered + '/' + total + ' respondidas';
+            // Highlight answered card
+            var card = document.getElementById('sqcard-' + qi);
+            if (card) card.style.borderLeftColor = 'var(--primary)';
+        }
+    }
+
+    function finalizarSimulado(simuladoId, total) {
+        var btn = document.getElementById('btn-finalizar-simulado');
+        var answered = _simuladoAtivo ? Object.keys(_simuladoAtivo.respostas).length : 0;
+        if (answered < total) {
+            // Confirm even with unanswered
+            showConfirmModal(
+                'Finalizar Simulado',
+                answered + ' de ' + total + ' questões respondidas. Questões em branco serão erradas. Deseja finalizar?',
+                'Finalizar',
+                'btn-primary',
+                function() { _doFinalizarSimulado(simuladoId, btn); }
+            );
+        } else {
+            _doFinalizarSimulado(simuladoId, btn);
+        }
+    }
+
+    function _doFinalizarSimulado(simuladoId, btn) {
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Calculando resultado…'; }
+        if (_simuladoTimerInterval) { clearInterval(_simuladoTimerInterval); _simuladoTimerInterval = null; }
+
+        var respostas = _simuladoAtivo ? _simuladoAtivo.respostas : {};
+        API.submitSimulado(simuladoId, respostas).then(function(data) {
+            _simuladoAtivo = null;
+            renderSimuladoResult(data);
+        }).catch(function(err) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-flag-checkered"></i> Finalizar Simulado'; }
+            showToast('Erro ao finalizar: ' + err.message, 'error');
+        });
+    }
+
+    function renderSimuladoResult(data) {
+        var app = document.getElementById('app');
+        var nav = renderNavbar(studentNav());
+        var score = data.score || 0;
+        var total = data.total || 1;
+        var pct = Math.round(score / total * 100);
+        var questoes = data.questoes_with_gabarito || [];
+        var subjectStats = data.subject_stats || {};
+
+        var subjectRows = Object.keys(subjectStats).map(function(s) {
+            var st = subjectStats[s];
+            var spct = Math.round(st.correct / st.total * 100);
+            var color = spct >= 70 ? 'var(--success)' : spct >= 50 ? 'var(--accent)' : 'var(--danger)';
+            return '<div class="simulado-subject-row">' +
+                '<span>' + escapeHtml(s) + '</span>' +
+                '<span style="font-weight:700;color:' + color + '">' + st.correct + '/' + st.total + ' (' + spct + '%)</span>' +
+            '</div>';
+        }).join('');
+
+        var questoesReviewHtml = questoes.map(function(q, qi) {
+            var correct = q.is_correct;
+            var userAns = q.user_answer || '—';
+            var gab = (q.gabarito || '').toUpperCase();
+            var borderColor = correct ? 'var(--success)' : (q.user_answer ? 'var(--danger)' : 'var(--border)');
+            var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
+                var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
+                if (!text) return '';
+                var isGab = op === (q.gabarito||'').toLowerCase();
+                var isUser = op === (q.user_answer||'').toLowerCase();
+                var bg = isGab ? 'background:rgba(var(--success-rgb,40,167,69),0.12);border-color:var(--success)' : (isUser && !correct ? 'background:rgba(var(--danger-rgb,220,53,69),0.12);border-color:var(--danger)' : '');
+                return '<div class="questao-opcao" style="' + bg + ';border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:4px">' +
+                    '<span class="opcao-letra">' + op + ')</span>' +
+                    '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
+                    (isGab ? '<span style="margin-left:auto;font-size:.75rem;color:var(--success);font-weight:700">✓ Correto</span>' : '') +
+                    (isUser && !correct ? '<span style="margin-left:auto;font-size:.75rem;color:var(--danger);font-weight:700">✗ Sua resp.</span>' : '') +
+                '</div>';
+            }).join('');
+            var expHtml = q.explicacao ? '<div style="margin-top:10px;padding:10px 12px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem;color:var(--text)">' + escapeHtml(q.explicacao) + '</div>' : '';
+            return '<div class="questao-card" style="border-left:3px solid ' + borderColor + '">' +
+                '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px">' + escapeHtml(q.subject || '') + ' • ' + (correct ? '<span style="color:var(--success)">Correta</span>' : q.user_answer ? '<span style="color:var(--danger)">Errada</span>' : '<span style="color:var(--text-muted)">Não respondida</span>') + '</div>' +
+                '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
+                opcoesHtml + expHtml +
+            '</div>';
+        }).join('');
+
+        app.innerHTML = nav + '<div class="container"><div class="page-content">' +
+            '<div class="simulado-result">' +
+                '<div style="font-size:1rem;color:var(--text-muted);margin-bottom:8px">Resultado do Simulado</div>' +
+                '<div class="simulado-score">' + score + '/' + total + '</div>' +
+                '<div style="font-size:1.4rem;font-weight:700;margin:8px 0;color:' + (pct>=70?'var(--success)':pct>=50?'var(--accent)':'var(--danger)') + '">' + pct + '%</div>' +
+                '<div style="font-size:.9rem;color:var(--text-muted);margin-bottom:24px">acertos</div>' +
+                '<button class="btn btn-primary" onclick="_simuladoAtivo=null;navigate(\'student-simulado\')"><i class="fas fa-redo"></i> Novo Simulado</button>' +
+            '</div>' +
+            '<h3 style="margin-bottom:12px">Resultado por Matéria</h3>' +
+            '<div style="margin-bottom:28px">' + subjectRows + '</div>' +
+            '<h3 style="margin-bottom:12px">Revisão das Questões</h3>' +
+            questoesReviewHtml +
+        '</div></div>';
+    }
+
+    /* ============================================================
        VIEW: STUDENT MACRO PLAN
        ============================================================ */
     function renderStudentMacroPlan() {
