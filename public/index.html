@@ -187,8 +187,15 @@
         .baron-avatar-sm{width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid var(--primary-light)}
         .baron-avatar-sm img{width:100%;height:100%;object-fit:cover}
         .baron-float{position:fixed;bottom:24px;right:24px;z-index:200;cursor:pointer;filter:drop-shadow(0 4px 12px rgba(0,0,0,.2));transition:transform .2s ease}
-        .baron-float:hover{transform:scale(1.07)}
-        .baron-float img{width:72px;height:72px;border-radius:50%;border:3px solid var(--primary);background:var(--surface)}
+        .baron-float:hover{transform:scale(1.1) rotate(-3deg)}
+        .baron-float img{width:80px;height:80px;border-radius:50%;border:3px solid var(--primary);background:var(--surface)}
+        .baron-speech{position:fixed;bottom:116px;right:24px;z-index:199;background:var(--surface);border:1px solid var(--border);border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:.82rem;color:var(--text);max-width:200px;line-height:1.4;box-shadow:0 4px 16px rgba(0,0,0,.12);display:none;animation:fadeInUp .3s ease}
+        .baron-speech::after{content:'';position:absolute;bottom:-8px;right:22px;border:4px solid transparent;border-top-color:var(--border)}
+        .baron-speech::before{content:'';position:absolute;bottom:-6px;right:23px;border:3px solid transparent;border-top-color:var(--surface);z-index:1}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:.8}}
+        .baron-reaction{position:fixed;bottom:116px;right:24px;z-index:199;font-size:1.4rem;animation:popIn .4s ease;pointer-events:none}
+        @keyframes popIn{0%{transform:scale(0) translateY(10px);opacity:0}60%{transform:scale(1.3) translateY(-4px)}100%{transform:scale(1) translateY(0);opacity:1}}
         .baron-header .baron-msg{flex:1}
         .baron-header .baron-msg h3{font-size:1rem;font-weight:600;opacity:.85;margin-bottom:4px}
         .baron-header .baron-msg p{font-size:.95rem;line-height:1.5}
@@ -282,8 +289,9 @@
 <body>
     <div id="app"></div>
     <div id="toast-container"></div>
+    <div class="baron-speech" id="baron-speech"></div>
     <div class="baron-float" id="baron-float" onclick="navigate('student-planner')" title="Plano de Hoje com o Barão" style="display:none">
-        <img src="/public/baron-avatar.png" alt="Barão" onerror="this.style.display='none';this.parentNode.innerHTML='<div style=\'width:72px;height:72px;border-radius:50%;border:3px solid var(--primary);background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.8rem\'><i class=\'fas fa-user-tie\'></i></div>'">
+        <img src="/public/baron-winking-sm.png" id="baron-float-img" alt="Barão" onerror="this.src='/public/baron-avatar.png'">
     </div>
 
     <script>
@@ -362,6 +370,57 @@
        ============================================================ */
     function escapeHtml(t) { var d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
     function formatTime(s) { return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); }
+
+    var _baronPoseTimer = null;
+    var BARON_POSES = {
+        neutral:  '/public/baron-neutral-sm.png',
+        pointing: '/public/baron-pointing-sm.png',
+        reading:  '/public/baron-reading-sm.png',
+        thumbsup: '/public/baron-thumbsup-sm.png',
+        thinking: '/public/baron-thinking-sm.png',
+        winking:  '/public/baron-winking-sm.png'
+    };
+    var BARON_TIPS = [
+        'Estude pelo menos 4h/dia para passar no CACD.',
+        'Questões antigas são o melhor treino!',
+        'Revise o que errou — é onde mais aprende.',
+        'Foco em Português e História do Brasil.',
+        'Use o simulado para testar seu tempo.',
+        'Leia o Rezek para Direito Internacional.',
+        'Cervo & Bueno é essencial para a HPEB.',
+        'Pratique redação dissertativa toda semana.'
+    ];
+    function baronFloatPose(pose, duration) {
+        var img = document.getElementById('baron-float-img');
+        if (!img) return;
+        if (_baronPoseTimer) clearTimeout(_baronPoseTimer);
+        img.style.transition = 'opacity .25s';
+        img.style.opacity = '0';
+        setTimeout(function() {
+            img.src = BARON_POSES[pose] || BARON_POSES.neutral;
+            img.style.opacity = '1';
+        }, 250);
+        _baronPoseTimer = setTimeout(function() {
+            img.style.opacity = '0';
+            setTimeout(function() { img.src = BARON_POSES.winking; img.style.opacity = '1'; }, 250);
+        }, duration || 3000);
+    }
+    function baronShowSpeech(msg) {
+        var el = document.getElementById('baron-speech');
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+        setTimeout(function() { el.style.display = 'none'; }, 5000);
+    }
+    function baronRandomTip() {
+        baronFloatPose('pointing', 6000);
+        baronShowSpeech(BARON_TIPS[Math.floor(Math.random() * BARON_TIPS.length)]);
+    }
+    // Show random tip every 5 minutes while studying
+    setInterval(function() {
+        var fl = document.getElementById('baron-float');
+        if (fl && fl.style.display !== 'none') baronRandomTip();
+    }, 300000);
 
     /* Dark Mode */
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
@@ -706,7 +765,8 @@
         var obs = (document.getElementById('planner-obs').value || '').trim();
         var out = document.getElementById('plan-output');
         out.style.display = 'block';
-        out.innerHTML = '<div class="plan-loading"><i class="fas fa-spinner fa-spin"></i> O Barão está elaborando seu plano personalizado…</div>';
+        out.innerHTML = '<div class="plan-loading"><img src="/public/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>O Barão está elaborando seu plano personalizado…</p></div>';
+        baronFloatPose('reading', 8000);
         API.request('POST', '/api/generate-plan', { horasDisponiveis: hours, observacoes: obs }).then(function(plan) {
             renderPlano(plan);
             loadPlansHistory();
@@ -735,7 +795,7 @@
         var pausasHtml = (plan.pausas || []).length ? '<div style="font-size:.85rem;color:var(--text-muted);margin-top:8px"><i class="fas fa-coffee"></i> Pausas: ' + plan.pausas.map(function(p){ return escapeHtml(p); }).join(' · ') + '</div>' : '';
         out.innerHTML =
             '<div class="baron-header">' +
-              '<div class="baron-avatar"><img src="/public/baron-avatar.png" alt="Barão" onerror="this.outerHTML=\'<i class=\\\"fas fa-user-tie\\\" style=\\\"font-size:1.6rem;color:#fff\\\"></i>\'"></div>' +
+              '<div class="baron-avatar"><img src="/public/baron-pointing-sm.png" alt="Barão" onerror="this.src=\'/public/baron-avatar.png\'"></div>' +
               '<div>' +
                 '<div style="font-weight:700;font-size:1.05rem">Barão do EduFlow</div>' +
                 '<div style="font-size:.88rem;color:var(--text-secondary)">' + escapeHtml(plan.saudacao || '') + '</div>' +
@@ -897,7 +957,8 @@
     function gerarQuestoes(lessonId, subjectName, lessonTitle) {
         var btn = document.getElementById('gen-questions-btn');
         var out = document.getElementById('questions-output');
-        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando questões…'; }
+        if (btn) { btn.disabled = true; btn.innerHTML = '<img src="/public/baron-reading-sm.png" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"> Gerando questões…'; }
+        baronFloatPose('reading', 10000);
         out.innerHTML = '';
         _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0 };
         API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 5 }).then(function(data) {
@@ -1014,9 +1075,18 @@
         var correct = selected === gabarito;
         if (gabEl) {
             gabEl.className = 'questao-gabarito show ' + (correct ? 'correct' : 'wrong');
-            gabEl.innerHTML = correct
-                ? '<i class="fas fa-check-circle"></i> Correto! A alternativa <strong>' + gabarito.toUpperCase() + '</strong> está correta.'
-                : '<i class="fas fa-times-circle"></i> Incorreto. A resposta correta é <strong>' + gabarito.toUpperCase() + '</strong>.';
+            var baronImg = correct ? '/public/baron-thumbsup-sm.png' : '/public/baron-thinking-sm.png';
+            var baronMsg = correct
+                ? ['Excelente! Domínio de diplomata!','Perfeito! O Barão aprova!','Correto! Conhecimento sólido!','Muito bem! Assim se passa no CACD!'][Math.floor(Math.random()*4)]
+                : ['Estude este ponto com atenção.','O Barão sugere rever este tema.','Não desanime — revise e avance!','Este tópico cai muito no CACD.'][Math.floor(Math.random()*4)];
+            gabEl.innerHTML = '<div style="display:flex;align-items:center;gap:10px">' +
+                '<img src="' + baronImg + '" style="width:36px;height:36px;border-radius:50%;flex-shrink:0" onerror="this.style.display=\'none\'">' +
+                '<div>' + (correct
+                    ? '<strong><i class="fas fa-check-circle"></i> Correto!</strong> Alternativa <strong>' + gabarito.toUpperCase() + '</strong>. ' + baronMsg
+                    : '<strong><i class="fas fa-times-circle"></i> Incorreto.</strong> A correta é <strong>' + gabarito.toUpperCase() + '</strong>. ' + baronMsg) +
+                '</div></div>';
+            // Animate float button
+            baronFloatPose(correct ? 'thumbsup' : 'thinking', 2500);
         }
         if (expEl) { expEl.textContent = q.explicacao || ''; expEl.classList.add('show'); }
         updateQuestoesScore();
@@ -1030,7 +1100,11 @@
         var correct = document.querySelectorAll('.questao-gabarito.show.correct').length;
         if (answered === total && total > 0) {
             scoreEl.classList.add('show');
-            scoreEl.innerHTML = '<i class="fas fa-trophy" style="color:var(--accent);margin-right:8px"></i>Resultado: <strong>' + correct + '/' + total + '</strong> acertos';
+            var pct = Math.round(correct/total*100);
+            var medal = pct >= 80 ? '🏆' : pct >= 60 ? '🎖️' : '📚';
+            scoreEl.innerHTML = medal + ' Resultado: <strong>' + correct + '/' + total + '</strong> acertos (' + pct + '%)' +
+                (pct >= 80 ? ' — O Barão está orgulhoso!' : pct >= 60 ? ' — Bom progresso, continue!' : ' — Revise este tema antes da prova.');
+            baronFloatPose(pct >= 80 ? 'thumbsup' : pct >= 60 ? 'winking' : 'thinking', 4000);
         }
     }
 
@@ -1368,7 +1442,8 @@
         if (!dataProva) { showToast('Informe a data da prova', 'error'); return; }
         var out = document.getElementById('macro-output');
         out.style.display = 'block';
-        out.innerHTML = '<div class="plan-loading"><i class="fas fa-spinner fa-spin"></i><p>O Barão está elaborando seu Plano Mestre… isso pode levar alguns segundos.</p></div>';
+        out.innerHTML = '<div class="plan-loading"><img src="/public/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>O Barão está elaborando seu Plano Mestre… isso pode levar alguns segundos.</p></div>';
+        baronFloatPose('reading', 15000);
         API.generateMacroPlan({ dataProva: dataProva, horasPorSemana: horasPorSemana, observacoes: observacoes }).then(function(plano) {
             renderMacroPlan(plano);
         }).catch(function(err) {
