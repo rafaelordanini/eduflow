@@ -891,23 +891,26 @@
         });
     }
 
+    var _questoesAtivas = [];
+
     function renderQuestoes(questoes, container) {
         if (!questoes || questoes.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);font-size:.88rem">Nenhuma questão disponível.</p>'; return; }
-        var answered = {};
+        _questoesAtivas = questoes;
         var html = questoes.map(function(q, qi) {
             var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
                 var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
                 if (!text) return '';
                 return '<label class="questao-opcao" for="q' + qi + op + '">' +
-                    '<input type="radio" name="q' + qi + '" id="q' + qi + op + '" value="' + op + '" onchange="selecionarOpcao(' + qi + ',\'' + op + '\')">' +
+                    '<input type="radio" name="q' + qi + '" id="q' + qi + op + '" value="' + op + '">' +
                     '<span class="opcao-letra">' + op + ')</span>' +
                     '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
                     '</label>';
             }).join('');
+            var fonte = q.fonte ? '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(q.fonte) + '</div>' : '';
             return '<div class="questao-card" id="qcard-' + qi + '">' +
                 '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
-                opcoesHtml +
-                '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ',\'' + escapeHtml(q.gabarito || '') + '\',\'' + escapeHtml((q.explicacao || '').replace(/'/g,"\\'")) + '\')">' +
+                fonte + opcoesHtml +
+                '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ')">' +
                   '<i class="fas fa-check"></i> Conferir Resposta' +
                 '</button>' +
                 '<div class="questao-gabarito" id="qgab-' + qi + '"></div>' +
@@ -916,20 +919,18 @@
         }).join('');
         html += '<div class="questoes-score" id="questoes-score"></div>';
         container.innerHTML = html;
-        container._questoes = questoes;
     }
 
-    function selecionarOpcao(qi, op) {
-        // just UI feedback handled by radio
-    }
-
-    function conferirResposta(qi, gabarito, explicacao) {
+    function conferirResposta(qi) {
+        var q = _questoesAtivas[qi];
+        if (!q) return;
         var radios = document.querySelectorAll('input[name="q' + qi + '"]');
         var selected = null;
         radios.forEach(function(r) { if (r.checked) selected = r.value; });
         var gabEl = document.getElementById('qgab-' + qi);
         var expEl = document.getElementById('qexp-' + qi);
         if (!selected) { showToast('Selecione uma opção antes de conferir', 'error'); return; }
+        var gabarito = (q.gabarito || '').toLowerCase().trim();
         var correct = selected === gabarito;
         if (gabEl) {
             gabEl.className = 'questao-gabarito show ' + (correct ? 'correct' : 'wrong');
@@ -937,8 +938,7 @@
                 ? '<i class="fas fa-check-circle"></i> Correto! A alternativa <strong>' + gabarito.toUpperCase() + '</strong> está correta.'
                 : '<i class="fas fa-times-circle"></i> Incorreto. A resposta correta é <strong>' + gabarito.toUpperCase() + '</strong>.';
         }
-        if (expEl) expEl.classList.add('show');
-        // Update score
+        if (expEl) { expEl.textContent = q.explicacao || ''; expEl.classList.add('show'); }
         updateQuestoesScore();
     }
 

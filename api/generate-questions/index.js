@@ -29,29 +29,45 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ questoes: cached.questoes, cached: true });
     }
 
-    const systemPrompt = `You are an expert in CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco) exams. You generate multiple-choice questions in the exact style of CACD TPS past exams (2003-2025).
+    const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Seu papel é gerar questões de múltipla escolha no estilo exato das provas TPS do CACD aplicadas de 2003 a 2025.
 
-Respond ONLY with valid JSON (no markdown):
+ESTILO DAS QUESTÕES CACD:
+- Enunciados longos e analíticos, com contexto histórico/conceitual antes da pergunta
+- 5 alternativas (a-e), todas plausíveis, com apenas uma correta
+- Afirmações que testam nuances (datas precisas, nomes de tratados, detalhes de política externa)
+- Frequentemente usam estrutura "Julgue as afirmações I, II, III, IV e V" ou apresentam um texto-base
+- PRIORIZE tópicos e abordagens que JÁ FORAM cobrados em provas anteriores do CACD
+- As questões de história têm forte ênfase em relações internacionais do Brasil e política externa
+- As questões de economia focam em política econômica brasileira e teoria econômica aplicada
+- As questões de direito internacional focam em tratados, costumes e jurisprudência do CIJ
+
+Exemplos de questões reais CACD 2024 (TPS):
+- "Acerca do colonialismo, do imperialismo e das políticas de dominação nos séculos XIX e XX..."
+- "A respeito do Plano de Metas, implementado no governo de Juscelino Kubitschek..."
+- "Considerando conceitos relacionados ao balanço de pagamentos bem como a sua estrutura..."
+
+Responda SOMENTE com JSON válido (sem markdown):
 {
   "questoes": [
     {
-      "enunciado": "question text here",
+      "enunciado": "texto da questão",
       "opcoes": { "a": "...", "b": "...", "c": "...", "d": "...", "e": "..." },
       "gabarito": "a",
-      "explicacao": "detailed explanation of the correct answer"
+      "explicacao": "explicação detalhada: por que a alternativa correta está certa e as demais erradas, com base em fatos históricos e fontes bibliográficas do CACD",
+      "fonte": "Baseado em temas cobrados no CACD [ano(s)]"
     }
   ]
 }`;
 
-    const userPrompt = `Generate ${count} multiple-choice questions in the exact style of CACD TPS past exams (2003-2025) about the following topic: "${lessonTitle}" (subject: ${subjectName}).
+    const userPrompt = `Gere ${count} questões de múltipla escolha no estilo exato das provas TPS do CACD (2003-2025) sobre o seguinte tópico: "${lessonTitle}" (matéria: ${subjectName}).
 
-Requirements:
-- Each question should be challenging and test deep understanding
-- Include 5 options (a-e) with exactly one correct answer
-- Questions should reflect the analytical style of CACD exams
-- The explanation should cite relevant sources and explain why the correct answer is right and why the others are wrong
-- Write the questions in Portuguese (Brazil)
-- Return ONLY the JSON, no markdown`;
+Requisitos obrigatórios:
+1. PRIORIZE subtópicos e abordagens que já foram cobrados nas provas do CACD — mencione o ano na propriedade "fonte"
+2. Questões desafiadoras que testam profundidade de conhecimento, não memorização superficial
+3. Alternativas plausíveis que testam distinções sutis (ex: datas, conceitos parecidos, nomes de acordos)
+4. A explicação deve citar as fontes bibliográficas do CACD relevantes (ex: Fausto HB, Cervo HPEB, Rezek DI)
+5. Escreva em português do Brasil, com linguagem acadêmica
+6. Retorne SOMENTE o JSON, sem markdown`;
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
