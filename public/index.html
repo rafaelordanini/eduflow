@@ -682,12 +682,24 @@
     /* ============================================================
        NAVIGATION
        ============================================================ */
+    var _navHistory = [];
     function navigate(view, params) {
+        _navHistory.push({ view: state.view, subjectId: state.selectedSubjectId, lessonId: state.selectedLessonId });
+        if (_navHistory.length > 30) _navHistory.shift();
         state.view = view;
         if (params) {
             if (params.subjectId !== undefined) state.selectedSubjectId = params.subjectId;
             if (params.lessonId !== undefined) state.selectedLessonId = params.lessonId;
         }
+        render();
+        window.scrollTo(0, 0);
+    }
+    function goBack() {
+        if (_navHistory.length === 0) return;
+        var prev = _navHistory.pop();
+        state.view = prev.view;
+        state.selectedSubjectId = prev.subjectId;
+        state.selectedLessonId = prev.lessonId;
         render();
         window.scrollTo(0, 0);
     }
@@ -700,7 +712,8 @@
         var home = state.user && state.user.role === 'admin' ? 'admin-dashboard' : 'student-dashboard';
         var lh = links.map(function(l) { return '<button class="'+(state.view===l.view?'active':'')+'" onclick="navigate(\''+l.view+'\')"><i class="fas '+l.icon+'"></i> <span>'+escapeHtml(l.label)+'</span></button>'; }).join('');
         var timerBtn = (state.user && state.user.role !== 'admin') ? '<button class="btn btn-accent btn-sm" onclick="openStudyTimer()" style="display:flex;align-items:center;gap:6px"><i class="fas fa-clock"></i> Estudar Agora</button>' : '';
-        return '<nav class="navbar"><div class="navbar-inner"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div><div class="navbar-links">'+lh+'</div><div class="navbar-user">'+timerBtn+'<div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
+        var backBtn = _navHistory.length > 0 ? '<button onclick="goBack()" title="Voltar" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;padding:6px 10px;border-radius:var(--radius-sm);display:flex;align-items:center;gap:5px;transition:all var(--transition)" onmouseover="this.style.background=\'var(--surface-hover)\'" onmouseout="this.style.background=\'none\'"><i class="fas fa-arrow-left"></i> Voltar</button>' : '';
+        return '<nav class="navbar"><div class="navbar-inner"><div style="display:flex;align-items:center;gap:8px"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div>'+backBtn+'</div><div class="navbar-links">'+lh+'</div><div class="navbar-user">'+timerBtn+'<div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
     }
     function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
     function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-road',label:'Plano Mestre'},{view:'student-simulado',icon:'fa-pen-to-square',label:'Simulado'},{view:'student-performance',icon:'fa-chart-bar',label:'Desempenho'}]; }
@@ -935,16 +948,25 @@
 
         var itemsHtml = materias.map(function(m) {
             var isRev = m.tipo === 'revisao';
-            var checkClass = m.done ? (isRev ? 'checked-rev' : 'checked') : '';
-            var checkIcon = m.done ? '<i class="fas fa-check"></i>' : '';
-            return '<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)" class="' + (m.done ? '' : '') + '">' +
-                '<div class="macro-check ' + checkClass + '" style="margin-top:1px;flex-shrink:0" onclick="toggleMacraItem(' + JSON.stringify(m.id || '') + ',' + JSON.stringify(!m.done) + ');renderStudentPlanner()" title="Marcar como ' + (m.done ? 'pendente' : 'concluído') + '">' + checkIcon + '</div>' +
+            var isDone = !!m.done;
+            var checkClass = isDone ? (isRev ? 'checked-rev' : 'checked') : '';
+            var checkIcon = isDone ? '<i class="fas fa-check"></i>' : '';
+            var mId = m.id || '';
+            var actBtns = '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' +
+                '<button class="macro-link-btn lesson" style="font-size:.72rem;padding:3px 8px" onclick="abrirAulasPlano(' + (m.subject_id || 'null') + ',' + JSON.stringify(m.nome || '') + ')">' +
+                    '<i class="fas fa-play-circle"></i> Ver aulas</button>' +
+                '<button class="macro-link-btn exercise" style="font-size:.72rem;padding:3px 8px" onclick="abrirRevisaoPlano(' + JSON.stringify(m.nome || '') + ')">' +
+                    '<i class="fas fa-question-circle"></i> ' + (isRev ? 'Fazer exercícios' : 'Praticar questões') + '</button>' +
+            '</div>';
+            return '<div id="mitem-' + escapeHtml(mId) + '" class="macro-materia tipo-' + (isRev ? 'revisao' : 'estudo') + (isDone ? ' done-item' : '') + '" style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+                '<div class="macro-check ' + checkClass + '" style="margin-top:1px;flex-shrink:0" onclick="toggleMacraItem(' + JSON.stringify(mId) + ',' + JSON.stringify(!isDone) + ')" title="Marcar como ' + (isDone ? 'pendente' : 'concluído') + '">' + checkIcon + '</div>' +
                 '<div style="flex:1;min-width:0">' +
-                  '<div style="font-size:.85rem;font-weight:' + (m.done ? '400' : '600') + ';color:' + (m.done ? 'var(--text-muted)' : 'var(--text)') + (m.done ? ';text-decoration:line-through' : '') + '">' +
+                  '<div style="font-size:.85rem;font-weight:' + (isDone ? '400' : '600') + ';color:' + (isDone ? 'var(--text-muted)' : 'var(--text)') + (isDone ? ';text-decoration:line-through' : '') + '">' +
                     '<span class="macro-badge ' + (isRev ? 'revisao' : 'estudo') + '" style="margin-right:5px">' + (isRev ? 'Revisão' : 'Estudo') + '</span>' +
                     escapeHtml(m.nome) +
                   '</div>' +
                   '<div style="font-size:.78rem;color:var(--text-muted);margin-top:2px">' + escapeHtml(m.topico || '') + '</div>' +
+                  (!isDone ? actBtns : '') +
                 '</div>' +
             '</div>';
         }).join('');
@@ -1174,41 +1196,88 @@
 
     /* Readings per subject */
     var LESSON_READINGS = {
-        'História do Brasil': ['Fausto HB caps.1-11', 'Linhares HGB caps.1-10', 'Schwarcz&Starling caps.1-4', 'Ricupero Diplomacia Partes I-V', 'Doratioto Maldita Guerra', 'Cervo HPEB caps.3,10,13-14', 'Gerson Moura Autonomia na Dependência', 'Angela Alonso Flores votos e balas'],
-        'História Mundial': ['Hobsbawm Era das Revoluções', 'Hobsbawm Era do Capital', 'Hobsbawm Era dos Impérios', 'Hobsbawm Era dos Extremos', 'Saraiva HRI caps.1-8', 'Burns v.1-2 caps. principais', 'Gaddis The Cold War', 'Kissinger O Mundo Restaurado'],
-        'Português': ['Cunha & Cintra Nova Gramática do Português Contemporâneo', 'Bechara Moderna Gramática Portuguesa', 'Bosi História Concisa da Literatura Brasileira', 'Jakobson Linguística e Comunicação'],
-        'Geografia': ['Magnoli Geografia caps. principais', 'Atlas Geográfico Escolar (IBGE)', 'relatórios do IPCC'],
-        'Política Internacional': ['Saraiva HRI caps.1-8', 'Herz & Hoffmann Organizações Internacionais', 'Cervo HPEB caps. principais'],
-        'Economia': ['Mankiw Introdução à Economia', 'Vasconcellos Economia Micro e Macro', 'Gremaud Economia Brasileira Contemporânea'],
-        'Direito Interno': ['Constituição Federal 1988', 'Di Pietro Direito Administrativo', 'Carvalho Filho Manual de Direito Administrativo'],
-        'Direito Internacional': ['Rezek Direito Internacional Público', 'Mazzuoli Curso de Direito Internacional Público', 'Convenção de Viena sobre Direito dos Tratados'],
-        'Inglês': ['Gramática Oxford Advanced Learner', 'Financial Times artigos recentes', 'The Economist artigos recentes'],
-        'Espanhol': ['Gramática española em uso (nível avançado)', 'El País artigos recentes'],
-        'Francês': ['Bescherelle La conjugaison', 'Le Monde artigos recentes', 'Grammaire progressive du français (nível avançado)']
+        'História do Brasil': {
+            fundamental: ['Fausto — História do Brasil caps. 1–11', 'Linhares — História Geral do Brasil caps. 1–10', 'Schwarcz & Starling — Brasil: uma Biografia caps. 1–4', 'Ricupero — A Diplomacia na Construção do Brasil Partes I–V'],
+            complementar: ['Doratioto — Maldita Guerra', 'Cervo — História da Política Exterior do Brasil caps. 3,10,13–14', 'Gerson Moura — Autonomia na Dependência', 'Angela Alonso — Flores, Votos e Balas']
+        },
+        'História Mundial': {
+            fundamental: ['Hobsbawm — A Era das Revoluções', 'Hobsbawm — A Era do Capital', 'Hobsbawm — A Era dos Impérios', 'Hobsbawm — A Era dos Extremos'],
+            complementar: ['Saraiva — História das Relações Internacionais caps. 1–8', 'Burns — História da Civilização Ocidental v.1–2', 'Gaddis — The Cold War: A New History', 'Kissinger — O Mundo Restaurado']
+        },
+        'Português': {
+            fundamental: ['Cunha & Cintra — Nova Gramática do Português Contemporâneo', 'Bechara — Moderna Gramática Portuguesa'],
+            complementar: ['Bosi — História Concisa da Literatura Brasileira', 'Jakobson — Linguística e Comunicação']
+        },
+        'Geografia': {
+            fundamental: ['Magnoli — Geografia: a Ciência do Espaço caps. principais', 'Atlas Geográfico Escolar (IBGE)'],
+            complementar: ['Relatórios do IPCC (AR5 e AR6)', 'Sachs — A Era do Desenvolvimento Sustentável']
+        },
+        'Política Internacional': {
+            fundamental: ['Saraiva — História das Relações Internacionais caps. 1–8', 'Herz & Hoffmann — Organizações Internacionais'],
+            complementar: ['Cervo — História da Política Exterior do Brasil caps. principais', 'Keohane & Nye — Power and Interdependence']
+        },
+        'Economia': {
+            fundamental: ['Mankiw — Introdução à Economia', 'Vasconcellos — Economia: Micro e Macro'],
+            complementar: ['Gremaud — Economia Brasileira Contemporânea', 'Krugman & Obstfeld — Economia Internacional']
+        },
+        'Direito Interno': {
+            fundamental: ['Constituição Federal de 1988 (texto integral)', 'Di Pietro — Direito Administrativo'],
+            complementar: ['Carvalho Filho — Manual de Direito Administrativo', 'Lenza — Direito Constitucional Esquematizado']
+        },
+        'Direito Internacional': {
+            fundamental: ['Rezek — Direito Internacional Público', 'Convenção de Viena sobre Direito dos Tratados (1969)'],
+            complementar: ['Mazzuoli — Curso de Direito Internacional Público', 'Shaw — International Law']
+        },
+        'Inglês': {
+            fundamental: ['Oxford Advanced Learner\'s Grammar', 'The Economist — artigos recentes (seleção)'],
+            complementar: ['Financial Times — artigos recentes', 'Swan — Practical English Usage']
+        },
+        'Espanhol': {
+            fundamental: ['Gramática española em uso (nível avançado)', 'El País — artigos recentes'],
+            complementar: ['RAE — Nueva gramática de la lengua española (resumo)', 'Larousse — Gramática de uso del español']
+        },
+        'Francês': {
+            fundamental: ['Bescherelle — La Conjugaison pour tous', 'Grammaire progressive du français (nível avançado)'],
+            complementar: ['Le Monde — artigos recentes', 'Grevisse — Le Bon Usage (excertos)']
+        }
     };
 
     function getReadingKey(userId, lessonId, idx) { return 'reading_' + userId + '_' + lessonId + '_' + idx; }
 
     function renderReadingsSection(subjectName, lessonId) {
         var readings = LESSON_READINGS[subjectName];
-        if (!readings || readings.length === 0) return '';
+        if (!readings) return '';
+        // Support both old flat array and new {fundamental, complementar} structure
+        var fundamental = Array.isArray(readings) ? readings : (readings.fundamental || []);
+        var complementar = Array.isArray(readings) ? [] : (readings.complementar || []);
+        var all = fundamental.concat(complementar);
+        if (all.length === 0) return '';
         var userId = state.user ? state.user.id : 'anon';
         var done = 0;
-        readings.forEach(function(r, i) {
+        all.forEach(function(r, i) {
             try { if (_store.getItem(getReadingKey(userId, lessonId, i)) === '1') done++; } catch(e) {}
         });
-        var itemsHtml = readings.map(function(r, i) {
-            var checked = false;
-            try { checked = _store.getItem(getReadingKey(userId, lessonId, i)) === '1'; } catch(e) {}
-            return '<div class="reading-item' + (checked ? ' done' : '') + '" id="ri-' + i + '">' +
-                '<input type="checkbox" id="rc-' + i + '" ' + (checked ? 'checked' : '') + ' onchange="toggleReading(' + lessonId + ',' + i + ',this.checked)">' +
-                '<label for="rc-' + i + '">' + escapeHtml(r) + '</label>' +
-            '</div>';
-        }).join('');
+        function buildItems(list, offset) {
+            return list.map(function(r, i) {
+                var idx = offset + i;
+                var checked = false;
+                try { checked = _store.getItem(getReadingKey(userId, lessonId, idx)) === '1'; } catch(e) {}
+                return '<div class="reading-item' + (checked ? ' done' : '') + '" id="ri-' + idx + '">' +
+                    '<input type="checkbox" id="rc-' + idx + '" ' + (checked ? 'checked' : '') + ' onchange="toggleReading(' + lessonId + ',' + idx + ',this.checked)">' +
+                    '<label for="rc-' + idx + '">' + escapeHtml(r) + '</label>' +
+                '</div>';
+            }).join('');
+        }
+        var funHtml = fundamental.length > 0
+            ? '<div style="margin-bottom:12px"><div style="font-size:.8rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px"><i class="fas fa-star" style="margin-right:4px"></i>Leituras Fundamentais</div>' + buildItems(fundamental, 0) + '</div>'
+            : '';
+        var compHtml = complementar.length > 0
+            ? '<div><div style="font-size:.8rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px"><i class="fas fa-plus-circle" style="margin-right:4px"></i>Leituras Complementares</div>' + buildItems(complementar, fundamental.length) + '</div>'
+            : '';
         return '<div class="readings-section">' +
             '<h3><i class="fas fa-book-open"></i> Leituras Recomendadas — ' + escapeHtml(subjectName) + '</h3>' +
-            '<div class="reading-progress" id="reading-progress-' + lessonId + '">' + done + '/' + readings.length + ' leituras feitas</div>' +
-            itemsHtml +
+            '<div class="reading-progress" id="reading-progress-' + lessonId + '">' + done + '/' + all.length + ' leituras feitas</div>' +
+            funHtml + compHtml +
         '</div>';
     }
 
@@ -2212,7 +2281,7 @@
        ============================================================ */
     function render() {
         var floatBtn = document.getElementById('baron-float');
-        if (floatBtn) floatBtn.style.display = (state.user && state.view !== 'login' && state.view !== 'reset' && state.view !== 'student-planner') ? 'block' : 'none';
+        if (floatBtn) floatBtn.style.display = (state.user && state.view !== 'login' && state.view !== 'reset') ? 'block' : 'none';
         switch (state.view) {
             case 'login':             renderLoginView(); break;
             case 'reset':             renderResetView(); break;

@@ -100,9 +100,9 @@ async function fetchQuestionsForSubjects(supabase, subjectList, fonte) {
       if (aiQ) questoes = questoes.concat(aiQ.map(q => ({ ...q, _subject: subject })));
     }
 
-    // If still not enough, generate via AI and save — but cap to avoid timeout
-    if (questoes.length < count) {
-      const needed = Math.min(count - questoes.length, 3); // cap AI gen per subject
+    // Only fall back to AI generation when fonte explicitly includes AI
+    if (questoes.length < count && (fonte === 'ai' || fonte === 'mixed')) {
+      const needed = Math.min(count - questoes.length, 3); // cap to avoid timeout
       try {
         const generated = await generateAIQuestionsForSubject(subject, needed);
         const toInsert = generated.map(q => ({
