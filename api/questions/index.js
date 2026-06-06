@@ -119,8 +119,15 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
-      const admin = requireAdmin(req, res);
-      if (!admin) return;
+      // action=import-exam permite autenticação por IMPORT_SECRET (sem JWT)
+      const importSecret = process.env.IMPORT_SECRET;
+      const providedSecret = req.headers['x-import-secret'];
+      const hasSecretAuth = importSecret && providedSecret && providedSecret === importSecret;
+
+      if (!hasSecretAuth) {
+        const admin = requireAdmin(req, res);
+        if (!admin) return;
+      }
 
       // action=update-topic — update topic for a specific question
       if (action === 'update-topic') {
