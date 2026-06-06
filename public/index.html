@@ -188,7 +188,8 @@
         .baron-avatar-sm img{width:100%;height:100%;object-fit:cover}
         .baron-float{position:fixed;bottom:24px;right:24px;z-index:200;cursor:pointer;filter:drop-shadow(0 4px 12px rgba(0,0,0,.2));transition:transform .2s ease}
         .baron-float:hover{transform:scale(1.1) rotate(-3deg)}
-        .baron-float img{width:80px;height:80px;border-radius:50%;border:3px solid var(--primary);background:var(--surface)}
+        .baron-float img{width:80px;height:80px;border-radius:50%;border:3px solid var(--primary);background:var(--primary);object-fit:cover}
+        .baron-float-fallback{width:80px;height:80px;border-radius:50%;border:3px solid var(--primary);background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:2rem}
         .baron-speech{position:fixed;bottom:116px;right:24px;z-index:199;background:var(--surface);border:1px solid var(--border);border-radius:12px 12px 4px 12px;padding:10px 14px;font-size:.82rem;color:var(--text);max-width:200px;line-height:1.4;box-shadow:0 4px 16px rgba(0,0,0,.12);display:none;animation:fadeInUp .3s ease}
         .baron-speech::after{content:'';position:absolute;bottom:-8px;right:22px;border:4px solid transparent;border-top-color:var(--border)}
         .baron-speech::before{content:'';position:absolute;bottom:-6px;right:23px;border:3px solid transparent;border-top-color:var(--surface);z-index:1}
@@ -277,8 +278,9 @@
         .questoes-score{text-align:center;padding:20px;font-size:1.1rem;font-weight:700;color:var(--primary);display:none}
         .questoes-score.show{display:block}
         .simulado-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;margin-bottom:20px}
-        .simulado-option{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer}
+        .simulado-option{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);cursor:pointer;font-size:.95rem;line-height:1.4}
         .simulado-option:last-child{border-bottom:none}
+        .simulado-option input[type=radio]{flex-shrink:0;width:18px;height:18px;accent-color:var(--primary);cursor:pointer}
         .simulado-timer{font-size:1.2rem;font-weight:700;color:var(--primary);font-family:'Fraunces',serif}
         .simulado-progress{font-size:.85rem;color:var(--text-muted)}
         .simulado-result{text-align:center;padding:32px}
@@ -304,7 +306,7 @@
     <div id="toast-container"></div>
     <div class="baron-speech" id="baron-speech"></div>
     <div class="baron-float" id="baron-float" onclick="toggleBaronChat()" title="Converse com o Barão" style="display:none">
-        <img src="/public/baron-winking-sm.png" id="baron-float-img" alt="Barão" onerror="this.src='/public/baron-avatar.png'">
+        <img src="/public/baron-winking-sm.png" id="baron-float-img" alt="Barão" onerror="this.outerHTML='<div class=\'baron-float-fallback\'>🎩</div>'">
     </div>
     <div id="baron-chat-modal" style="display:none;position:fixed;bottom:116px;right:24px;z-index:300;width:320px;max-height:480px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);flex-direction:column;overflow:hidden">
       <div style="background:linear-gradient(135deg,var(--primary),var(--primary-hover));padding:12px 16px;display:flex;align-items:center;gap:10px;color:#fff">
@@ -1615,35 +1617,78 @@
     function renderStudentMacroPlan() {
         var app = document.getElementById('app');
         var nav = renderNavbar(studentNav());
-        var today = new Date(); today.setMonth(today.getMonth() + 4);
-        var defaultDate = today.toISOString().split('T')[0];
         app.innerHTML = nav + '<div class="container"><div class="page-content">' +
             '<div class="page-header"><h1><i class="fas fa-road" style="color:var(--primary);margin-right:10px"></i>Plano Mestre CACD</h1></div>' +
-            '<div id="macro-overwrite-banner" style="display:none;background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:20px;font-size:.92rem;color:var(--text);line-height:1.5"></div>' +
-            '<div class="macro-form">' +
-              '<h2><i class="fas fa-cog" style="color:var(--accent);margin-right:8px"></i>Configurar Plano Macro</h2>' +
-              '<div class="form-row">' +
-                '<div class="form-group"><label>Data da Prova</label><input type="date" id="macro-data-prova" value="' + defaultDate + '"></div>' +
-                '<div class="form-group"><label>Horas de Estudo por Semana</label><input type="number" id="macro-horas" min="1" max="60" value="20"></div>' +
-              '</div>' +
-              '<div class="form-group"><label>Observações (opcional)</label><textarea id="macro-obs" placeholder="Ex: tenho mais tempo aos fins de semana, prefiro começar por história…" style="min-height:64px"></textarea></div>' +
-              '<button class="btn btn-primary" style="width:100%;justify-content:center;padding:14px" onclick="gerarMacroPlan()">' +
-                '<i class="fas fa-magic"></i> Gerar Plano Mestre com IA' +
-              '</button>' +
-            '</div>' +
-            '<div id="macro-output" class="macro-output" style="display:none"></div>' +
+            '<div class="loading-spinner" id="macro-main-area"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>' +
             '</div></div>';
-        // Check for existing macro plan and show overwrite warning
-        API.request('GET', '/api/performance?action=check_macro').then(function(data) {
-            if (data && data.exists) {
-                var banner = document.getElementById('macro-overwrite-banner');
-                if (banner) {
-                    var createdDate = data.created_at ? new Date(data.created_at).toLocaleDateString('pt-BR') : '';
-                    banner.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:8px"></i>⚠️ Você já tem um Plano Mestre criado' + (createdDate ? ' em ' + createdDate : '') + '. Gerar um novo plano irá substituir o atual.';
-                    banner.style.display = 'block';
-                }
+
+        // Load existing plan first
+        API.request('GET', '/api/performance?action=macro').then(function(macro) {
+            var area = document.getElementById('macro-main-area');
+            if (!area) return;
+
+            var today = new Date(); today.setMonth(today.getMonth() + 4);
+            var defaultDate = today.toISOString().split('T')[0];
+            var existingDate = macro && macro.created_at ? new Date(macro.created_at).toLocaleDateString('pt-BR') : null;
+
+            var formHtml = '<div class="macro-form" id="macro-gen-form">' +
+                '<h2><i class="fas fa-cog" style="color:var(--accent);margin-right:8px"></i>' + (existingDate ? 'Substituir Plano Mestre' : 'Configurar Plano Mestre') + '</h2>' +
+                (existingDate ? '<div style="background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:.88rem"><i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:6px"></i>Você já tem um Plano Mestre criado em ' + existingDate + '. Gerar um novo irá <strong>substituir o atual</strong>.</div>' : '') +
+                '<div class="form-row">' +
+                  '<div class="form-group"><label>Data da Prova</label><input type="date" id="macro-data-prova" value="' + (macro && macro.data_prova ? macro.data_prova : defaultDate) + '"></div>' +
+                  '<div class="form-group"><label>Horas de Estudo por Semana</label><input type="number" id="macro-horas" min="1" max="60" value="20"></div>' +
+                '</div>' +
+                '<div class="form-group"><label>Observações (opcional)</label><textarea id="macro-obs" placeholder="Ex: tenho mais tempo aos fins de semana…" style="min-height:64px"></textarea></div>' +
+                '<button class="btn btn-primary" style="width:100%;justify-content:center;padding:14px" onclick="gerarMacroPlan()">' +
+                  '<i class="fas fa-magic"></i> ' + (existingDate ? 'Gerar Novo Plano Mestre' : 'Gerar Plano Mestre com IA') +
+                '</button>' +
+              '</div>' +
+              '<div id="macro-output" class="macro-output" style="display:none"></div>';
+
+            if (macro && macro.plan_json) {
+                // Show existing plan + collapse form by default
+                area.className = '';
+                area.innerHTML = '<div style="display:flex;gap:12px;align-items:center;margin-bottom:20px">' +
+                    '<img src="/public/baron-pointing-sm.png" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--primary)" onerror="this.style.display=\'none\'">' +
+                    '<div><div style="font-weight:700;font-size:1.05rem">Seu Plano Mestre está ativo</div>' +
+                    '<div style="font-size:.85rem;color:var(--text-muted)">Criado em ' + existingDate + ' · Prova em ' + (macro.data_prova ? new Date(macro.data_prova + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</div></div>' +
+                    '<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="document.getElementById(\'macro-gen-form-wrap\').style.display=document.getElementById(\'macro-gen-form-wrap\').style.display===\'none\'?\'block\':\'none\'">' +
+                      '<i class="fas fa-sync"></i> Recriar plano' +
+                    '</button></div>' +
+                    '<div id="macro-gen-form-wrap" style="display:none">' + formHtml + '</div>';
+                var tempDiv = document.createElement('div');
+                tempDiv.className = 'macro-output';
+                tempDiv.style.display = 'block';
+                area.appendChild(tempDiv);
+                // Render the saved plan
+                var savedOut = tempDiv;
+                var plano = macro.plan_json;
+                var semanasHtml = (plano.semanas || []).map(function(s, i) {
+                    var materiasHtml = (s.materias || []).map(function(m) {
+                        var atvsHtml = (m.atividades || []).map(function(a) {
+                            return '<div class="macro-atividade"><i class="fas fa-check-circle"></i><span><strong>' + escapeHtml(a.tipo || '') + '</strong> — ' + escapeHtml(a.descricao || '') + (a.horas ? ' (' + a.horas + 'h)' : '') + '</span></div>';
+                        }).join('');
+                        return '<div class="macro-materia"><div class="macro-materia-name"><i class="fas fa-book-open" style="margin-right:6px"></i>' + escapeHtml(m.nome || '') + '</div>' +
+                            (m.topico ? '<div class="macro-materia-topico">' + escapeHtml(m.topico) + '</div>' : '') +
+                            atvsHtml + (m.leituras ? '<div class="macro-leituras"><i class="fas fa-bookmark" style="margin-right:4px"></i>' + escapeHtml(m.leituras) + '</div>' : '') + '</div>';
+                    }).join('');
+                    var dateStr = s.dataInicio && s.dataFim ? ' <span style="font-size:.8rem;font-weight:400;color:var(--text-secondary)">' + escapeHtml(s.dataInicio) + ' – ' + escapeHtml(s.dataFim) + '</span>' : '';
+                    return '<div class="macro-semana"><div class="macro-semana-header" onclick="toggleMacraSemana(this,' + i + ')"><span><i class="fas fa-calendar-week" style="color:var(--primary);margin-right:8px"></i>Semana ' + (s.semana || (i+1)) + dateStr + '</span><i class="fas fa-chevron-down" style="color:var(--text-muted)"></i></div><div class="macro-semana-body" id="msb-' + i + '">' + materiasHtml + '</div></div>';
+                }).join('');
+                savedOut.innerHTML =
+                    '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-hover));border-radius:var(--radius-lg);padding:20px 24px;color:#fff;margin-bottom:20px">' +
+                      '<div style="font-weight:700;font-size:1.1rem;margin-bottom:6px"><i class="fas fa-map" style="margin-right:8px"></i>Plano Mestre</div>' +
+                      '<div style="font-size:.92rem;opacity:.9;line-height:1.5">' + escapeHtml(plano.resumo || '') + '</div>' +
+                      '<div style="margin-top:12px;font-size:.82rem;opacity:.8"><i class="fas fa-clock" style="margin-right:4px"></i>' + (plano.totalSemanas || '') + ' semanas · ' + (plano.totalHoras || '') + 'h totais</div>' +
+                    '</div>' + semanasHtml;
+            } else {
+                area.className = '';
+                area.innerHTML = formHtml;
             }
-        }).catch(function() {});
+        }).catch(function() {
+            var area = document.getElementById('macro-main-area');
+            if (area) { area.className = ''; area.innerHTML = '<p style="color:var(--danger)">Erro ao carregar plano.</p>'; }
+        });
     }
 
     function gerarMacroPlan() {
@@ -1712,7 +1757,7 @@
         var nav = renderNavbar(studentNav());
         app.innerHTML = nav + '<div class="container"><div class="page-content">' +
             '<div class="baron-header">' +
-              '<div class="baron-avatar"><img src="/public/baron-pointing-sm.png" alt="Barão" onerror="this.src=\'/public/baron-avatar.png\'"></div>' +
+              '<div class="baron-avatar"><img src="/public/baron-pointing-sm.png" alt="Barão" onerror="this.outerHTML=\'<span style=\\\"font-size:2rem\\\">🎩</span>\'"></div>' +
               '<div class="baron-msg"><h3>Barão do EduFlow — Seu Coach Diplomático</h3><p>Acompanhe seu desempenho por matéria e foque nas áreas que precisam de mais atenção.</p></div>' +
             '</div>' +
             '<div class="loading-spinner" id="perf-area"><i class="fas fa-spinner"></i> Carregando desempenho...</div>' +
@@ -1720,10 +1765,12 @@
 
         Promise.all([
             API.request('GET', '/api/performance'),
-            API.request('GET', '/api/performance?action=macro')
+            API.request('GET', '/api/performance?action=macro'),
+            API.request('GET', '/api/performance?action=study')
         ]).then(function(results) {
             var data = results[0];
             var macro = results[1];
+            var sessions = results[2] || [];
             var area = document.getElementById('perf-area');
             if (!area) return;
 
@@ -1820,8 +1867,33 @@
                 weakHtml += '</div>';
             }
 
+            // Study sessions card
+            var studyHtml = '<div class="perf-card"><h3 style="margin-bottom:16px"><i class="fas fa-clock" style="color:var(--primary);margin-right:8px"></i>Tempo de Estudo Registrado</h3>';
+            if (!sessions || sessions.length === 0) {
+                studyHtml += '<p style="color:var(--text-muted);font-size:.9rem">Nenhuma sessão de estudo registrada. Use o botão <strong>Estudar Agora</strong> no menu para registrar seu tempo.</p>';
+            } else {
+                var bySubject = {};
+                sessions.forEach(function(s) {
+                    bySubject[s.subject] = (bySubject[s.subject] || 0) + s.duration_minutes;
+                });
+                var totalMin = sessions.reduce(function(acc, s) { return acc + s.duration_minutes; }, 0);
+                studyHtml += '<div style="font-size:.92rem;color:var(--text-muted);margin-bottom:12px">Total: <strong>' + Math.floor(totalMin/60) + 'h ' + (totalMin%60) + 'min</strong> · ' + sessions.length + ' sessões registradas</div>';
+                studyHtml += Object.entries(bySubject).sort(function(a,b){return b[1]-a[1];}).map(function(e) {
+                    var min = e[1];
+                    return '<div class="subject-perf-row"><div class="subject-perf-name">' + escapeHtml(e[0]) + '</div>' +
+                        '<div style="font-size:.85rem;color:var(--text-muted)">' + Math.floor(min/60) + 'h ' + (min%60) + 'min</div></div>';
+                }).join('');
+                studyHtml += '<details style="margin-top:12px"><summary style="font-size:.85rem;color:var(--text-muted);cursor:pointer">Ver histórico de sessões</summary>' +
+                    '<div style="margin-top:8px;font-size:.82rem">' + sessions.slice(0,10).map(function(s) {
+                        return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">' +
+                            '<span>' + escapeHtml(s.subject) + '</span>' +
+                            '<span style="color:var(--text-muted)">' + s.duration_minutes + ' min · ' + new Date(s.started_at).toLocaleDateString('pt-BR') + '</span></div>';
+                    }).join('') + '</div></details>';
+            }
+            studyHtml += '</div>';
+
             area.className = '';
-            area.innerHTML = overallHtml + baronRecommendHtml + macroHtml + subjectsHtml + weakHtml;
+            area.innerHTML = overallHtml + baronRecommendHtml + macroHtml + studyHtml + subjectsHtml + weakHtml;
         }).catch(function(err) {
             var area = document.getElementById('perf-area');
             if (area) area.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';

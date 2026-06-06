@@ -100,23 +100,20 @@ async function fetchQuestionsForSubjects(supabase, subjectList, fonte) {
       if (aiQ) questoes = questoes.concat(aiQ.map(q => ({ ...q, _subject: subject })));
     }
 
-    // If still not enough, generate via AI and save
+    // If still not enough, generate via AI and save — but cap to avoid timeout
     if (questoes.length < count) {
-      const needed = count - questoes.length;
-      const generated = await generateAIQuestionsForSubject(subject, needed);
-
-      const toInsert = generated.map(q => ({
-        source: 'ai',
-        subject: subject,
-        topic: null,
-        enunciado: q.enunciado,
-        opcoes: q.opcoes,
-        gabarito: q.gabarito,
-        explicacao: q.explicacao
-      }));
-
-      const { data: saved } = await supabase.from('questions').insert(toInsert).select();
-      if (saved) questoes = questoes.concat(saved.map(q => ({ ...q, _subject: subject })));
+      const needed = Math.min(count - questoes.length, 3); // cap AI gen per subject
+      try {
+        const generated = await generateAIQuestionsForSubject(subject, needed);
+        const toInsert = generated.map(q => ({
+          source: 'ai', subject, topic: null,
+          enunciado: q.enunciado, opcoes: q.opcoes, gabarito: q.gabarito, explicacao: q.explicacao
+        }));
+        const { data: saved } = await supabase.from('questions').insert(toInsert).select();
+        if (saved) questoes = questoes.concat(saved.map(q => ({ ...q, _subject: subject })));
+      } catch (e) {
+        console.error('AI gen failed for', subject, e.message);
+      }
     }
 
     // Normalize to simulado format (without gabarito exposed)
