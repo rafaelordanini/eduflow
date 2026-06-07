@@ -163,7 +163,7 @@ module.exports = async function handler(req, res) {
           year: Number(year),
           subject: q.subject,
           topic: q.topic || null,
-          enunciado: `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''}`.substring(0, 1000),
+          enunciado: `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''}`,
           opcoes: { a: 'Certo', b: 'Errado' },
           gabarito: q.gabarito === 'C' ? 'a' : 'b',
           explicacao: null,
