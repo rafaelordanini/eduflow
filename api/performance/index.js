@@ -77,7 +77,7 @@ module.exports = async function handler(req, res) {
     if (req.method === 'GET') {
       const { data: attempts, error } = await supabase
         .from('question_attempts')
-        .select('subject, correct, attempted_at')
+        .select('subject, topic, correct, attempted_at')
         .eq('user_id', user.id);
 
       if (error) return res.status(500).json({ error: error.message });
@@ -123,6 +123,22 @@ module.exports = async function handler(req, res) {
         .filter(s => s.accuracy < 60)
         .sort((a, b) => a.accuracy - b.accuracy);
 
+      // Weak topics: group by (subject, topic), min 3 attempts, accuracy < 70%
+      const topicMap = {};
+      (attempts || []).forEach(function(a) {
+        if (!a.topic) return;
+        const key = a.subject + '|||' + a.topic;
+        if (!topicMap[key]) topicMap[key] = { subject: a.subject, topic: a.topic, total: 0, correct: 0 };
+        topicMap[key].total++;
+        if (a.correct) topicMap[key].correct++;
+      });
+      const weakTopics = Object.values(topicMap)
+        .filter(t => t.total >= 3)
+        .map(t => ({ ...t, accuracy: Math.round(t.correct / t.total * 100) }))
+        .filter(t => t.accuracy < 70)
+        .sort((a, b) => a.accuracy - b.accuracy)
+        .slice(0, 10);
+
       // Recent trend: last 7 days attempts count
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -134,6 +150,7 @@ module.exports = async function handler(req, res) {
         subjects,
         overall,
         weakSubjects,
+        weakTopics,
         recentTrend: { last7Days: recentCount }
       });
     }

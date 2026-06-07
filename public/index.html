@@ -2166,6 +2166,78 @@
         navigate('student-lesson', { subjectId: subjectId, lessonId: lessonId });
     }
 
+    function praticaTopico(subject, topic) {
+        var existing = document.getElementById('pratica-topico-overlay');
+        if (existing) existing.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'pratica-topico-overlay';
+        overlay.className = 'review-modal-overlay';
+        var title = topic || subject;
+        overlay.innerHTML =
+            '<div class="review-modal">' +
+              '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+                '<h2 style="font-size:1.1rem"><i class="fas fa-dumbbell" style="color:var(--accent);margin-right:8px"></i>Praticar: ' + escapeHtml(title) + '</h2>' +
+                '<button onclick="document.getElementById(\'pratica-topico-overlay\').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-muted)">✕</button>' +
+              '</div>' +
+              '<div id="pratica-topico-body"><i class="fas fa-spinner fa-spin"></i> Carregando questões…</div>' +
+            '</div>';
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+
+        var url = '/api/questions?limit=10&source=exam';
+        if (topic) url += '&topic=' + encodeURIComponent(topic);
+        else url += '&subject=' + encodeURIComponent(subject);
+
+        API.request('GET', url).then(function(data) {
+            var qs = (data && data.questions) ? data.questions : [];
+            var body = document.getElementById('pratica-topico-body');
+            if (!body) return;
+            if (!qs.length) {
+                body.innerHTML = '<p style="color:var(--text-muted)">Nenhuma questão encontrada para este tópico ainda.</p>';
+                return;
+            }
+            var _answers = {};
+            body.innerHTML = '<div id="pratica-topico-qs">' + qs.map(function(q, qi) {
+                var opts = q.opcoes || {};
+                var optsHtml = Object.keys(opts).sort().map(function(k) {
+                    return '<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:6px;font-size:.88rem" onclick="praticaResponder(\'' + q.id + '\',\'' + k + '\',\'' + (q.gabarito||'') + '\')" id="pratica-opt-' + q.id + '-' + k + '">' +
+                        '<span style="font-weight:700;color:var(--primary);min-width:16px">' + k + ')</span>' +
+                        '<span>' + escapeHtml(opts[k]) + '</span>' +
+                    '</label>';
+                }).join('');
+                return '<div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)">' +
+                    '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">' + escapeHtml(q.subject || '') + (q.topic ? ' · ' + escapeHtml(q.topic) : '') + '</div>' +
+                    '<div style="font-size:.9rem;margin-bottom:10px;line-height:1.5">' + escapeHtml(q.enunciado || '') + '</div>' +
+                    optsHtml +
+                    '<div id="pratica-exp-' + q.id + '" style="display:none;margin-top:8px;padding:8px 12px;background:var(--primary-light);border-radius:8px;font-size:.82rem"></div>' +
+                '</div>';
+            }).join('') + '</div>';
+        }).catch(function(err) {
+            var body = document.getElementById('pratica-topico-body');
+            if (body) body.innerHTML = '<p style="color:var(--danger)">Erro: ' + escapeHtml(err.message) + '</p>';
+        });
+    }
+
+    function praticaResponder(questionId, chosen, gabarito) {
+        var correct = chosen === gabarito;
+        // Highlight options
+        ['a','b','c','d','e'].forEach(function(k) {
+            var el = document.getElementById('pratica-opt-' + questionId + '-' + k);
+            if (!el) return;
+            el.style.pointerEvents = 'none';
+            if (k === gabarito) el.style.background = 'rgba(40,167,69,.15)', el.style.borderColor = 'var(--success)';
+            else if (k === chosen && !correct) el.style.background = 'rgba(220,53,69,.1)', el.style.borderColor = 'var(--danger)';
+        });
+        var expEl = document.getElementById('pratica-exp-' + questionId);
+        if (expEl) {
+            expEl.style.display = 'block';
+            expEl.innerHTML = correct
+                ? '<span style="color:var(--success);font-weight:700">✓ Correto!</span>'
+                : '<span style="color:var(--danger);font-weight:700">✗ Errado.</span> Resposta correta: <strong>' + gabarito + ')</strong>';
+        }
+        API.request('POST', '/api/questions', { action: 'record', subject: '', question_id: questionId, correct: correct }).catch(function(){});
+    }
+
     function abrirRevisaoPlano(subjectName) {
         if (!subjectName) return;
         // Open practice modal for this subject
@@ -2260,6 +2332,7 @@
             var overall = data.overall || { total: 0, correct: 0, accuracy: 0 };
             var subjects = data.subjects || [];
             var weakSubjects = data.weakSubjects || [];
+            var weakTopics = data.weakTopics || [];
 
             // Overall stats card
             var overallHtml = '<div class="perf-card">' +
@@ -2284,17 +2357,19 @@
 
             // Baron recommendation
             var baronPose = overall.accuracy >= 70 ? 'baron-thumbsup-sm.png' : 'baron-thinking-sm.png';
-            var recSubject = weakSubjects.length > 0 ? weakSubjects[0].subject : null;
             var recMsg = '';
             if (overall.total === 0) {
                 recMsg = '<h3>Comece a praticar!</h3><p>Você ainda não respondeu nenhuma questão. Acesse uma aula e pratique questões para ver seu desempenho aqui.</p>';
-            } else if (recSubject) {
-                recMsg = '<h3>Foco recomendado: ' + escapeHtml(recSubject) + '</h3><p>Seu aproveitamento em ' + escapeHtml(recSubject) + ' está em ' + weakSubjects[0].accuracy + '%. O Barão recomenda intensificar a prática nesta matéria antes da prova.</p>';
+            } else if (weakTopics.length > 0) {
+                var rt = weakTopics[0];
+                recMsg = '<h3>Foco recomendado: ' + escapeHtml(rt.topic) + '</h3><p>Seu aproveitamento em <strong>' + escapeHtml(rt.topic) + '</strong> (' + escapeHtml(rt.subject) + ') está em ' + rt.accuracy + '%. O Barão recomenda intensificar a prática neste tópico.</p>';
+            } else if (weakSubjects.length > 0) {
+                recMsg = '<h3>Foco recomendado: ' + escapeHtml(weakSubjects[0].subject) + '</h3><p>Seu aproveitamento em ' + escapeHtml(weakSubjects[0].subject) + ' está em ' + weakSubjects[0].accuracy + '%. O Barão recomenda intensificar a prática nesta matéria antes da prova.</p>';
             } else {
                 recMsg = '<h3>Excelente desempenho!</h3><p>Todas as suas matérias estão com aproveitamento acima de 60%. Continue praticando para manter o ritmo!</p>';
             }
             var baronRecommendHtml = '<div class="baron-recommend">' +
-                '<img src="/public/' + baronPose + '" style="width:64px;height:64px;border-radius:50%;flex-shrink:0;border:2px solid var(--primary)" onerror="this.style.display=\'none\'">' +
+                '<img src="/' + baronPose + '" style="width:64px;height:64px;border-radius:50%;flex-shrink:0;border:2px solid var(--primary)" onerror="this.style.display=\'none\'">' +
                 '<div class="baron-rec-msg">' + recMsg + '</div>' +
             '</div>';
 
@@ -2331,18 +2406,23 @@
             }
             macroHtml += '</div>';
 
-            // Weak spots with practice buttons
+            // Weak spots with practice buttons (by topic)
             var weakHtml = '';
-            if (weakSubjects.length > 0) {
+            var weakList = weakTopics.length > 0 ? weakTopics : weakSubjects.slice(0, 10).map(function(s) { return { subject: s.subject, topic: null, accuracy: s.accuracy, correct: s.correct, total: s.total }; });
+            if (weakList.length > 0) {
                 weakHtml = '<div class="perf-card">' +
-                    '<h3 style="margin-bottom:12px"><i class="fas fa-exclamation-triangle" style="color:var(--danger);margin-right:8px"></i>Pontos Fracos — Top 3</h3>';
-                weakHtml += weakSubjects.slice(0, 3).map(function(s) {
+                    '<h3 style="margin-bottom:12px"><i class="fas fa-exclamation-triangle" style="color:var(--danger);margin-right:8px"></i>Pontos Fracos — Top ' + weakList.length + '</h3>';
+                weakHtml += weakList.map(function(t) {
+                    var label = t.topic || t.subject;
+                    var sub = t.topic ? t.subject : '';
+                    var onclickArg = t.topic ? ('praticaTopico(' + _js(t.subject) + ',' + _js(t.topic) + ')') : ('praticaTopico(' + _js(t.subject) + ',null)');
                     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
                         '<div>' +
-                          '<div style="font-weight:600;font-size:.92rem">' + escapeHtml(s.subject) + '</div>' +
-                          '<div style="font-size:.8rem;color:var(--danger)">' + s.accuracy + '% aproveitamento (' + s.correct + '/' + s.total + ')</div>' +
+                          '<div style="font-weight:600;font-size:.92rem">' + escapeHtml(label) + '</div>' +
+                          (sub ? '<div style="font-size:.75rem;color:var(--text-muted);margin-bottom:2px">' + escapeHtml(sub) + '</div>' : '') +
+                          '<div style="font-size:.8rem;color:var(--danger)">' + t.accuracy + '% aproveitamento (' + t.correct + '/' + t.total + ')</div>' +
                         '</div>' +
-                        '<button class="btn btn-sm btn-accent" onclick="navigate(\'student-dashboard\')" title="Pratique ' + escapeHtml(s.subject) + '">' +
+                        '<button class="btn btn-sm btn-accent" onclick="' + onclickArg + '">' +
                           '<i class="fas fa-dumbbell"></i> Praticar agora' +
                         '</button>' +
                     '</div>';
