@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduFlow — Plataforma E-Learning</title>
+    <title>Barão — Seu Coach para o CACD</title>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -335,12 +335,12 @@
     <div id="toast-container"></div>
     <div class="baron-speech" id="baron-speech"></div>
     <div class="baron-float" id="baron-float" onclick="toggleBaronChat()" title="Converse com o Barão" style="display:none">
-        <img src="/public/baron-winking-sm.png" id="baron-float-img" alt="Barão" onerror="this.outerHTML='<div class=\'baron-float-fallback\'>🎩</div>'">
+        <img src="/baron-winking-sm.png" id="baron-float-img" alt="Barão" onerror="this.outerHTML='<div class=\'baron-float-fallback\'>🎩</div>'">
     </div>
     <div id="baron-chat-modal" style="display:none;position:fixed;bottom:116px;right:24px;z-index:300;width:320px;max-height:480px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);flex-direction:column;overflow:hidden">
       <div style="background:linear-gradient(135deg,var(--primary),var(--primary-hover));padding:12px 16px;display:flex;align-items:center;gap:10px;color:#fff">
-        <img src="/public/baron-winking-sm.png" style="width:36px;height:36px;border-radius:50%;border:2px solid rgba(255,255,255,.4)" onerror="this.style.display='none'">
-        <div><div style="font-weight:700;font-size:.95rem">Barão do EduFlow</div><div style="font-size:.75rem;opacity:.8">Seu coach diplomático</div></div>
+        <img src="/baron-winking-sm.png" style="width:36px;height:36px;border-radius:50%;border:2px solid rgba(255,255,255,.4)" onerror="this.style.display='none'">
+        <div><div style="font-weight:700;font-size:.95rem">Barão</div><div style="font-size:.75rem;opacity:.8">Seu coach diplomático</div></div>
         <button onclick="toggleBaronChat()" style="margin-left:auto;background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:4px">✕</button>
       </div>
       <div id="baron-chat-messages" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;max-height:320px"></div>
@@ -350,7 +350,7 @@
       </div>
     </div>
     <div id="study-timer-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:400;background:var(--surface);border-radius:var(--radius-lg);padding:32px;box-shadow:0 16px 48px rgba(0,0,0,.2);min-width:300px;text-align:center">
-      <img src="/public/baron-thumbsup-sm.png" id="timer-baron-img" style="width:64px;height:64px;border-radius:50%;margin-bottom:12px" onerror="this.style.display='none'">
+      <img src="/baron-thumbsup-sm.png" id="timer-baron-img" style="width:64px;height:64px;border-radius:50%;margin-bottom:12px" onerror="this.style.display='none'">
       <h2 style="font-family:'Fraunces',serif;font-size:1.4rem;margin-bottom:16px">Sessão de Estudo</h2>
       <div id="timer-subject-select" style="margin-bottom:20px">
         <label style="font-size:.88rem;color:var(--text-muted);display:block;margin-bottom:8px">Qual matéria você vai estudar?</label>
@@ -512,12 +512,12 @@
 
     var _baronPoseTimer = null;
     var BARON_POSES = {
-        neutral:  '/public/baron-neutral-sm.png',
-        pointing: '/public/baron-pointing-sm.png',
-        reading:  '/public/baron-reading-sm.png',
-        thumbsup: '/public/baron-thumbsup-sm.png',
-        thinking: '/public/baron-thinking-sm.png',
-        winking:  '/public/baron-winking-sm.png'
+        neutral:  '/baron-neutral-sm.png',
+        pointing: '/baron-pointing-sm.png',
+        reading:  '/baron-reading-sm.png',
+        thumbsup: '/baron-thumbsup-sm.png',
+        thinking: '/baron-thinking-sm.png',
+        winking:  '/baron-winking-sm.png'
     };
     var BARON_TIPS = [
         'Estude pelo menos 4h/dia para passar no CACD.',
@@ -584,7 +584,7 @@
         if (!msgs) return;
         if (msgs.children.length === 0 && _baronMessages.length === 0) {
             // Show welcome message on first open
-            appendBaronMessage('assistant', 'Olá! Sou o Barão do EduFlow, seu coach para o CACD. Como posso ajudar você hoje?');
+            appendBaronMessage('assistant', 'Olá! Sou o Barão, seu coach para o CACD. Como posso ajudar você hoje?');
         }
     }
 
@@ -595,7 +595,7 @@
         var isUser = role === 'user';
         var div = document.createElement('div');
         div.style.cssText = 'display:flex;gap:8px;align-items:flex-end;' + (isUser ? 'flex-direction:row-reverse' : '');
-        div.innerHTML = (isUser ? '' : '<img src="/public/baron-neutral-sm.png" style="width:28px;height:28px;border-radius:50%;flex-shrink:0" onerror="this.style.display=\'none\'">') +
+        div.innerHTML = (isUser ? '' : '<img src="/baron-neutral-sm.png" style="width:28px;height:28px;border-radius:50%;flex-shrink:0" onerror="this.style.display=\'none\'">') +
             '<div style="max-width:80%;padding:8px 12px;border-radius:' + (isUser ? '12px 12px 4px 12px' : '12px 12px 12px 4px') + ';background:' + (isUser ? 'var(--primary)' : 'var(--primary-light)') + ';color:' + (isUser ? '#fff' : 'var(--text)') + ';font-size:.83rem;line-height:1.5">' + escapeHtml(text) + '</div>';
         msgs.appendChild(div);
         msgs.scrollTop = msgs.scrollHeight;
@@ -612,7 +612,7 @@
         var typing = document.createElement('div');
         typing.id = 'baron-typing';
         typing.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:.8rem;color:var(--text-muted)';
-        typing.innerHTML = '<img src="/public/baron-reading-sm.png" style="width:24px;height:24px;border-radius:50%" onerror="this.style.display=\'none\'"><span>Barão está digitando…</span>';
+        typing.innerHTML = '<img src="/baron-reading-sm.png" style="width:24px;height:24px;border-radius:50%" onerror="this.style.display=\'none\'"><span>Barão está digitando…</span>';
         if (msgs) msgs.appendChild(typing);
         baronFloatPose('reading', 8000);
         API.request('POST', '/api/baron-chat', { message: text }).then(function(data) {
@@ -662,7 +662,7 @@
         document.getElementById('timer-display').style.display = 'block';
         document.getElementById('timer-start-btn').style.display = 'none';
         document.getElementById('timer-stop-btn').style.display = 'inline-flex';
-        document.getElementById('timer-baron-img').src = '/public/baron-reading-sm.png';
+        document.getElementById('timer-baron-img').src = '/baron-reading-sm.png';
         _studyTimerInterval = setInterval(function() {
             var elapsed = Math.floor((new Date() - _studyTimerStart) / 1000);
             var h = Math.floor(elapsed/3600), m = Math.floor((elapsed%3600)/60), s = elapsed%60;
@@ -696,7 +696,7 @@
         document.getElementById('timer-stop-btn').style.display = 'none';
         document.getElementById('timer-subject').value = '';
         document.getElementById('timer-display').textContent = '00:00:00';
-        document.getElementById('timer-baron-img').src = '/public/baron-thumbsup-sm.png';
+        document.getElementById('timer-baron-img').src = '/baron-thumbsup-sm.png';
         _studyTimerStart = null;
         _studyTimerSubject = null;
     }
@@ -784,7 +784,7 @@
         var lh = links.map(function(l) { return '<button class="'+(state.view===l.view?'active':'')+'" onclick="navigate(\''+l.view+'\')"><i class="fas '+l.icon+'"></i> <span>'+escapeHtml(l.label)+'</span></button>'; }).join('');
         var timerBtn = (state.user && state.user.role !== 'admin') ? '<button class="btn btn-accent btn-sm" onclick="openStudyTimer()" style="display:flex;align-items:center;gap:6px"><i class="fas fa-clock"></i> Estudar Agora</button>' : '';
         var backBtn = _navHistory.length > 0 ? '<button onclick="goBack()" title="Voltar" style="background:none;border:none;color:var(--text-muted);cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all var(--transition);flex-shrink:0" onmouseover="this.style.background=\'var(--surface-hover)\';this.style.color=\'var(--primary)\'" onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-muted)\'"><i class="fas fa-arrow-left"></i></button>' : '';
-        return '<nav class="navbar"><div class="navbar-inner"><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo">E</div><span>EduFlow</span></div>'+backBtn+'</div><div class="navbar-links">'+lh+'</div><div class="navbar-user">'+timerBtn+'<div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
+        return '<nav class="navbar"><div class="navbar-inner"><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo" style="background:transparent;padding:0;width:32px;height:32px"><img src="/baron-avatar.png" style="width:32px;height:32px;border-radius:50%;object-fit:cover" onerror="this.outerHTML='<div class=\"logo\">B</div>'"></div><span>Barão</span></div>'+backBtn+'</div><div class="navbar-links">'+lh+'</div><div class="navbar-user">'+timerBtn+'<div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
     }
     function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
     function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-road',label:'Plano Mestre'},{view:'student-simulado',icon:'fa-pen-to-square',label:'Simulado'},{view:'student-performance',icon:'fa-chart-bar',label:'Desempenho'}]; }
@@ -793,7 +793,7 @@
        VIEW: RESET PASSWORD
        ============================================================ */
     function renderResetPassword() {
-        return '<div class="login-screen"><div class="login-card"><div class="login-logo">E</div><h1>EduFlow</h1><p class="subtitle">Recuperação de Senha</p><div class="login-error" id="reset-error"><i class="fas fa-exclamation-circle"></i><span id="reset-error-msg"></span></div><form id="reset-form"><div class="form-group" style="text-align:left"><label>Seu Usuário</label><input type="text" id="reset-username" placeholder="Digite seu usuário" autocomplete="username" required></div><div class="form-group" style="text-align:left"><label>Nova Senha</label><div class="password-wrapper"><input type="password" id="reset-password" placeholder="Mínimo de 4 caracteres" autocomplete="new-password" required><button type="button" class="password-toggle" id="pw-reset-toggle" tabindex="-1"><i class="fas fa-eye"></i></button></div></div><button type="submit" class="btn btn-primary" id="reset-btn" style="width:100%;justify-content:center;padding:14px"><i class="fas fa-key"></i> Redefinir Senha</button><div style="margin-top:16px;text-align:center"><a href="#" onclick="navigate(\'login\');return false;" style="font-size:.9rem;color:var(--text-muted)">Voltar ao Login</a></div></form></div></div>';
+        return '<div class="login-screen"><div class="login-card"><div class="login-logo" style="background:transparent;padding:0"><img src="/baron-avatar.png" style="width:72px;height:72px;border-radius:50%;object-fit:cover" onerror="this.outerHTML='<div class=\"login-logo\">B</div>'"></div><h1>Barão</h1><p class="subtitle">Recuperação de Senha</p><div class="login-error" id="reset-error"><i class="fas fa-exclamation-circle"></i><span id="reset-error-msg"></span></div><form id="reset-form"><div class="form-group" style="text-align:left"><label>Seu Usuário</label><input type="text" id="reset-username" placeholder="Digite seu usuário" autocomplete="username" required></div><div class="form-group" style="text-align:left"><label>Nova Senha</label><div class="password-wrapper"><input type="password" id="reset-password" placeholder="Mínimo de 4 caracteres" autocomplete="new-password" required><button type="button" class="password-toggle" id="pw-reset-toggle" tabindex="-1"><i class="fas fa-eye"></i></button></div></div><button type="submit" class="btn btn-primary" id="reset-btn" style="width:100%;justify-content:center;padding:14px"><i class="fas fa-key"></i> Redefinir Senha</button><div style="margin-top:16px;text-align:center"><a href="#" onclick="navigate(\'login\');return false;" style="font-size:.9rem;color:var(--text-muted)">Voltar ao Login</a></div></form></div></div>';
     }
     function bindResetPassword() {
         var pwT = document.getElementById('pw-reset-toggle');
@@ -824,7 +824,7 @@
        VIEW: LOGIN
        ============================================================ */
     function renderLogin() {
-        return '<div class="login-screen"><div class="login-card"><div class="login-logo">E</div><h1>EduFlow</h1><p class="subtitle">Plataforma de E-Learning</p><div class="login-error" id="login-error"><i class="fas fa-exclamation-circle"></i><span id="login-error-msg"></span></div><form id="login-form"><div class="form-group" style="text-align:left"><label>Usuário</label><input type="text" id="login-username" placeholder="Digite seu usuário" autocomplete="username" required></div><div class="form-group" style="text-align:left"><label>Senha</label><div class="password-wrapper"><input type="password" id="login-password" placeholder="Digite sua senha" autocomplete="current-password" required><button type="button" class="password-toggle" id="pw-toggle" tabindex="-1"><i class="fas fa-eye"></i></button></div></div><button type="submit" class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;padding:14px"><i class="fas fa-sign-in-alt"></i> Entrar</button><div style="margin-top: 16px; font-size: 0.9rem;"><a href="mailto:rafaelordanini@gmail.com?subject=Recupera%C3%A7%C3%A3o%20de%20Senha%20-%20EduFlow" style="color: var(--text-muted); text-decoration: underline;">Esqueceu a senha?</a></div></form></div></div>';
+        return '<div class="login-screen"><div class="login-card"><div class="login-logo" style="background:transparent;padding:0"><img src="/baron-avatar.png" style="width:72px;height:72px;border-radius:50%;object-fit:cover" onerror="this.outerHTML='<div class=\"login-logo\">B</div>'"></div><h1>Barão</h1><p class="subtitle">Seu Coach para o CACD</p><div class="login-error" id="login-error"><i class="fas fa-exclamation-circle"></i><span id="login-error-msg"></span></div><form id="login-form"><div class="form-group" style="text-align:left"><label>Usuário</label><input type="text" id="login-username" placeholder="Digite seu usuário" autocomplete="username" required></div><div class="form-group" style="text-align:left"><label>Senha</label><div class="password-wrapper"><input type="password" id="login-password" placeholder="Digite sua senha" autocomplete="current-password" required><button type="button" class="password-toggle" id="pw-toggle" tabindex="-1"><i class="fas fa-eye"></i></button></div></div><button type="submit" class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;padding:14px"><i class="fas fa-sign-in-alt"></i> Entrar</button><div style="margin-top: 16px; font-size: 0.9rem;"><a href="mailto:rafaelordanini@gmail.com?subject=Recupera%C3%A7%C3%A3o%20de%20Senha%20-%20EduFlow" style="color: var(--text-muted); text-decoration: underline;">Esqueceu a senha?</a></div></form></div></div>';
     }
     function bindLogin() {
         var pwT = document.getElementById('pw-toggle');
@@ -1149,7 +1149,7 @@
         var obs = (document.getElementById('planner-obs').value || '').trim();
         var out = document.getElementById('plan-output');
         out.style.display = 'block';
-        out.innerHTML = '<div class="plan-loading"><img src="/public/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>O Barão está elaborando seu plano personalizado…</p></div>';
+        out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>O Barão está elaborando seu plano personalizado…</p></div>';
         baronFloatPose('reading', 8000);
         API.request('POST', '/api/generate-plan', { horasDisponiveis: hours, observacoes: obs }).then(function(plan) {
             renderPlano(plan);
@@ -1180,9 +1180,9 @@
         var pausasHtml = (plan.pausas || []).length ? '<div style="font-size:.85rem;color:var(--text-muted);margin-top:8px"><i class="fas fa-coffee"></i> Pausas: ' + plan.pausas.map(function(p){ return escapeHtml(p); }).join(' · ') + '</div>' : '';
         out.innerHTML =
             '<div class="baron-header">' +
-              '<div class="baron-avatar"><img src="/public/baron-pointing-sm.png" alt="Barão" onerror="this.src=\'/public/baron-avatar.png\'"></div>' +
+              '<div class="baron-avatar"><img src="/baron-pointing-sm.png" alt="Barão" onerror="this.src=\'/baron-avatar.png\'"></div>' +
               '<div>' +
-                '<div style="font-weight:700;font-size:1.05rem">Barão do EduFlow</div>' +
+                '<div style="font-weight:700;font-size:1.05rem">Barão</div>' +
                 '<div style="font-size:.88rem;color:var(--text-secondary)">' + escapeHtml(plan.saudacao || '') + '</div>' +
               '</div>' +
             '</div>' +
@@ -1393,7 +1393,7 @@
         _currentLesson = lessonTitle || '';
         var btn = document.getElementById('gen-questions-btn');
         var out = document.getElementById('questions-output');
-        if (btn) { btn.disabled = true; btn.innerHTML = '<img src="/public/baron-reading-sm.png" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"> Gerando questões…'; }
+        if (btn) { btn.disabled = true; btn.innerHTML = '<img src="/baron-reading-sm.png" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"> Gerando questões…'; }
         baronFloatPose('reading', 10000);
         out.innerHTML = '';
         _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0 };
@@ -1521,7 +1521,7 @@
         }).catch(function() {});
         if (gabEl) {
             gabEl.className = 'questao-gabarito show ' + (correct ? 'correct' : 'wrong');
-            var baronImg = correct ? '/public/baron-thumbsup-sm.png' : '/public/baron-thinking-sm.png';
+            var baronImg = correct ? '/baron-thumbsup-sm.png' : '/baron-thinking-sm.png';
             var baronMsg = correct
                 ? ['Excelente! Domínio de diplomata!','Perfeito! O Barão aprova!','Correto! Conhecimento sólido!','Muito bem! Assim se passa no CACD!'][Math.floor(Math.random()*4)]
                 : ['Estude este ponto com atenção.','O Barão sugere rever este tema.','Não desanime — revise e avance!','Este tópico cai muito no CACD.'][Math.floor(Math.random()*4)];
@@ -1910,7 +1910,7 @@
             if (macro && macro.plan_json) {
                 area.className = '';
                 area.innerHTML = '<div style="display:flex;gap:12px;align-items:center;margin-bottom:20px">' +
-                    '<img src="/public/baron-pointing-sm.png" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--primary)" onerror="this.style.display=\'none\'">' +
+                    '<img src="/baron-pointing-sm.png" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--primary)" onerror="this.style.display=\'none\'">' +
                     '<div><div style="font-weight:700;font-size:1.05rem">Seu Plano Mestre está ativo</div>' +
                     '<div style="font-size:.85rem;color:var(--text-muted)">Criado em ' + existingDate + ' · Prova em ' + (macro.data_prova ? new Date(macro.data_prova + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</div>' +
                     '<div style="font-size:.8rem;color:var(--text-muted);margin-top:3px"><i class="fas fa-info-circle" style="color:var(--accent)"></i> As revisões espaçadas estão programadas automaticamente</div></div>' +
@@ -1940,7 +1940,7 @@
         if (!dataProva) { showToast('Informe a data da prova', 'error'); return; }
         var out = document.getElementById('macro-output');
         out.style.display = 'block';
-        out.innerHTML = '<div class="plan-loading"><img src="/public/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>O Barão está elaborando seu Plano Mestre com revisões espaçadas… isso pode levar alguns segundos.</p></div>';
+        out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>O Barão está elaborando seu Plano Mestre com revisões espaçadas… isso pode levar alguns segundos.</p></div>';
         baronFloatPose('reading', 15000);
         API.generateMacroPlan({ dataProva: dataProva, horasPorSemana: horasPorSemana, observacoes: observacoes }).then(function(plano) {
             renderMacroPlan(plano, out);
@@ -2240,8 +2240,8 @@
         var nav = renderNavbar(studentNav());
         app.innerHTML = nav + '<div class="container"><div class="page-content">' +
             '<div class="baron-header">' +
-              '<div class="baron-avatar"><img src="/public/baron-pointing-sm.png" alt="Barão" onerror="this.outerHTML=\'<span style=\\\"font-size:2rem\\\">🎩</span>\'"></div>' +
-              '<div class="baron-msg"><h3>Barão do EduFlow — Seu Coach Diplomático</h3><p>Acompanhe seu desempenho por matéria e foque nas áreas que precisam de mais atenção.</p></div>' +
+              '<div class="baron-avatar"><img src="/baron-pointing-sm.png" alt="Barão" onerror="this.outerHTML=\'<span style=\\\"font-size:2rem\\\">🎩</span>\'"></div>' +
+              '<div class="baron-msg"><h3>Barão — Seu Coach Diplomático</h3><p>Acompanhe seu desempenho por matéria e foque nas áreas que precisam de mais atenção.</p></div>' +
             '</div>' +
             '<div class="loading-spinner" id="perf-area"><i class="fas fa-spinner"></i> Carregando desempenho...</div>' +
             '</div></div>';
