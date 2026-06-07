@@ -2184,12 +2184,32 @@
         overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
         document.body.appendChild(overlay);
 
-        var url = '/api/questions?limit=10&source=exam';
-        if (topic) url += '&topic=' + encodeURIComponent(topic);
-        else url += '&subject=' + encodeURIComponent(subject);
+        // Strip lesson code prefixes like "M1A1 - ", "Q3 - ", etc. and extract keywords
+        function topicoKeyword(t) {
+            if (!t) return null;
+            // Remove "MXaX - " or "QX - " style prefixes
+            var clean = t.replace(/^[A-Z]\d+[A-Z]?\d*\s*[-–]\s*/i, '').trim();
+            // Take the most meaningful word (longest word > 4 chars)
+            return clean || t;
+        }
+        var keyword = topicoKeyword(topic);
 
-        API.request('GET', url).then(function(data) {
-            var qs = (data && data.questions) ? data.questions : [];
+        function fetchQuestoes(searchTopic, fallbackSubject) {
+            var url = '/api/questions?limit=10&source=exam';
+            if (searchTopic) url += '&topic=' + encodeURIComponent(searchTopic);
+            else url += '&subject=' + encodeURIComponent(fallbackSubject);
+            return API.request('GET', url).then(function(data) {
+                var qs = (data && data.questions) ? data.questions : [];
+                // If no results with full keyword, try just the subject
+                if (!qs.length && searchTopic && fallbackSubject) {
+                    return API.request('GET', '/api/questions?limit=10&source=exam&subject=' + encodeURIComponent(fallbackSubject))
+                        .then(function(d) { return (d && d.questions) ? d.questions : []; });
+                }
+                return qs;
+            });
+        }
+
+        fetchQuestoes(keyword, subject).then(function(qs) {
             var body = document.getElementById('pratica-topico-body');
             if (!body) return;
             if (!qs.length) {
