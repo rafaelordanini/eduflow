@@ -13,8 +13,14 @@
  *   node scripts/generate-exams-sql.js --year=2010       # só um ano
  *   node scripts/generate-exams-sql.js --out=custom.sql  # caminho de saída
  *
- * Env vars necessárias (.env):
- *   OPENROUTER_API_KEY
+ * Env vars necessárias (.env) — use UMA das opções abaixo:
+ *   ANTHROPIC_API_KEY  → usa Claude (Haiku = barato, Sonnet = melhor qualidade)
+ *   POE_API_KEY        → usa DeepSeek-V3 via Poe
+ *   OPENROUTER_API_KEY → usa Gemini 2.5 Flash via OpenRouter
+ *
+ * Para escolher o modelo Claude, adicione também:
+ *   ANTHROPIC_MODEL=claude-haiku-4-5-20251001   # mais barato
+ *   ANTHROPIC_MODEL=claude-sonnet-4-6            # melhor qualidade (padrão)
  */
 
 require('dotenv').config();
@@ -22,8 +28,11 @@ const { google } = require('googleapis');
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 
 const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
+const POE_BOT = 'deepseek-v3-5';
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 
 const ARGS = process.argv.slice(2);
 const YEAR_ARG = (ARGS.find(a => a.startsWith('--year=')) || '').replace('--year=', '');
@@ -86,48 +95,133 @@ async function downloadPdf(fileId, authClient) {
   return Buffer.from(response.data);
 }
 
+// Calls Anthropic API and returns the full text response
+async function callClaude(prompt) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 16000,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!response.ok) throw new Error(`Anthropic ${response.status}: ${await response.text()}`);
+  const data = await response.json();
+  return data.content?.[0]?.text || '';
+}
+
+// Calls Poe API (SSE) and returns the full concatenated text response
+async function callPoe(prompt) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      version: '1.0',
+      type: 'query',
+      query: [{ role: 'user', content: prompt }],
+      temperature: 0.1,
+    });
+
+    const req = https.request({
+      hostname: 'api.poe.com',
+      path: `/bot/${POE_BOT}`,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.POE_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let chunks = [];
+      let raw = '';
+      res.on('data', (d) => { raw += d.toString(); });
+      res.on('end', () => {
+        // Parse SSE: each line is "data: {...}"
+        for (const line of raw.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const evt = JSON.parse(line.slice(6));
+            if (evt.event === 'text' && evt.data && evt.data.text) chunks.push(evt.data.text);
+            if (evt.event === 'error') return reject(new Error(evt.data?.text || 'Poe error'));
+          } catch (_) {}
+        }
+        resolve(chunks.join(''));
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 async function extractQuestionsFromText(fullText, year) {
+  // Include gabarito section even if text is very long
+  const gabaritoIdx = fullText.search(/GABARITO|QUESTÕES\s+1\s+2/i);
+  let textSlice;
+  if (gabaritoIdx > 0 && gabaritoIdx > 35000) {
+    textSlice = fullText.substring(0, 35000) + '\n\n...\n\n' + fullText.substring(gabaritoIdx);
+  } else {
+    textSlice = fullText.substring(0, 50000);
+  }
+
   const prompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática).
 
 Abaixo está o texto completo do TPS ${year} do CACD, contendo o caderno de questões e o gabarito oficial.
 
 TEXTO COMPLETO:
-${fullText.substring(0, 40000)}
+${textSlice}
 
-O TPS do CACD consiste em questões de Certo/Errado. Cada QUESTÃO tem 5 itens numerados.
+O TPS do CACD é uma prova de Certo/Errado (C ou E). Cada QUESTÃO tem geralmente 5 itens que devem ser julgados.
+Os itens podem ser marcados com símbolos especiais (Ø Ù Ú Û Ü), letras ou simplesmente listados como parágrafos seguidos.
+O gabarito está ao final do texto — use-o para preencher o campo "gabarito" de cada item.
 
-Extraia TODOS os itens. Para cada item:
+Para CADA item de CADA questão, extraia:
 - subject: matéria (Português, Inglês, História do Brasil, História Mundial, Política Internacional, Economia, Direito Interno, Direito Internacional, Geografia)
-- topic: tópico específico dentro da matéria
+- topic: tópico específico dentro da matéria (ex: "Interpretação de texto", "Guerra Fria", "Política Externa Brasileira")
 - questao_num: número da questão (inteiro)
-- item_num: número do item (1 a 5)
-- enunciado: texto do enunciado/contexto (máx 500 chars)
-- item_text: texto do item a ser julgado
+- item_num: número do item dentro da questão (1 a 5)
+- enunciado: texto do enunciado/contexto da questão pai (máx 400 chars) — NÃO inclua o texto do item aqui
+- item_text: texto EXATO do item a ser julgado (certo ou errado), copiado do PDF
 - gabarito: "C" ou "E" conforme gabarito oficial
+
+IMPORTANTE:
+- Copie o texto dos itens EXATAMENTE como aparece, sem parafrasear
+- Inclua o texto de contexto completo no campo "enunciado"
+- O campo "item_text" deve conter apenas o texto do item específico
 
 Responda APENAS com JSON válido, sem markdown:
 {"questoes":[{"subject":"...","topic":"...","questao_num":1,"item_num":1,"enunciado":"...","item_text":"...","gabarito":"C"}]}`;
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://eduflow.vercel.app',
-      'X-Title': 'EduFlow CACD SQL Generator',
-    },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
-      max_tokens: 32000,
-    }),
-  });
+  let content;
+  if (process.env.ANTHROPIC_API_KEY) {
+    content = await callClaude(prompt);
+  } else if (process.env.POE_API_KEY) {
+    content = await callPoe(prompt);
+  } else {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://eduflow.vercel.app',
+        'X-Title': 'Barão CACD SQL Generator',
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 32000,
+      }),
+    });
+    if (!response.ok) throw new Error(`OpenRouter ${response.status}: ${await response.text()}`);
+    const data = await response.json();
+    content = data.choices?.[0]?.message?.content || '';
+  }
 
-  if (!response.ok) throw new Error(`OpenRouter ${response.status}: ${await response.text()}`);
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || '';
   const cleaned = content.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
   const match = cleaned.match(/\{[\s\S]+\}/);
   if (!match) throw new Error('Nenhum JSON encontrado na resposta');
@@ -153,12 +247,17 @@ async function processYear(year, authClient) {
 
 async function main() {
   console.log('══════════════════════════════════════════════════');
-  console.log('  EduFlow — Gerador de SQL para TPS CACD');
+  console.log('  Barão — Gerador de SQL para TPS CACD');
   console.log('══════════════════════════════════════════════════\n');
 
-  if (!process.env.OPENROUTER_API_KEY) {
-    console.error('ERRO: OPENROUTER_API_KEY não definido no .env'); process.exit(1);
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.POE_API_KEY && !process.env.OPENROUTER_API_KEY) {
+    console.error('ERRO: defina ANTHROPIC_API_KEY, POE_API_KEY ou OPENROUTER_API_KEY no .env');
+    process.exit(1);
   }
+  const aiProvider = process.env.ANTHROPIC_API_KEY
+    ? `Claude (${ANTHROPIC_MODEL})`
+    : process.env.POE_API_KEY ? `Poe/${POE_BOT}` : `OpenRouter/${OPENROUTER_MODEL}`;
+  console.log(`IA: ${aiProvider}`);
 
   console.log('Autenticando com Google Drive...');
   let authClient;
