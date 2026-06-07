@@ -446,6 +446,17 @@
        UTILITIES
        ============================================================ */
     function escapeHtml(t) { var d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+
+    // Renders enunciado separating context text (before |) from item text (after |)
+    function renderEnunciado(enunciado) {
+        if (!enunciado) return '';
+        var parts = enunciado.split(' | ');
+        if (parts.length === 1) return '<p style="font-size:.9rem;line-height:1.6;margin:0">' + escapeHtml(enunciado) + '</p>';
+        var context = parts.slice(0, parts.length - 1).join(' | ');
+        var item = parts[parts.length - 1];
+        return '<blockquote style="margin:0 0 10px 0;padding:10px 14px;background:var(--surface-hover);border-left:3px solid var(--primary);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:.85rem;line-height:1.6;color:var(--text-secondary);font-style:italic">' + escapeHtml(context) + '</blockquote>' +
+               '<p style="font-size:.9rem;line-height:1.6;margin:0">' + escapeHtml(item) + '</p>';
+    }
     function formatTime(s) { return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); }
     // Safe single-quoted JS string literal for use inside HTML onclick="..." attributes
     function _js(s) { return "'" + String(s == null ? '' : s).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'"; }
@@ -1443,7 +1454,7 @@
                 }).join('');
                 return '<div class="questao-card" id="qcard-' + idx + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
                     buildTopicBadge(q.id, q.subject, q.topic) +
-                    '<div class="questao-enunciado"><strong>Questão ' + (idx+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
+                    '<div class="questao-enunciado"><strong>Questão ' + (idx+1) + '.</strong></div>' + renderEnunciado(q.enunciado) +
                     opcoesHtml +
                     '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + idx + ')">' +
                       '<i class="fas fa-check"></i> Conferir Resposta' +
@@ -1487,7 +1498,7 @@
             var fonte = q.fonte ? '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(q.fonte) + '</div>' : '';
             return '<div class="questao-card" id="qcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
                 buildTopicBadge(q.id, q.subject, q.topic) +
-                '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
+                '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q.enunciado) +
                 fonte + opcoesHtml +
                 '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ')">' +
                   '<i class="fas fa-check"></i> Conferir Resposta' +
@@ -1743,7 +1754,7 @@
             }).join('');
             return '<div class="questao-card" id="sqcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '" style="border-left:3px solid var(--border)">' +
                 buildTopicBadge(q.id, q.subject, q.topic) +
-                '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
+                '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q.enunciado) +
                 opcoesHtml +
             '</div>';
         }).join('');
@@ -1854,7 +1865,7 @@
             return '<div class="questao-card" data-qid="' + escapeHtml(String(qid)) + '" style="border-left:3px solid ' + borderColor + '">' +
                 buildTopicBadge(qid, q.subject, q.topic) +
                 '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px">' + escapeHtml(q.subject || '') + ' • ' + (correct ? '<span style="color:var(--success)">Correta</span>' : q.user_answer ? '<span style="color:var(--danger)">Errada</span>' : '<span style="color:var(--text-muted)">Não respondida</span>') + '</div>' +
-                '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong> ' + escapeHtml(q.enunciado || '') + '</div>' +
+                '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q.enunciado) +
                 opcoesHtml + expHtml +
             '</div>';
         }).join('');
@@ -2227,7 +2238,7 @@
                 }).join('');
                 return '<div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)">' +
                     '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">' + escapeHtml(q.subject || '') + (q.topic ? ' · ' + escapeHtml(q.topic) : '') + '</div>' +
-                    '<div style="font-size:.9rem;margin-bottom:10px;line-height:1.5">' + escapeHtml(q.enunciado || '') + '</div>' +
+                    renderEnunciado(q.enunciado) +
                     optsHtml +
                     '<div id="pratica-exp-' + q.id + '" style="display:none;margin-top:8px;padding:8px 12px;background:var(--primary-light);border-radius:8px;font-size:.82rem"></div>' +
                 '</div>';
@@ -2290,7 +2301,7 @@
                 var qId = 'rev-q-' + qi;
                 html += '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
                     '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
-                    '<div style="font-size:.9rem;line-height:1.6;margin-bottom:12px;white-space:pre-wrap">' + escapeHtml(q.enunciado || '') + '</div>' +
+                    renderEnunciado(q.enunciado) +
                     '<div style="display:flex;gap:10px">' +
                       '<button class="btn btn-secondary btn-sm" id="' + qId + '-a" onclick="conferirRevisao(' + JSON.stringify(qId) + ',' + JSON.stringify(q.id) + ',' + JSON.stringify(q.gabarito) + ',' + JSON.stringify(subjectName) + ',\'a\')">Certo</button>' +
                       '<button class="btn btn-secondary btn-sm" id="' + qId + '-b" onclick="conferirRevisao(' + JSON.stringify(qId) + ',' + JSON.stringify(q.id) + ',' + JSON.stringify(q.gabarito) + ',' + JSON.stringify(subjectName) + ',\'b\')">Errado</button>' +
