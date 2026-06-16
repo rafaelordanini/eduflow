@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Barão — Seu Coach para o CACD</title>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root{--bg:#f7f5f0;--bg-pattern:radial-gradient(circle at 15% 40%,rgba(27,107,82,.04) 0%,transparent 55%),radial-gradient(circle at 85% 25%,rgba(200,93,44,.03) 0%,transparent 50%);--surface:#fff;--surface-hover:#faf9f6;--primary:#1b6b52;--primary-hover:#145640;--primary-light:rgba(27,107,82,.08);--primary-text:#fff;--accent:#c85d2c;--accent-hover:#a94e24;--accent-light:rgba(200,93,44,.08);--text:#1a1d23;--text-secondary:#555b66;--text-muted:#8b919d;--danger:#c0392b;--danger-hover:#a5311f;--success:#27ae60;--warning:#e8a317;--border:#e2ded6;--shadow-sm:0 1px 3px rgba(0,0,0,.06);--shadow-md:0 4px 14px rgba(0,0,0,.08);--shadow-lg:0 10px 35px rgba(0,0,0,.12);--radius-sm:6px;--radius-md:10px;--radius-lg:16px;--radius-xl:24px;--transition:.2s ease;--code-bg:#f0ece4}
@@ -328,6 +328,92 @@
         .baron-recommend .baron-rec-msg{flex:1}
         .baron-recommend .baron-rec-msg h3{font-size:1rem;margin-bottom:6px;color:var(--primary)}
         .baron-recommend .baron-rec-msg p{font-size:.9rem;color:var(--text);line-height:1.5}
+
+        /* Zen premium redesign */
+        :root{
+            --bg:#F7F5EF;--bg-secondary:#F1EFE7;--surface:#FFFFFF;--surface-hover:#EEF3EF;
+            --primary:#2F6F62;--primary-hover:#24584E;--primary-light:rgba(47,111,98,.10);
+            --primary-text:#FFFFFF;--accent:#C89B5A;--accent-hover:#AD8248;--accent-light:rgba(200,155,90,.14);
+            --seal:#B85C4A;--text:#1F2933;--text-strong:#102820;--text-secondary:#697586;--text-muted:#87919D;
+            --danger:#B85C4A;--danger-hover:#984C3D;--success:#2F6F62;--warning:#C89B5A;
+            --border:#DCE5DF;--border-warm:#E5DED0;--shadow-sm:0 1px 2px rgba(16,40,32,.04);
+            --shadow-md:0 12px 28px rgba(16,40,32,.08);--shadow-lg:0 24px 60px rgba(16,40,32,.12);
+            --radius-sm:12px;--radius-md:18px;--radius-lg:24px;--radius-xl:32px;--transition:.22s ease;
+            --code-bg:#F1EFE7;--mist:#A9CFC3;--jade-soft:#4FA68D;
+        }
+        .dark{--bg:#F7F5EF;--bg-secondary:#F1EFE7;--surface:#FFFFFF;--surface-hover:#EEF3EF;--primary:#2F6F62;--primary-hover:#24584E;--primary-light:rgba(47,111,98,.10);--primary-text:#FFFFFF;--accent:#C89B5A;--accent-hover:#AD8248;--accent-light:rgba(200,155,90,.14);--seal:#B85C4A;--text:#1F2933;--text-strong:#102820;--text-secondary:#697586;--text-muted:#87919D;--danger:#B85C4A;--success:#2F6F62;--warning:#C89B5A;--border:#DCE5DF;--border-warm:#E5DED0;--shadow-sm:0 1px 2px rgba(16,40,32,.04);--shadow-md:0 12px 28px rgba(16,40,32,.08);--shadow-lg:0 24px 60px rgba(16,40,32,.12);--code-bg:#F1EFE7}
+        body{
+            font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+            background-color:var(--bg);
+            background-image:
+                radial-gradient(circle at 74% 10%,rgba(169,207,195,.32),transparent 28%),
+                radial-gradient(circle at 4% 58%,rgba(169,207,195,.18),transparent 28%),
+                linear-gradient(120deg,rgba(255,255,255,.62),rgba(241,239,231,.42)),
+                repeating-linear-gradient(90deg,rgba(16,40,32,.018) 0 1px,transparent 1px 22px);
+            color:var(--text);letter-spacing:0;
+        }
+        body::before{
+            content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.46;
+            background:
+                linear-gradient(115deg,transparent 0 54px,rgba(47,111,98,.10) 55px,transparent 56px) left 9% top 120px/90px 260px no-repeat,
+                linear-gradient(70deg,transparent 0 45px,rgba(47,111,98,.08) 46px,transparent 47px) left 3% top 250px/80px 220px no-repeat,
+                radial-gradient(ellipse at 88% 78%,rgba(169,207,195,.22),transparent 34%);
+        }
+        body::after{
+            content:'';position:fixed;right:-4vw;top:82px;width:44vw;height:260px;pointer-events:none;z-index:-1;opacity:.42;
+            background:
+                radial-gradient(ellipse at 30% 84%,rgba(47,111,98,.20) 0 22%,transparent 23%),
+                radial-gradient(ellipse at 52% 76%,rgba(47,111,98,.16) 0 24%,transparent 25%),
+                radial-gradient(ellipse at 76% 86%,rgba(47,111,98,.13) 0 26%,transparent 27%);
+            filter:blur(10px);
+        }
+        h1,h2,h3,h4,.brand-title,.display-title{font-family:'Cormorant Garamond','Noto Serif',Georgia,serif;color:var(--text-strong);font-weight:700;letter-spacing:0}
+        .container{max-width:1180px;padding:0 24px}.page-content{padding:48px 0 80px}.page-header{margin-bottom:30px}.page-header h1{font-size:3rem}
+        .page-kicker{font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;color:var(--primary);font-weight:700;margin-bottom:8px}
+        .page-subtitle{color:var(--text-secondary);font-size:1rem;max-width:620px;margin-top:6px}
+        .section-title{display:flex;align-items:center;gap:10px;font-size:1.45rem;margin:28px 0 14px}.section-title i{color:var(--primary);font-size:1rem}
+        .navbar{background:rgba(247,245,239,.86);backdrop-filter:blur(18px);border-bottom:1px solid var(--border-warm);box-shadow:none;padding:0 24px}
+        .navbar-inner{max-width:1180px;height:72px}.navbar-brand{gap:12px}.navbar-brand .logo{width:44px!important;height:44px!important;border-radius:50%;background:var(--surface)!important;box-shadow:var(--shadow-sm)}
+        .navbar-brand .logo img{width:44px!important;height:44px!important}.navbar-brand span{font-size:1.55rem;color:var(--text-strong);line-height:1}
+        .navbar-brand::after{content:'Seu Coach Diplomático';font-size:.73rem;color:var(--text-secondary);position:absolute;margin-left:56px;margin-top:34px;font-family:'Inter',sans-serif;font-weight:500}
+        .navbar-links{gap:8px}.navbar-links button{position:relative;border-radius:0;padding:24px 14px 22px;background:transparent;color:var(--text);font-size:.9rem}
+        .navbar-links button i{color:inherit;margin-right:6px}.navbar-links button:hover,.navbar-links button.active{background:transparent;color:var(--primary)}
+        .navbar-links button.active::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:2px;background:var(--primary);border-radius:99px}
+        .navbar-user{gap:12px}.navbar-user .avatar{width:40px;height:40px;background:var(--surface-hover);border:1px solid var(--border);color:var(--text-strong)}
+        .navbar-user .logout-btn{color:var(--text-muted)}.navbar-user .btn-accent{background:linear-gradient(135deg,var(--primary),#1F5E51);color:#fff;box-shadow:0 10px 22px rgba(47,111,98,.22);border-radius:12px;padding:12px 22px}
+        .card,.form-card,.planner-form,.macro-form,.perf-card,.simulado-card,.questions-section,.readings-section{
+            background:rgba(255,255,255,.84);border:1px solid var(--border-warm);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);backdrop-filter:blur(12px)
+        }
+        .card{padding:26px}.card:hover,.simulado-card:hover{box-shadow:var(--shadow-md);transform:translateY(-3px);border-color:#CCDCD2}.card h3{font-size:1.45rem}
+        .grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+        .btn{border-radius:12px;padding:11px 18px}.btn-primary{background:linear-gradient(135deg,var(--primary),#1F5E51);box-shadow:0 10px 22px rgba(47,111,98,.18)}.btn-primary:hover{transform:translateY(-1px);box-shadow:0 14px 28px rgba(47,111,98,.24)}
+        .btn-accent{background:var(--primary);color:#fff}.btn-secondary{background:rgba(255,255,255,.72);border:1px solid var(--border);color:var(--text-strong)}.btn-secondary:hover{background:var(--surface-hover);border-color:var(--mist)}
+        .card-tag,.tag,.macro-badge,.zen-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;background:var(--surface-hover);color:var(--primary);font-size:.78rem;font-weight:700;border:1px solid rgba(47,111,98,.08)}
+        .card-progress-bar,.progress-bar-full,.perf-bar{height:6px;background:#E8E8DF;border-radius:99px}.card-progress-bar .fill,.progress-bar-full .fill,.perf-bar-fill{background:linear-gradient(90deg,var(--primary),var(--jade-soft));border-radius:99px}
+        input,textarea,select{border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.72);color:var(--text);font-family:'Inter',sans-serif}input:focus,textarea:focus,select:focus{border-color:var(--mist);box-shadow:0 0 0 4px rgba(169,207,195,.22)}
+        .zen-hero{position:relative;display:flex;align-items:center;gap:28px;min-height:178px;padding:34px 42px;margin-bottom:28px;background:linear-gradient(90deg,rgba(255,255,255,.88),rgba(238,243,239,.78));border:1px solid var(--border);border-radius:28px;box-shadow:var(--shadow-sm);overflow:hidden}
+        .zen-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 74% 24%,rgba(200,155,90,.20) 0 14px,transparent 15px),radial-gradient(ellipse at 82% 92%,rgba(47,111,98,.14) 0 34%,transparent 35%),radial-gradient(ellipse at 96% 82%,rgba(47,111,98,.10) 0 30%,transparent 31%);opacity:.85}
+        .zen-hero::after{content:'';position:absolute;right:24px;bottom:22px;width:24px;height:36px;border:1.5px solid var(--seal);border-radius:5px;opacity:.72}
+        .zen-hero>*{position:relative;z-index:1}.zen-hero-avatar{width:112px;height:112px;border-radius:50%;background:#fff;border:5px solid rgba(255,255,255,.9);box-shadow:0 14px 30px rgba(16,40,32,.12);object-fit:cover;flex-shrink:0}
+        .zen-hero h1{font-size:2.25rem;margin-bottom:8px}.zen-hero p{max-width:560px;color:var(--text-secondary)}
+        .zen-page-title{display:flex;align-items:center;gap:18px;margin-bottom:26px}.zen-title-icon{width:58px;height:58px;border-radius:20px;background:var(--surface-hover);display:inline-flex;align-items:center;justify-content:center;color:var(--primary);font-size:1.45rem;border:1px solid var(--border)}
+        .zen-page-title h1{font-size:3rem;margin:0}.zen-page-title p{color:var(--text-secondary);margin-top:4px}
+        .decor-line{width:76px;height:1px;background:var(--accent);margin:24px 0;position:relative}.decor-line::after{content:'';position:absolute;left:86px;top:-5px;width:10px;height:10px;border:1px solid var(--accent);transform:rotate(45deg);border-radius:2px}
+        .subject-card{min-height:132px;display:flex;flex-direction:column;gap:18px}.subject-card-top{display:flex;align-items:flex-start;gap:16px}.subject-icon{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--surface-hover);color:var(--primary);font-size:1.35rem;flex-shrink:0}.subject-card h3{font-size:1.42rem;margin-top:3px}.subject-percent{margin-left:auto}
+        .subjects-intro{display:grid;grid-template-columns:1fr minmax(280px,520px);gap:28px;align-items:end;margin-bottom:30px}
+        .zen-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.stat-card{padding:28px 30px}.stat-card-inner{display:flex;align-items:center;gap:22px}.stat-icon{width:58px;height:58px;border-radius:50%;background:var(--surface-hover);display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:1.35rem}.stat-value{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:2.9rem;line-height:1;color:var(--primary)}.stat-label{font-size:.92rem;color:var(--text-secondary)}
+        .zen-two-col{display:grid;grid-template-columns:1.35fr 1fr;gap:22px}.zen-study-bar{display:grid;grid-template-columns:1.3fr .7fr 1.1fr auto;align-items:center;gap:22px;padding:18px 22px}.study-clock{font-family:'Inter',monospace;font-weight:800;font-size:1.55rem;color:var(--text-strong);letter-spacing:.04em;text-align:center}
+        .planner-task{display:grid;grid-template-columns:auto 1fr auto auto auto;align-items:center;gap:18px;padding:20px 24px;border-left:3px solid var(--primary)}.planner-check{width:26px;height:26px;border:1px solid var(--border);border-radius:8px;background:#fff}.planner-actions{display:flex;gap:12px;flex-wrap:wrap}
+        .planner-controls{display:grid;grid-template-columns:1fr 1.15fr;gap:28px;align-items:start}
+        .hours-btn{padding:12px 18px;border-color:var(--border-warm);background:rgba(255,255,255,.7)}.hours-btn.active,.hours-btn:hover{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 8px 18px rgba(47,111,98,.16)}
+        .macro-summary-card{display:grid;grid-template-columns:160px 1fr;overflow:hidden;padding:0}.macro-art{background:linear-gradient(135deg,#1F4F44,#2F6F62);min-height:178px;display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:4rem}.macro-summary-body{padding:30px}.macro-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:24px}.macro-metric{border-left:1px solid var(--border);padding-left:18px}.macro-metric strong{display:block;font-size:1.3rem;color:var(--text-strong)}
+        .macro-semana{border-radius:18px;border-color:var(--border);box-shadow:var(--shadow-sm)}.macro-semana-header{background:rgba(255,255,255,.74);padding:18px 22px}.macro-semana-body.open{background:rgba(255,255,255,.72)}.macro-materia{border-radius:16px;background:rgba(255,255,255,.76);padding:18px;border-left:3px solid var(--primary)}
+        .simulado-choice{display:grid;grid-template-columns:auto auto 1fr auto;align-items:center;gap:18px;padding:20px 22px;border-bottom:1px solid var(--border-warm)}.simulado-choice:last-child{border-bottom:none}.choice-icon{width:48px;height:48px;border-radius:50%;background:var(--surface-hover);display:flex;align-items:center;justify-content:center;color:var(--primary);font-size:1.1rem}
+        .custom-subject-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-warm)}.qty-control{display:flex;align-items:center;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff}.qty-control button{width:34px;height:30px;border:0;background:transparent;color:var(--text-secondary);cursor:pointer}.qty-control input{width:44px;border:0;text-align:center;padding:4px;background:#fff}
+        .baron-float img,.baron-float-fallback{width:78px;height:78px;border:4px solid rgba(79,166,141,.55);background:#fff;box-shadow:0 14px 30px rgba(16,40,32,.16)}.baron-float::after{content:'';position:absolute;right:8px;top:4px;width:12px;height:12px;border-radius:50%;background:#e33;border:2px solid #fff}
+        .baron-header{background:linear-gradient(90deg,rgba(255,255,255,.88),rgba(238,243,239,.8));color:var(--text);border:1px solid var(--border);box-shadow:var(--shadow-sm)}.baron-header .baron-msg h3{color:var(--text-strong);opacity:1}.baron-header .baron-msg p{color:var(--text-secondary)}
+        @media(max-width:1024px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.zen-stats-grid,.zen-two-col,.subjects-intro,.planner-controls{grid-template-columns:1fr}.zen-study-bar{grid-template-columns:1fr}.planner-task{grid-template-columns:auto 1fr}.planner-actions{grid-column:2}.macro-metrics{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:768px){.navbar-inner{height:auto;min-height:68px;flex-wrap:wrap;padding:10px 0}.navbar-brand::after{display:none}.navbar-links{order:3;width:100%;justify-content:space-between}.navbar-links button{padding:12px 8px}.navbar-user span{display:none}.container{padding:0 16px}.page-content{padding:32px 0 64px}.grid{grid-template-columns:1fr}.zen-page-title h1,.page-header h1{font-size:2.35rem}.zen-hero{padding:26px 22px;flex-direction:column;text-align:center}.zen-hero-avatar{width:96px;height:96px}.zen-stats-grid{grid-template-columns:1fr}.simulado-choice{grid-template-columns:auto 1fr}.simulado-choice .zen-pill{grid-column:2}.macro-summary-card{grid-template-columns:1fr}.macro-art{min-height:110px}.macro-metrics{grid-template-columns:1fr}.planner-task{grid-template-columns:1fr}.planner-actions{grid-column:auto}.baron-float{right:16px;bottom:18px}.baron-float img,.baron-float-fallback{width:66px;height:66px}}
     </style>
 </head>
 <body>
@@ -461,6 +547,25 @@
     // Safe single-quoted JS string literal for use inside HTML onclick="..." attributes
     function _js(s) { return "'" + String(s == null ? '' : s).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + "'"; }
     function _jsNull(s) { return (s == null) ? 'null' : _js(s); }
+    function subjectIcon(name) {
+        var map = {
+            'Português':'fa-book-open','História do Brasil':'fa-landmark','História Mundial':'fa-globe',
+            'Inglês':'fa-flag','Francês':'fa-language','Espanhol':'fa-church','Economia':'fa-chart-line',
+            'Direito Interno':'fa-scale-balanced','Direito Internacional':'fa-earth-americas',
+            'Geografia':'fa-compass','Política Internacional':'fa-building-columns'
+        };
+        return map[name] || 'fa-book';
+    }
+    function zenTitle(icon, title, subtitle) {
+        return '<div class="zen-page-title"><div class="zen-title-icon"><i class="fas ' + icon + '"></i></div><div><h1>' + escapeHtml(title) + '</h1>' +
+            (subtitle ? '<p>' + escapeHtml(subtitle) + '</p>' : '') + '</div></div>';
+    }
+    function zenHero(title, text, img) {
+        return '<div class="zen-hero">' +
+            (img ? '<img class="zen-hero-avatar" src="' + img + '" alt="Barão" onerror="this.src=\'/baron-avatar.png\'">' : '') +
+            '<div><h1>' + escapeHtml(title) + '</h1><p>' + escapeHtml(text) + '</p></div>' +
+        '</div>';
+    }
 
     /* CACD topics per subject for classification */
     var CACD_TOPICS = {
@@ -712,11 +817,8 @@
         _studyTimerSubject = null;
     }
 
-    /* Dark Mode */
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-        document.documentElement.classList[e.matches ? 'add' : 'remove']('dark');
-    });
+    /* Visual theme: keep the new rice-paper interface light in every OS mode. */
+    document.documentElement.classList.remove('dark');
 
     /* Toast */
     function showToast(msg, type) {
@@ -793,12 +895,12 @@
         var initial = state.user ? state.user.name.charAt(0).toUpperCase() : '?';
         var home = state.user && state.user.role === 'admin' ? 'admin-dashboard' : 'student-dashboard';
         var lh = links.map(function(l) { return '<button class="'+(state.view===l.view?'active':'')+'" onclick="navigate(\''+l.view+'\')"><i class="fas '+l.icon+'"></i> <span>'+escapeHtml(l.label)+'</span></button>'; }).join('');
-        var timerBtn = (state.user && state.user.role !== 'admin') ? '<button class="btn btn-accent btn-sm" onclick="openStudyTimer()" style="display:flex;align-items:center;gap:6px"><i class="fas fa-clock"></i> Estudar Agora</button>' : '';
+        var timerBtn = (state.user && state.user.role !== 'admin') ? '<button class="btn btn-accent btn-sm" onclick="openStudyTimer()" style="display:flex;align-items:center;gap:8px"><i class="fas fa-play-circle"></i> Estudar Agora</button>' : '';
         var backBtn = _navHistory.length > 0 ? '<button onclick="goBack()" title="Voltar" style="background:none;border:none;color:var(--text-muted);cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all var(--transition);flex-shrink:0" onmouseover="this.style.background=\'var(--surface-hover)\';this.style.color=\'var(--primary)\'" onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-muted)\'"><i class="fas fa-arrow-left"></i></button>' : '';
         return '<nav class="navbar"><div class="navbar-inner"><div style="display:flex;align-items:center;gap:6px;flex-shrink:0"><div class="navbar-brand" onclick="navigate(\''+home+'\')"><div class="logo" style="background:transparent;padding:0;width:32px;height:32px"><img src="/baron-avatar.png" style="width:32px;height:32px;border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'"></div><span>Barão</span></div>'+backBtn+'</div><div class="navbar-links">'+lh+'</div><div class="navbar-user">'+timerBtn+'<div class="avatar">'+escapeHtml(initial)+'</div><span>'+escapeHtml(state.user?state.user.name:'')+'</span><button class="logout-btn" onclick="handleLogout()" title="Sair"><i class="fas fa-sign-out-alt"></i></button></div></div></nav>';
     }
     function adminNav() { return [{ view:'admin-dashboard',icon:'fa-th-large',label:'Matérias' },{ view:'admin-users',icon:'fa-users-cog',label:'Usuários' },{ view:'admin-schema',icon:'fa-database',label:'Schema' }]; }
-    function studentNav() { return [{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-day',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-road',label:'Plano Mestre'},{view:'student-simulado',icon:'fa-pen-to-square',label:'Simulado'},{view:'student-performance',icon:'fa-chart-bar',label:'Desempenho'}]; }
+    function studentNav() { return [{view:'student-dashboard',icon:'fa-table-cells-large',label:'Matérias'},{view:'student-planner',icon:'fa-calendar-check',label:'Plano de Hoje'},{view:'student-macro-planner',icon:'fa-map',label:'Plano Mestre'},{view:'student-simulado',icon:'fa-pen-to-square',label:'Simulado'},{view:'student-performance',icon:'fa-chart-line',label:'Desempenho'}]; }
 
     /* ============================================================
        VIEW: RESET PASSWORD
@@ -963,27 +1065,18 @@
         var app = document.getElementById('app');
         var nav = renderNavbar(studentNav());
         app.innerHTML = nav + '<div class="container"><div class="page-content">' +
-            '<div class="page-header"><h1><i class="fas fa-calendar-day" style="color:var(--primary);margin-right:10px"></i>Plano de Hoje</h1></div>' +
+            zenTitle('fa-calendar-check', 'Plano de Hoje', 'Seu caminho diário rumo à aprovação. Foco, constância e estratégia.') +
             '<div id="master-week-panel" style="margin-bottom:20px"><div class="loading-spinner" style="font-size:.85rem"><i class="fas fa-spinner fa-spin"></i> Verificando Plano Mestre…</div></div>' +
             '<div class="planner-form" id="planner-form">' +
-              '<div class="planner-form-label">Quantas horas você tem disponíveis hoje?</div>' +
-              '<div class="hours-selector">' +
-                '<button class="hours-btn" onclick="selectHours(this,1)">1h</button>' +
-                '<button class="hours-btn" onclick="selectHours(this,2)">2h</button>' +
-                '<button class="hours-btn" onclick="selectHours(this,3)">3h</button>' +
-                '<button class="hours-btn" onclick="selectHours(this,4)">4h</button>' +
-                '<button class="hours-btn" onclick="selectHours(this,5)">5h</button>' +
-                '<button class="hours-btn" onclick="selectHours(this,6)">6h</button>' +
-                '<button class="hours-btn" onclick="selectHours(this,8)">8h</button>' +
+              '<div class="planner-controls">' +
+                '<div><div style="font-family:Cormorant Garamond,serif;font-size:1.35rem;font-weight:700;color:var(--text-strong);margin-bottom:14px">Quantas horas você tem disponíveis hoje?</div>' +
+                  '<div class="hours-selector">' +
+                    '<button class="hours-btn" onclick="selectHours(this,1)">1h</button><button class="hours-btn" onclick="selectHours(this,2)">2h</button><button class="hours-btn" onclick="selectHours(this,3)">3h</button><button class="hours-btn" onclick="selectHours(this,4)">4h</button><button class="hours-btn" onclick="selectHours(this,5)">5h</button><button class="hours-btn" onclick="selectHours(this,6)">6h</button><button class="hours-btn" onclick="selectHours(this,8)">8h</button>' +
+                  '</div><input type="hidden" id="planner-hours" value="3"></div>' +
+                '<div><label style="font-size:.9rem;color:var(--text-strong);font-weight:600">Observações <span style="color:var(--text-muted);font-weight:500">(opcional)</span></label>' +
+                  '<textarea id="planner-obs" placeholder="Ex.: Preciso revisar gramática, reler resumos, etc." style="margin-top:8px;min-height:78px"></textarea></div>' +
               '</div>' +
-              '<input type="hidden" id="planner-hours" value="3">' +
-              '<div style="margin-top:16px">' +
-                '<label style="font-size:.9rem;color:var(--text-secondary);font-weight:500">Observações (opcional)</label>' +
-                '<textarea id="planner-obs" placeholder="Ex: Hoje prefiro revisar, tenho prova semana que vem em HB…" style="width:100%;margin-top:6px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-md);font-family:\'Figtree\',sans-serif;font-size:.9rem;background:var(--bg);color:var(--text);resize:vertical;min-height:72px"></textarea>' +
-              '</div>' +
-              '<button class="btn" style="margin-top:16px;width:100%;justify-content:center;padding:14px" onclick="gerarPlano()">' +
-                '<i class="fas fa-magic"></i> Gerar Plano com IA' +
-              '</button>' +
+              '<button class="btn btn-primary" style="margin-top:20px;width:100%;justify-content:center;padding:14px" onclick="gerarPlano()"><i class="fas fa-magic"></i> Gerar Plano com IA</button>' +
             '</div>' +
             '<div id="plan-output" class="plan-output" style="display:none"></div>' +
             '<div class="history-section" id="history-section" style="display:none">' +
@@ -1040,16 +1133,14 @@
                 '<button class="macro-link-btn exercise" style="font-size:.72rem;padding:3px 8px" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ')">' +
                     '<i class="fas fa-question-circle"></i> ' + (isRev ? 'Fazer exercícios' : 'Praticar questões') + '</button>' +
             '</div>';
-            return '<div id="mitem-' + escapeHtml(mId) + '" class="macro-materia tipo-' + (isRev ? 'revisao' : 'estudo') + (isDone ? ' done-item' : '') + '" style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">' +
-                '<div class="macro-check ' + checkClass + '" style="margin-top:1px;flex-shrink:0" onclick="toggleMacraItem(' + _js(mId) + ',' + !isDone + ')" title="Marcar como ' + (isDone ? 'pendente' : 'concluído') + '">' + checkIcon + '</div>' +
-                '<div style="flex:1;min-width:0">' +
-                  '<div style="font-size:.85rem;font-weight:' + (isDone ? '400' : '600') + ';color:' + (isDone ? 'var(--text-muted)' : 'var(--text)') + (isDone ? ';text-decoration:line-through' : '') + '">' +
-                    '<span class="macro-badge ' + (isRev ? 'revisao' : 'estudo') + '" style="margin-right:5px">' + (isRev ? 'Revisão' : 'Estudo') + '</span>' +
-                    escapeHtml(m.nome) +
-                  '</div>' +
-                  '<div style="font-size:.78rem;color:var(--text-muted);margin-top:2px">' + escapeHtml(m.topico || '') + '</div>' +
-                  (!isDone ? actBtns : '') +
+            return '<div id="mitem-' + escapeHtml(mId) + '" class="card planner-task tipo-' + (isRev ? 'revisao' : 'estudo') + (isDone ? ' done-item' : '') + '">' +
+                '<div class="macro-check ' + checkClass + '" onclick="toggleMacraItem(' + _js(mId) + ',' + !isDone + ')" title="Marcar como ' + (isDone ? 'pendente' : 'concluído') + '">' + checkIcon + '</div>' +
+                '<div style="min-width:0">' +
+                  '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px"><span class="macro-badge ' + (isRev ? 'revisao' : 'estudo') + '">' + (isRev ? 'Revisão' : 'Estudo') + '</span><h3 style="font-size:1.35rem;margin:0' + (isDone ? ';text-decoration:line-through;color:var(--text-muted)' : '') + '">' + escapeHtml(m.nome) + '</h3></div>' +
+                  '<div style="font-size:.92rem;color:var(--text-secondary)">' + escapeHtml(m.topico || '') + '</div>' +
                 '</div>' +
+                '<div class="planner-actions">' + (!isDone ? actBtns : '') + '</div>' +
+                '<button class="btn btn-secondary btn-sm" style="width:40px;height:40px;padding:0;justify-content:center" title="Expandir"><i class="fas fa-chevron-down"></i></button>' +
             '</div>';
         }).join('');
 
@@ -1058,32 +1149,27 @@
         var daysLeft = provaDate ? Math.max(0, Math.ceil((provaDate - new Date()) / 86400000)) : null;
 
         panel.innerHTML =
-            '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:4px">' +
-              '<div style="background:linear-gradient(135deg,var(--primary-light),transparent);padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">' +
-                '<div>' +
-                  '<div style="font-weight:700;font-size:.95rem"><i class="fas fa-road" style="color:var(--primary);margin-right:7px"></i>Plano Mestre — Semana ' + (currentWeek.semana || '') + '</div>' +
-                  '<div style="font-size:.78rem;color:var(--text-muted);margin-top:2px">' +
+            '<div class="card" style="margin-bottom:20px;padding:26px 28px">' +
+              '<div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:22px">' +
+                '<div style="display:flex;align-items:center;gap:18px">' +
+                  '<div class="subject-icon"><i class="fas fa-calendar-plus"></i></div><div>' +
+                  '<h2 style="font-size:1.55rem;margin:0">Plano Mestre — Semana ' + (currentWeek.semana || '') + '</h2>' +
+                  '<div style="font-size:.9rem;color:var(--text-secondary);margin-top:4px">' +
                     (currentWeek.dataInicio ? escapeHtml(currentWeek.dataInicio) + ' a ' + escapeHtml(currentWeek.dataFim) : '') +
                     (daysLeft !== null ? ' · ' + daysLeft + ' dias para a prova' : '') +
                   '</div>' +
-                '</div>' +
-                '<div style="display:flex;align-items:center;gap:12px">' +
-                  '<div style="font-size:.78rem;color:var(--text-muted)">' + doneCount + '/' + materias.length + ' concluídos</div>' +
-                  '<a onclick="navigate(\'student-macro-planner\')" style="cursor:pointer;font-size:.78rem;color:var(--primary);font-weight:600">Ver plano completo →</a>' +
-                '</div>' +
+                '</div></div>' +
+                '<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap"><div><div style="font-size:1.35rem;font-weight:800;color:var(--primary)">' + doneCount + '/' + materias.length + '</div><div style="font-size:.82rem;color:var(--text-secondary)">concluídos</div></div><div style="width:220px;max-width:40vw"><div class="card-progress-bar"><div class="fill" style="width:' + pct + '%"></div></div><div style="font-size:.78rem;color:var(--text-muted);margin-top:4px;text-align:right">' + pct + '%</div></div><a onclick="navigate(\'student-macro-planner\')" style="cursor:pointer;color:var(--primary);font-weight:700">Ver plano completo <i class="fas fa-arrow-right"></i></a></div>' +
               '</div>' +
-              '<div style="padding:4px 18px 14px">' +
-                '<div style="background:var(--border);border-radius:99px;height:4px;margin:10px 0">' +
-                  '<div style="background:var(--primary);border-radius:99px;height:100%;width:' + pct + '%;transition:width .5s"></div>' +
-                '</div>' +
+            '</div>' +
+              '<div style="display:flex;flex-direction:column;gap:10px">' +
                 itemsHtml +
                 (pendingStudy.length === 0 && pendingReview.length === 0 ? '<div style="padding:12px 0;font-size:.85rem;color:var(--success);font-weight:600"><i class="fas fa-check-circle"></i> Semana concluída! Excelente trabalho.</div>' : '') +
               '</div>' +
-              '<div style="padding:10px 18px;border-top:1px solid var(--border);background:var(--surface-hover);font-size:.8rem;color:var(--text-muted)">' +
+              '<div style="padding:18px 10px;font-size:.9rem;color:var(--text-secondary)">' +
                 '<i class="fas fa-magic" style="color:var(--accent);margin-right:5px"></i>' +
                 'O plano de hoje será gerado levando em conta os itens pendentes desta semana.' +
-              '</div>' +
-            '</div>';
+              '</div>';
     }
 
     function renderPlansHistory(plans) {
@@ -1210,7 +1296,12 @@
     function renderStudentDashboard() {
         var app = document.getElementById('app');
         var nav = renderNavbar(studentNav());
-        app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="page-header"><h1>Minhas Matérias</h1></div><div class="loading-spinner" id="student-area"><i class="fas fa-spinner"></i> Carregando...</div></div></div>';
+        app.innerHTML = nav + '<div class="container"><div class="page-content">' +
+            '<div class="subjects-intro">' +
+              '<div><h1 style="font-size:3.25rem;margin-bottom:8px">Minhas Matérias</h1><p class="page-subtitle">Acompanhe seu progresso em cada matéria e foque no que realmente importa.</p><div class="decor-line"></div></div>' +
+              '<div class="zen-hero" style="min-height:150px;margin-bottom:0;padding:22px 28px;justify-content:flex-end"><div style="text-align:right"><p style="max-width:420px">Disciplina serena, estudo profundo e constância para chegar à prova com clareza.</p></div></div>' +
+            '</div>' +
+            '<div class="loading-spinner" id="student-area"><i class="fas fa-spinner"></i> Carregando...</div></div></div>';
         Promise.all([API.getSubjects(), API.getProgress()]).then(function(results) {
             var subjects = results[0], progressList = results[1];
             var area = document.getElementById('student-area');
@@ -1226,7 +1317,16 @@
                     var ls = s._lessons || [], comp = 0;
                     ls.forEach(function(l) { if (pMap[l.id] && pMap[l.id].completed) comp++; });
                     var pct = ls.length > 0 ? Math.round(comp/ls.length*100) : 0;
-                    return '<div class="card" onclick="navigate(\'student-subject\',{subjectId:'+s.id+'})" style="cursor:pointer"><div class="card-header"><div><h3>'+escapeHtml(s.name)+'</h3></div><div class="card-tag student">'+pct+'%</div></div><p>'+escapeHtml(s.description)+'</p><div class="card-meta"><span><i class="fas fa-play-circle"></i> '+ls.length+' aulas</span><span><i class="fas fa-check-circle"></i> '+comp+'/'+ls.length+' concluídas</span></div><div class="card-progress-bar"><div class="fill" style="width:'+pct+'%"></div></div></div>';
+                    return '<div class="card subject-card" onclick="navigate(\'student-subject\',{subjectId:'+s.id+'})" style="cursor:pointer">' +
+                        '<div class="subject-card-top">' +
+                          '<div class="subject-icon"><i class="fas ' + subjectIcon(s.name) + '"></i></div>' +
+                          '<div style="min-width:0;flex:1"><h3>'+escapeHtml(s.name)+'</h3>' +
+                            '<div class="card-meta"><span><i class="fas fa-play-circle"></i> '+ls.length+' aulas</span><span><i class="fas fa-check-circle"></i> '+comp+'/'+ls.length+' concluídas</span></div></div>' +
+                          '<span class="card-tag student subject-percent">'+pct+'%</span>' +
+                        '</div>' +
+                        (s.description ? '<p style="margin:0;color:var(--text-secondary)">'+escapeHtml(s.description)+'</p>' : '') +
+                        '<div class="card-progress-bar"><div class="fill" style="width:'+pct+'%"></div></div>' +
+                    '</div>';
                 }).join('');
                 area.innerHTML = '<div class="grid">' + cards + '</div>';
             });
@@ -1656,41 +1756,40 @@
         }
 
         var subjectCheckboxes = CACD_SUBJECTS_LIST.map(function(s, i) {
-            return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
-                '<input type="checkbox" id="sim-sub-' + i + '" value="' + escapeHtml(s) + '" style="width:16px;height:16px;accent-color:var(--primary)">' +
-                '<label for="sim-sub-' + i + '" style="flex:1;font-size:.9rem">' + escapeHtml(s) + '</label>' +
-                '<input type="number" id="sim-sub-count-' + i + '" min="1" max="20" value="5" style="width:60px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;background:var(--surface)">' +
+            return '<div class="custom-subject-row">' +
+                '<input type="checkbox" id="sim-sub-' + i + '" value="' + escapeHtml(s) + '" style="width:18px;height:18px;accent-color:var(--primary)">' +
+                '<label for="sim-sub-' + i + '" style="font-size:.95rem;font-weight:500">' + escapeHtml(s) + '</label>' +
+                '<div class="qty-control"><button type="button" onclick="var i=document.getElementById(\'sim-sub-count-' + i + '\');i.value=Math.max(1,(parseInt(i.value)||5)-1)">−</button><input type="number" id="sim-sub-count-' + i + '" min="1" max="20" value="5"><button type="button" onclick="var i=document.getElementById(\'sim-sub-count-' + i + '\');i.value=Math.min(20,(parseInt(i.value)||5)+1)">+</button></div>' +
                 '</div>';
         }).join('');
 
         var fonteOptions = function(prefix) {
-            return ['<label class="simulado-option"><input type="radio" name="fonte-'+prefix+'" value="real" style="accent-color:var(--primary)"> Questões de provas anteriores</label>',
-                    '<label class="simulado-option"><input type="radio" name="fonte-'+prefix+'" value="ai" checked style="accent-color:var(--primary)"> Questões geradas pela IA</label>',
-                    '<label class="simulado-option"><input type="radio" name="fonte-'+prefix+'" value="mixed" style="accent-color:var(--primary)"> Misturar (provas + IA)</label>'].join('');
+            return ['<label class="simulado-choice"><input type="radio" name="fonte-'+prefix+'" value="real" style="accent-color:var(--primary)"><span class="choice-icon"><i class="fas fa-file-circle-check"></i></span><span><strong>Questões de provas anteriores</strong><small style="display:block;color:var(--text-secondary);margin-top:3px">Baseado em questões cobradas em provas oficiais do CACD.</small></span><span class="zen-pill"><i class="fas fa-landmark"></i> Histórico oficial</span></label>',
+                    '<label class="simulado-choice"><input type="radio" name="fonte-'+prefix+'" value="ai" checked style="accent-color:var(--primary)"><span class="choice-icon"><i class="fas fa-star"></i></span><span><strong>Questões geradas pela IA</strong><small style="display:block;color:var(--text-secondary);margin-top:3px">Questões inéditas criadas com base no estilo da banca.</small></span><span class="zen-pill"><i class="fas fa-magic"></i> Inédito</span></label>',
+                    '<label class="simulado-choice"><input type="radio" name="fonte-'+prefix+'" value="mixed" style="accent-color:var(--primary)"><span class="choice-icon"><i class="fas fa-shuffle"></i></span><span><strong>Misturar (provas + IA)</strong><small style="display:block;color:var(--text-secondary);margin-top:3px">Combina questões oficiais com inéditas para um treino completo.</small></span><span class="zen-pill"><i class="fas fa-star"></i> Recomendado</span></label>'].join('');
         };
 
         app.innerHTML = nav + '<div class="container"><div class="page-content">' +
-            '<h1 style="margin-bottom:6px"><i class="fas fa-pen-to-square"></i> Simulado</h1>' +
-            '<p style="color:var(--text-muted);font-size:.9rem;margin-bottom:24px">Teste seus conhecimentos com simulados no estilo CACD.</p>' +
+            zenTitle('fa-pen-to-square', 'Simulado', 'Teste seus conhecimentos com simulados no estilo CACD.') +
 
             '<div class="simulado-card">' +
-                '<h2 style="margin-bottom:4px;font-size:1.15rem"><i class="fas fa-landmark"></i> Simulado CACD</h2>' +
-                '<p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">65 questões distribuídas pelas 9 matérias do CACD, conforme distribuição oficial.</p>' +
-                fonteOptions('cacd') +
-                '<button class="btn btn-primary" style="margin-top:16px;width:100%" id="btn-iniciar-cacd">' +
+                '<h2 style="margin-bottom:4px;font-size:1.45rem"><span class="subject-icon" style="width:44px;height:44px;margin-right:12px;display:inline-flex"><i class="fas fa-landmark"></i></span>Simulado CACD</h2>' +
+                '<p style="font-size:.92rem;color:var(--text-secondary);margin-bottom:18px">65 questões distribuídas pelas 9 matérias do CACD, conforme distribuição oficial.</p>' +
+                '<div style="border:1px solid var(--border-warm);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.58)">' + fonteOptions('cacd') + '</div>' +
+                '<button class="btn btn-primary" style="margin-top:18px;width:100%;justify-content:center;padding:14px" id="btn-iniciar-cacd">' +
                     '<i class="fas fa-play"></i> Iniciar Simulado CACD' +
                 '</button>' +
             '</div>' +
 
             '<div class="simulado-card">' +
-                '<h2 style="margin-bottom:4px;font-size:1.15rem"><i class="fas fa-sliders"></i> Simulado Personalizado</h2>' +
-                '<p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px">Escolha as matérias e quantidade de questões.</p>' +
-                '<div style="margin-bottom:16px">' +
-                    '<label style="font-size:.85rem;font-weight:600;color:var(--text-muted);display:block;margin-bottom:10px">Matérias e quantidade de questões</label>' +
+                '<h2 style="margin-bottom:4px;font-size:1.45rem"><span class="subject-icon" style="width:44px;height:44px;margin-right:12px;display:inline-flex"><i class="fas fa-sliders"></i></span>Simulado Personalizado</h2>' +
+                '<p style="font-size:.92rem;color:var(--text-secondary);margin-bottom:16px">Escolha as matérias e quantidade de questões.</p>' +
+                '<div style="margin-bottom:18px;border:1px solid var(--border-warm);border-radius:18px;padding:12px 20px;background:rgba(255,255,255,.58)">' +
+                    '<label style="font-size:.9rem;font-weight:700;color:var(--text-strong);display:block;margin-bottom:6px">Matérias e quantidade de questões</label>' +
                     subjectCheckboxes +
                 '</div>' +
-                fonteOptions('custom') +
-                '<button class="btn btn-primary" style="margin-top:16px;width:100%" id="btn-criar-custom">' +
+                '<div style="border:1px solid var(--border-warm);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.58)">' + fonteOptions('custom') + '</div>' +
+                '<button class="btn btn-primary" style="margin-top:18px;width:100%;justify-content:center;padding:14px" id="btn-criar-custom">' +
                     '<i class="fas fa-play"></i> Criar Simulado' +
                 '</button>' +
             '</div>' +
@@ -1835,7 +1934,7 @@
         var subjectRows = Object.keys(subjectStats).map(function(s) {
             var st = subjectStats[s];
             var spct = Math.round(st.correct / st.total * 100);
-            var color = spct >= 70 ? 'var(--success)' : spct >= 50 ? 'var(--accent)' : 'var(--danger)';
+            var color = spct >= 70 ? 'var(--primary)' : spct >= 50 ? 'var(--accent)' : 'var(--jade-soft)';
             return '<div class="simulado-subject-row">' +
                 '<span>' + escapeHtml(s) + '</span>' +
                 '<span style="font-weight:700;color:' + color + '">' + st.correct + '/' + st.total + ' (' + spct + '%)</span>' +
@@ -1874,7 +1973,7 @@
             '<div class="simulado-result">' +
                 '<div style="font-size:1rem;color:var(--text-muted);margin-bottom:8px">Resultado do Simulado</div>' +
                 '<div class="simulado-score">' + score + '/' + total + '</div>' +
-                '<div style="font-size:1.4rem;font-weight:700;margin:8px 0;color:' + (pct>=70?'var(--success)':pct>=50?'var(--accent)':'var(--danger)') + '">' + pct + '%</div>' +
+                '<div style="font-size:1.4rem;font-weight:700;margin:8px 0;color:' + (pct>=70?'var(--primary)':pct>=50?'var(--accent)':'var(--jade-soft)') + '">' + pct + '%</div>' +
                 '<div style="font-size:.9rem;color:var(--text-muted);margin-bottom:24px">acertos</div>' +
                 '<button class="btn btn-primary" onclick="_simuladoAtivo=null;navigate(\'student-simulado\')"><i class="fas fa-redo"></i> Novo Simulado</button>' +
             '</div>' +
@@ -1892,7 +1991,7 @@
         var app = document.getElementById('app');
         var nav = renderNavbar(studentNav());
         app.innerHTML = nav + '<div class="container"><div class="page-content">' +
-            '<div class="page-header"><h1><i class="fas fa-road" style="color:var(--primary);margin-right:10px"></i>Plano Mestre CACD</h1></div>' +
+            zenTitle('fa-map', 'Plano Mestre CACD', 'Um plano longo, sereno e progressivo para sustentar seu preparo até a prova.') +
             '<div class="loading-spinner" id="macro-main-area"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>' +
             '</div></div>';
 
@@ -1920,12 +2019,12 @@
 
             if (macro && macro.plan_json) {
                 area.className = '';
-                area.innerHTML = '<div style="display:flex;gap:12px;align-items:center;margin-bottom:20px">' +
-                    '<img src="/baron-pointing-sm.png" style="width:48px;height:48px;border-radius:50%;border:2px solid var(--primary)" onerror="this.style.display=\'none\'">' +
-                    '<div><div style="font-weight:700;font-size:1.05rem">Seu Plano Mestre está ativo</div>' +
-                    '<div style="font-size:.85rem;color:var(--text-muted)">Criado em ' + existingDate + ' · Prova em ' + (macro.data_prova ? new Date(macro.data_prova + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</div>' +
-                    '<div style="font-size:.8rem;color:var(--text-muted);margin-top:3px"><i class="fas fa-info-circle" style="color:var(--accent)"></i> As revisões espaçadas estão programadas automaticamente</div></div>' +
-                    '<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="document.getElementById(\'macro-gen-form-wrap\').style.display=document.getElementById(\'macro-gen-form-wrap\').style.display===\'none\'?\'block\':\'none\'">' +
+                area.innerHTML = '<div class="zen-hero" style="min-height:134px;margin-bottom:22px">' +
+                    '<img class="zen-hero-avatar" src="/baron-thinking-sm.png" alt="Barão" onerror="this.src=\'/baron-avatar.png\'">' +
+                    '<div><h2 style="font-size:1.55rem;margin-bottom:6px">Seu Plano Mestre está ativo</h2>' +
+                    '<p>Criado em ' + existingDate + ' · Prova em ' + (macro.data_prova ? new Date(macro.data_prova + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</p>' +
+                    '<p style="font-size:.86rem;margin-top:8px"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:6px"></i>As revisões espaçadas estão programadas automaticamente</p></div>' +
+                    '<button class="btn btn-secondary btn-sm" style="margin-left:auto;align-self:center" onclick="document.getElementById(\'macro-gen-form-wrap\').style.display=document.getElementById(\'macro-gen-form-wrap\').style.display===\'none\'?\'block\':\'none\'">' +
                       '<i class="fas fa-sync"></i> Recriar plano' +
                     '</button></div>' +
                     '<div id="macro-gen-form-wrap" style="display:none">' + formHtml + '</div>';
@@ -2033,18 +2132,22 @@
         var pct = totalItems > 0 ? Math.round(doneItems / totalItems * 100) : 0;
 
         out.innerHTML =
-            '<div style="background:linear-gradient(135deg,var(--primary),var(--primary-hover));border-radius:var(--radius-lg);padding:20px 24px;color:#fff;margin-bottom:20px">' +
-              '<div style="font-weight:700;font-size:1.1rem;margin-bottom:6px"><i class="fas fa-map" style="margin-right:8px"></i>Plano Mestre CACD</div>' +
-              '<div style="font-size:.92rem;opacity:.9;line-height:1.5">' + escapeHtml(plano.resumo || '') + '</div>' +
-              '<div style="margin-top:12px;font-size:.82rem;opacity:.8"><i class="fas fa-clock" style="margin-right:4px"></i>' + (plano.totalSemanas || '') + ' semanas · ' + (plano.totalHoras || '') + 'h totais</div>' +
-              '<div style="margin-top:10px">' +
-                '<div style="font-size:.8rem;opacity:.8;margin-bottom:4px">Progresso geral: ' + doneItems + '/' + totalItems + ' itens (' + pct + '%)</div>' +
-                '<div style="background:rgba(255,255,255,.2);border-radius:99px;height:6px"><div style="background:#fff;border-radius:99px;height:100%;width:' + pct + '%;transition:width .5s"></div></div>' +
+            '<div class="card macro-summary-card">' +
+              '<div class="macro-art"><i class="fas fa-stamp"></i></div>' +
+              '<div class="macro-summary-body">' +
+                '<h2 style="font-size:1.7rem;margin-bottom:8px">Plano Mestre CACD</h2>' +
+                '<p style="color:var(--text);max-width:760px">' + escapeHtml(plano.resumo || '') + '</p>' +
+                '<div class="macro-metrics">' +
+                  '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-stopwatch" style="color:var(--primary);margin-right:6px"></i>Duração</span><strong>' + (plano.totalSemanas || '') + ' semanas</strong></div>' +
+                  '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-calendar-check" style="color:var(--primary);margin-right:6px"></i>Carga total</span><strong>' + (plano.totalHoras || '') + 'h</strong></div>' +
+                  '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-chart-line" style="color:var(--primary);margin-right:6px"></i>Progresso geral</span><strong>' + pct + '%</strong><div class="card-progress-bar" style="margin-top:6px"><div class="fill" style="width:' + pct + '%"></div></div></div>' +
+                  '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-clipboard-check" style="color:var(--primary);margin-right:6px"></i>Itens concluídos</span><strong>' + doneItems + ' de ' + totalItems + '</strong></div>' +
+                '</div>' +
               '</div>' +
             '</div>' +
-            '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;font-size:.82rem">' +
-              '<span><span class="macro-badge estudo">Estudo</span> novo conteúdo com leituras</span>' +
-              '<span><span class="macro-badge revisao">Revisão espaçada</span> exercícios de fixação (gerados automaticamente)</span>' +
+            '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 16px">' +
+              '<span class="macro-badge estudo" style="padding:12px 22px"><i class="fas fa-book-open"></i> Estudo <small style="font-weight:500;color:var(--text-secondary);margin-left:6px">novo conteúdo com leituras</small></span>' +
+              '<span class="macro-badge revisao" style="padding:12px 22px"><i class="fas fa-rotate-left"></i> Revisão espaçada <small style="font-weight:500;color:var(--text-secondary);margin-left:6px">exercícios de fixação</small></span>' +
             '</div>' +
             semanasHtml;
     }
@@ -2342,10 +2445,7 @@
         var app = document.getElementById('app');
         var nav = renderNavbar(studentNav());
         app.innerHTML = nav + '<div class="container"><div class="page-content">' +
-            '<div class="baron-header">' +
-              '<div class="baron-avatar"><img src="/baron-pointing-sm.png" alt="Barão" onerror="this.outerHTML=\'<span style=\\\"font-size:2rem\\\">🎩</span>\'"></div>' +
-              '<div class="baron-msg"><h3>Barão — Seu Coach Diplomático</h3><p>Acompanhe seu desempenho por matéria e foque nas áreas que precisam de mais atenção.</p></div>' +
-            '</div>' +
+            zenHero('Barão — Seu Coach Diplomático', 'Acompanhe seu desempenho por matéria e foque nas áreas que precisam de mais atenção para evoluir com estratégia e constância.', '/baron-pointing-sm.png') +
             '<div class="loading-spinner" id="perf-area"><i class="fas fa-spinner"></i> Carregando desempenho...</div>' +
             '</div></div>';
 
@@ -2366,24 +2466,11 @@
             var weakTopics = data.weakTopics || [];
 
             // Overall stats card
-            var overallHtml = '<div class="perf-card">' +
-                '<h3 style="margin-bottom:16px"><i class="fas fa-chart-pie" style="color:var(--accent);margin-right:8px"></i>Estatísticas Gerais</h3>' +
-                '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px">' +
-                  '<div style="flex:1;min-width:120px;text-align:center;padding:14px;background:var(--surface-hover);border-radius:var(--radius-md)">' +
-                    '<div style="font-size:2rem;font-weight:800;font-family:Fraunces,serif;color:var(--primary)">' + overall.total + '</div>' +
-                    '<div style="font-size:.82rem;color:var(--text-muted)">Questões Respondidas</div>' +
-                  '</div>' +
-                  '<div style="flex:1;min-width:120px;text-align:center;padding:14px;background:var(--surface-hover);border-radius:var(--radius-md)">' +
-                    '<div style="font-size:2rem;font-weight:800;font-family:Fraunces,serif;color:' + (overall.accuracy >= 70 ? 'var(--success)' : overall.accuracy >= 50 ? 'var(--warning)' : 'var(--danger)') + '">' + overall.accuracy + '%</div>' +
-                    '<div style="font-size:.82rem;color:var(--text-muted)">Aproveitamento Geral</div>' +
-                  '</div>' +
-                  '<div style="flex:1;min-width:120px;text-align:center;padding:14px;background:var(--surface-hover);border-radius:var(--radius-md)">' +
-                    '<div style="font-size:2rem;font-weight:800;font-family:Fraunces,serif;color:var(--primary)">' + overall.subjects_with_data + '</div>' +
-                    '<div style="font-size:.82rem;color:var(--text-muted)">Matérias Praticadas</div>' +
-                  '</div>' +
-                '</div>' +
-                '<div class="perf-bar"><div class="perf-bar-fill" style="width:' + overall.accuracy + '%;background:' + (overall.accuracy >= 70 ? 'var(--success)' : overall.accuracy >= 50 ? 'var(--warning)' : 'var(--danger)') + '"></div></div>' +
-                '<div style="font-size:.8rem;color:var(--text-muted)">' + overall.correct + ' acertos de ' + overall.total + ' questões</div>' +
+            var perfColor = overall.accuracy >= 70 ? 'var(--primary)' : overall.accuracy >= 50 ? 'var(--accent)' : 'var(--jade-soft)';
+            var overallHtml = '<h2 class="section-title"><i class="fas fa-chart-pie"></i>Estatísticas Gerais</h2><div class="zen-stats-grid">' +
+                '<div class="card stat-card"><div class="stat-card-inner"><div class="stat-icon"><i class="fas fa-clipboard-check"></i></div><div><div class="stat-value">' + overall.total + '</div><div class="stat-label">Questões Respondidas</div></div></div><div class="perf-bar"><div class="perf-bar-fill" style="width:' + (overall.total ? 100 : 0) + '%"></div></div><div style="font-size:.82rem;color:var(--text-muted)">' + overall.correct + ' acertos de ' + overall.total + ' questões</div></div>' +
+                '<div class="card stat-card"><div class="stat-card-inner"><div class="stat-icon"><i class="fas fa-bullseye"></i></div><div><div class="stat-value" style="color:' + perfColor + '">' + overall.accuracy + '%</div><div class="stat-label">Aproveitamento Geral</div></div></div><div class="perf-bar"><div class="perf-bar-fill" style="width:' + overall.accuracy + '%;background:' + perfColor + '"></div></div><div style="font-size:.82rem;color:var(--text-muted)">' + overall.correct + ' acertos de ' + overall.total + ' questões</div></div>' +
+                '<div class="card stat-card"><div class="stat-card-inner"><div class="stat-icon"><i class="fas fa-book-open"></i></div><div><div class="stat-value">' + overall.subjects_with_data + '</div><div class="stat-label">Matérias Praticadas</div></div></div><div class="perf-bar"><div class="perf-bar-fill" style="width:' + Math.min(100, (overall.subjects_with_data || 0) / 9 * 100) + '%"></div></div><div style="font-size:.82rem;color:var(--text-muted)">' + (overall.subjects_with_data || 0) + ' de 9 matérias praticadas</div></div>' +
             '</div>';
 
             // Baron recommendation
@@ -2399,8 +2486,8 @@
             } else {
                 recMsg = '<h3>Excelente desempenho!</h3><p>Todas as suas matérias estão com aproveitamento acima de 60%. Continue praticando para manter o ritmo!</p>';
             }
-            var baronRecommendHtml = '<div class="baron-recommend">' +
-                '<img src="/' + baronPose + '" style="width:64px;height:64px;border-radius:50%;flex-shrink:0;border:2px solid var(--primary)" onerror="this.style.display=\'none\'">' +
+            var baronRecommendHtml = '<div class="baron-recommend" style="margin-top:22px">' +
+                '<img src="/' + baronPose + '" style="width:88px;height:88px;border-radius:50%;flex-shrink:0;border:4px solid rgba(255,255,255,.85);box-shadow:var(--shadow-sm)" onerror="this.style.display=\'none\'">' +
                 '<div class="baron-rec-msg">' + recMsg + '</div>' +
             '</div>';
 
@@ -2411,7 +2498,7 @@
                 subjectsHtml += '<p style="color:var(--text-muted);font-size:.9rem">Nenhuma questão respondida ainda. Pratique questões nas aulas para ver seu desempenho aqui.</p>';
             } else {
                 subjectsHtml += subjects.sort(function(a,b){return a.accuracy - b.accuracy;}).map(function(s) {
-                    var color = s.accuracy >= 70 ? 'var(--success)' : s.accuracy >= 50 ? 'var(--warning)' : 'var(--danger)';
+                    var color = s.accuracy >= 70 ? 'var(--primary)' : s.accuracy >= 50 ? 'var(--accent)' : 'var(--jade-soft)';
                     return '<div class="subject-perf-row">' +
                         '<div class="subject-perf-name">' + escapeHtml(s.subject) + '</div>' +
                         '<div class="subject-perf-bar-wrap">' +
@@ -2429,7 +2516,7 @@
             if (macro && macro.data_prova) {
                 var provaDate = new Date(macro.data_prova + 'T12:00:00');
                 var daysLeft = Math.max(0, Math.ceil((provaDate - new Date()) / (1000 * 60 * 60 * 24)));
-                macroHtml += '<div style="font-size:.92rem;margin-bottom:12px">Data da prova: <strong>' + provaDate.toLocaleDateString('pt-BR') + '</strong> — <strong style="color:' + (daysLeft > 30 ? 'var(--success)' : daysLeft > 7 ? 'var(--warning)' : 'var(--danger)') + '">' + daysLeft + ' dias restantes</strong></div>' +
+                macroHtml += '<div style="font-size:.92rem;margin-bottom:12px">Data da prova: <strong>' + provaDate.toLocaleDateString('pt-BR') + '</strong> — <strong style="color:' + (daysLeft > 30 ? 'var(--primary)' : 'var(--accent)') + '">' + daysLeft + ' dias restantes</strong></div>' +
                     '<button class="btn btn-secondary btn-sm" onclick="navigate(\'student-macro-planner\')"><i class="fas fa-road"></i> Ver Plano Mestre</button>';
             } else {
                 macroHtml += '<p style="color:var(--text-muted);font-size:.9rem;margin-bottom:12px">Você ainda não criou seu Plano Mestre de estudos.</p>' +
@@ -2442,7 +2529,7 @@
             var weakList = weakTopics.length > 0 ? weakTopics : weakSubjects.slice(0, 10).map(function(s) { return { subject: s.subject, topic: null, accuracy: s.accuracy, correct: s.correct, total: s.total }; });
             if (weakList.length > 0) {
                 weakHtml = '<div class="perf-card">' +
-                    '<h3 style="margin-bottom:12px"><i class="fas fa-exclamation-triangle" style="color:var(--danger);margin-right:8px"></i>Pontos Fracos — Top ' + weakList.length + '</h3>';
+                    '<h3 style="margin-bottom:12px"><i class="fas fa-compass" style="color:var(--accent);margin-right:8px"></i>Focos de Aperfeiçoamento — Top ' + weakList.length + '</h3>';
                 weakHtml += weakList.map(function(t) {
                     var label = t.topic || t.subject;
                     var sub = t.topic ? t.subject : '';
@@ -2451,7 +2538,7 @@
                         '<div>' +
                           '<div style="font-weight:600;font-size:.92rem">' + escapeHtml(label) + '</div>' +
                           (sub ? '<div style="font-size:.75rem;color:var(--text-muted);margin-bottom:2px">' + escapeHtml(sub) + '</div>' : '') +
-                          '<div style="font-size:.8rem;color:var(--danger)">' + t.accuracy + '% aproveitamento (' + t.correct + '/' + t.total + ')</div>' +
+                          '<div style="font-size:.8rem;color:var(--accent)">' + t.accuracy + '% aproveitamento (' + t.correct + '/' + t.total + ')</div>' +
                         '</div>' +
                         '<button class="btn btn-sm btn-accent" onclick="' + onclickArg + '">' +
                           '<i class="fas fa-dumbbell"></i> Praticar agora' +
@@ -2462,17 +2549,17 @@
             }
 
             // Study sessions card
-            var studyHtml = '<div class="perf-card"><h3 style="margin-bottom:16px"><i class="fas fa-clock" style="color:var(--primary);margin-right:8px"></i>Tempo de Estudo Registrado</h3>';
+            var studyHtml = '<div class="perf-card zen-study-bar"><div><h3 style="font-size:1.35rem;margin-bottom:4px"><i class="fas fa-torii-gate" style="color:var(--accent);margin-right:8px"></i>Sessão de Estudo</h3><p style="font-size:.86rem;color:var(--text-secondary);margin:0">Mantenha o foco e avance com disciplina.</p></div>';
             if (!sessions || sessions.length === 0) {
-                studyHtml += '<p style="color:var(--text-muted);font-size:.9rem">Nenhuma sessão de estudo registrada. Use o botão <strong>Estudar Agora</strong> no menu para registrar seu tempo.</p>';
+                studyHtml += '<div class="study-clock">00:00:00</div><button class="btn btn-primary" onclick="openStudyTimer()" style="justify-content:center"><i class="fas fa-play"></i> Iniciar sessão</button><button class="btn btn-secondary" onclick="openStudyTimer()" title="Configurar sessão"><i class="fas fa-gear"></i></button>';
             } else {
                 var bySubject = {};
                 sessions.forEach(function(s) {
                     bySubject[s.subject] = (bySubject[s.subject] || 0) + s.duration_minutes;
                 });
                 var totalMin = sessions.reduce(function(acc, s) { return acc + s.duration_minutes; }, 0);
-                studyHtml += '<div style="font-size:.92rem;color:var(--text-muted);margin-bottom:12px">Total: <strong>' + Math.floor(totalMin/60) + 'h ' + (totalMin%60) + 'min</strong> · ' + sessions.length + ' sessões registradas</div>';
-                studyHtml += Object.entries(bySubject).sort(function(a,b){return b[1]-a[1];}).map(function(e) {
+                studyHtml += '<div><div class="study-clock">' + Math.floor(totalMin/60) + 'h ' + (totalMin%60) + 'min</div><div style="font-size:.82rem;color:var(--text-muted);text-align:center">' + sessions.length + ' sessões registradas</div></div><button class="btn btn-primary" onclick="openStudyTimer()" style="justify-content:center"><i class="fas fa-play"></i> Iniciar sessão</button><button class="btn btn-secondary" onclick="openStudyTimer()" title="Configurar sessão"><i class="fas fa-gear"></i></button></div><div class="perf-card">';
+                studyHtml += '<h3 style="margin-bottom:12px">Tempo por matéria</h3>' + Object.entries(bySubject).sort(function(a,b){return b[1]-a[1];}).map(function(e) {
                     var min = e[1];
                     return '<div class="subject-perf-row"><div class="subject-perf-name">' + escapeHtml(e[0]) + '</div>' +
                         '<div style="font-size:.85rem;color:var(--text-muted)">' + Math.floor(min/60) + 'h ' + (min%60) + 'min</div></div>';
@@ -2487,7 +2574,7 @@
             studyHtml += '</div>';
 
             area.className = '';
-            area.innerHTML = overallHtml + baronRecommendHtml + macroHtml + studyHtml + subjectsHtml + weakHtml;
+            area.innerHTML = overallHtml + '<div class="zen-two-col" style="margin-top:22px">' + baronRecommendHtml + macroHtml + '</div>' + studyHtml + subjectsHtml + weakHtml;
         }).catch(function(err) {
             var area = document.getElementById('perf-area');
             if (area) area.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
