@@ -524,6 +524,113 @@
     };
 
     /* ============================================================
+       LOCAL VISUAL PREVIEW
+       ============================================================ */
+    function isVisualPreview() {
+        try {
+            return window.location.protocol === 'file:' || new URLSearchParams(window.location.search).get('preview') === '1';
+        } catch(e) {
+            return false;
+        }
+    }
+
+    function enableVisualPreview() {
+        var previewUser = { id: 1, name: 'Rafael Ordinani', username: 'rafael', role: 'student' };
+        var subjects = [
+            {id:1,name:'Português',description:'Gramática, literatura, interpretação e redação.'},
+            {id:2,name:'História do Brasil',description:'Do período colonial à política externa brasileira.'},
+            {id:3,name:'História Mundial',description:'Processos históricos e relações internacionais.'},
+            {id:4,name:'Inglês',description:'Leitura, vocabulário e interpretação diplomática.'},
+            {id:5,name:'Francês',description:'Leitura e domínio instrumental.'},
+            {id:6,name:'Espanhol',description:'Compreensão e vocabulário de prova.'},
+            {id:7,name:'Economia',description:'Micro, macro e economia brasileira.'},
+            {id:8,name:'Direito Interno',description:'Constitucional, administrativo e organização do Estado.'},
+            {id:9,name:'Geografia',description:'Geopolítica, território, ambiente e urbanização.'},
+            {id:10,name:'Direito Internacional',description:'Tratados, organizações e prática diplomática.'},
+            {id:11,name:'Política Internacional',description:'Teoria, organismos, integração e conflitos.'}
+        ];
+        var counts = {1:48,2:120,3:26,4:24,5:24,6:24,7:30,8:16,9:30,10:24,11:34};
+        var complete = {1:0,2:1,3:1,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0};
+        var lessonsBySubject = {};
+        var progress = [];
+        subjects.forEach(function(s) {
+            var total = counts[s.id] || 12;
+            lessonsBySubject[s.id] = Array.from({length: total}, function(_, i) {
+                return { id: s.id * 1000 + i + 1, subject_id: s.id, title: i === 0 ? 'Ciclo do Ouro e Reformas Pombalinas' : 'Aula ' + (i + 1), duration_minutes: 45, order_index: i + 1 };
+            });
+            for (var i = 0; i < (complete[s.id] || 0); i++) {
+                progress.push({ lesson_id: s.id * 1000 + i + 1, current_time_seconds: 1200, completed: true, last_accessed: '2026-06-16' });
+            }
+        });
+        var macroPlan = {
+            resumo:'Este Plano Mestre de 60 semanas para o CACD prioriza as matérias mais relevantes, começando com História do Brasil, História Mundial e Português. O cronograma equilibra estudo aprofundado com revisões periódicas e simulados.',
+            totalSemanas:60,totalHoras:600,
+            semanas:[
+                {semana:1,dataInicio:'2026-06-06',dataFim:'2026-06-12',materias:[
+                    {id:'w1-1',tipo:'estudo',nome:'História do Brasil',topico:'Formação territorial do Brasil',atividades:[{tipo:'leitura',descricao:'Leitura e fichamento',horas:3}],done:true}
+                ]},
+                {semana:2,dataInicio:'2026-06-13',dataFim:'2026-06-19',materias:[
+                    {id:'w2-1',subject_id:2,tipo:'estudo',nome:'História do Brasil',topico:'Ciclo do Ouro e Reformas Pombalinas',atividades:[{tipo:'leitura',descricao:'Leitura e fichamento sobre o período',horas:3},{tipo:'tps',descricao:'Resolução de questões TPS sobre o tema',horas:1}],done:false},
+                    {id:'w2-2',subject_id:3,tipo:'estudo',nome:'História Mundial',topico:'Iluminismo e Revolução Francesa',atividades:[{tipo:'leitura',descricao:'Leitura dirigida e mapa mental',horas:3}],done:false},
+                    {id:'w2-3',subject_id:1,tipo:'estudo',nome:'Português',topico:'Coesão, Coerência e Figuras de Linguagem',atividades:[{tipo:'exercícios',descricao:'Prática orientada e revisão',horas:2}],done:false}
+                ]}
+            ]
+        };
+        var todayPlan = {
+            plan_date:'2026-06-16',hours_available:3,focus_subjects:'História do Brasil, História Mundial, Português',
+            plan_json:{saudacao:'Bom estudo. Hoje o foco é avançar com serenidade.',resumoDia:'Três blocos objetivos para consolidar a semana do Plano Mestre.',totalHorasEstudo:3,blocos:[
+                {horario:'08:00 - 09:00',duracaoMin:60,titulo:'História do Brasil',descricao:'Ciclo do Ouro e Reformas Pombalinas',materia:'História do Brasil',tipo:'Estudo'},
+                {horario:'09:15 - 10:15',duracaoMin:60,titulo:'História Mundial',descricao:'Iluminismo e Revolução Francesa',materia:'História Mundial',tipo:'Estudo'},
+                {horario:'10:30 - 11:30',duracaoMin:60,titulo:'Português',descricao:'Coesão, coerência e figuras de linguagem',materia:'Português',tipo:'Estudo'}
+            ],dicaDoDia:'Finalize cada bloco anotando uma pergunta que você ainda não sabe responder.'}
+        };
+        var performance = {
+            overall:{total:4,correct:1,accuracy:25,subjects_with_data:1},
+            subjects:[{subject:'História do Brasil',accuracy:25,correct:1,total:4},{subject:'Português',accuracy:62,correct:5,total:8},{subject:'História Mundial',accuracy:48,correct:6,total:12}],
+            weakSubjects:[{subject:'História do Brasil',accuracy:25,correct:1,total:4}],
+            weakTopics:[{subject:'História do Brasil',topic:'M1A1 - PERÍODO COLONIAL',accuracy:25,correct:1,total:4}]
+        };
+        function delayed(data) { return Promise.resolve(JSON.parse(JSON.stringify(data))); }
+        API.getToken = function() { return 'preview-token'; };
+        API.setToken = function() {};
+        API.clearToken = function() {};
+        API.login = function() { return delayed({ token:'preview-token', user:previewUser }); };
+        API.getMe = function() { return delayed({ user:previewUser }); };
+        API.getSubjects = function() { return delayed(subjects); };
+        API.getLessons = function(subjectId) { return delayed(lessonsBySubject[subjectId] || []); };
+        API.getProgress = function(lessonId) {
+            if (!lessonId) return delayed(progress);
+            return delayed(progress.filter(function(p) { return p.lesson_id === lessonId; }));
+        };
+        API.getPlansHistory = function() { return delayed([todayPlan]); };
+        API.generateMacroPlan = function() { return delayed(macroPlan); };
+        API.generateQuestions = function() { return delayed({ questoes: [] }); };
+        API.createSimulado = function() { return delayed({ simuladoId:1, questoes: [] }); };
+        API.submitSimulado = function() { return delayed({ score:0,total:1,questoes_with_gabarito:[],subject_stats:{} }); };
+        API.request = function(method, url, body) {
+            if (url.indexOf('/api/generate-macro-plan') === 0) return delayed({ created_at:'2026-06-06T12:00:00Z', data_prova:'2027-08-06', plan_json:macroPlan });
+            if (url.indexOf('/api/generate-plan') === 0 && method === 'GET') return delayed([todayPlan]);
+            if (url.indexOf('/api/generate-plan') === 0 && method === 'POST') return delayed(todayPlan.plan_json);
+            if (url.indexOf('/api/performance?action=macro') === 0) return delayed({ data_prova:'2027-08-06' });
+            if (url.indexOf('/api/performance?action=study') === 0) return delayed([{subject:'História do Brasil',duration_minutes:70,started_at:'2026-06-16T12:00:00Z'},{subject:'Português',duration_minutes:45,started_at:'2026-06-15T12:00:00Z'}]);
+            if (url.indexOf('/api/performance') === 0) return delayed(performance);
+            if (url.indexOf('/api/baron-chat') === 0) return delayed({ reply:'Modo preview ativo. Navegue livremente para revisar o visual.' });
+            return delayed({});
+        };
+        function rewriteLocalAssets() {
+            document.querySelectorAll('img[src^="/"]').forEach(function(img) {
+                img.setAttribute('src', img.getAttribute('src').replace(/^\//, ''));
+            });
+        }
+        var observer = new MutationObserver(function() {
+            rewriteLocalAssets();
+        });
+        observer.observe(document.documentElement, { childList:true, subtree:true });
+        rewriteLocalAssets();
+    }
+    if (isVisualPreview()) enableVisualPreview();
+
+    /* ============================================================
        STATE
        ============================================================ */
     var state = { view: 'login', user: null, selectedSubjectId: null, selectedLessonId: null, resetToken: null };
