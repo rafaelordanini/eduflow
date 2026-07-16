@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "vercel dev",
+    "test": "node --test",
     "seed": "node scripts/seed.js",
     "import-exams": "node scripts/import-all-exams.js",
     "import-exams:dry": "node scripts/import-all-exams.js --dry-run",
