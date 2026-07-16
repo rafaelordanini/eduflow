@@ -174,10 +174,15 @@ const CACD_DATA = {
 const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
 
 // Find which week of the Plano Mestre contains today's date
-function getCurrentMasterWeek(planJson) {
-  const today = new Date().toISOString().split('T')[0];
+function getCurrentMasterWeek(planJson, requestedDate) {
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || '')
+    ? requestedDate
+    : new Date().toISOString().split('T')[0];
   if (!planJson || !planJson.semanas) return null;
-  return planJson.semanas.find(s => s.dataInicio && s.dataFim && today >= s.dataInicio && today <= s.dataFim) || null;
+  const week = planJson.semanas.find(s => s.dataInicio && s.dataFim && today >= s.dataInicio && today <= s.dataFim) || null;
+  if (!week) return null;
+  const dayItems = (week.materias || []).filter(function(item) { return item.data === today; });
+  return dayItems.length ? { ...week, materias: dayItems } : week;
 }
 
 module.exports = async function handler(req, res) {
@@ -257,7 +262,7 @@ module.exports = async function handler(req, res) {
       .limit(1)
       .maybeSingle();
 
-    const currentWeek = macroPlanRow ? getCurrentMasterWeek(macroPlanRow.plan_json) : null;
+    const currentWeek = macroPlanRow ? getCurrentMasterWeek(macroPlanRow.plan_json, studyDate) : null;
 
     const hoje = studyDate || new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -266,9 +271,9 @@ module.exports = async function handler(req, res) {
     if (focoMaterias && focoMaterias.length > 0) {
       focoStr = focoMaterias.join(', ');
     } else if (currentWeek) {
-      const studySubjects = (currentWeek.materias || [])
+      const studySubjects = Array.from(new Set((currentWeek.materias || [])
         .filter(m => m.tipo === 'estudo' && !m.done)
-        .map(m => m.nome);
+        .map(m => m.nome)));
       focoStr = studySubjects.length > 0 ? studySubjects.join(', ') : CACD_DATA.focoAtual.join(', ');
     } else {
       focoStr = CACD_DATA.focoAtual.join(', ');
