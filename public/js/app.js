@@ -775,7 +775,7 @@ function renderMasterWeekPanel(macro) {
         var checkIcon = isDone ? '<i class="fas fa-check"></i>' : '';
         var mId = m.id || '';
         var actBtns = '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' +
-            '<button class="macro-link-btn lesson" style="font-size:.72rem;padding:3px 8px" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _js(m.nome || '') + ',' + _jsNull(m.topico) + ')">' +
+            '<button class="macro-link-btn lesson" style="font-size:.72rem;padding:3px 8px" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _jsNull(m.lesson_id) + ')">' +
                 '<i class="fas fa-play-circle"></i> Ver aulas</button>' +
             '<button class="macro-link-btn exercise" style="font-size:.72rem;padding:3px 8px" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ')">' +
                 '<i class="fas fa-question-circle"></i> ' + (isRev ? 'Fazer exercícios' : 'Praticar questões') + '</button>' +
@@ -1724,7 +1724,7 @@ function buildMateriaHtml(m) {
     }
 
     var linksHtml = '<div class="macro-links">';
-    linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _js(m.nome || '') + ',' + _jsNull(m.topico) + ')">' +
+    linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _jsNull(m.lesson_id) + ')" title="' + escapeHtml(m.lesson_title || 'Aula não vinculada') + '">' +
         '<i class="fas fa-play-circle"></i> Ver aulas</button>';
     linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ')">' +
         (isRevisao ? '<i class="fas fa-pen-to-square"></i> Fazer exercícios' : '<i class="fas fa-question-circle"></i> Praticar questões') + '</button>';
@@ -1840,91 +1840,13 @@ function toggleMacraItem(itemId, done) {
     API.request('PUT', '/api/generate-macro-plan', { itemId: itemId, done: done }).catch(function() {});
 }
 
-function _topicoLessonKey(topico, subjectId) {
-    return 'topico_lesson_' + subjectId + '_' + (topico || '').toLowerCase().replace(/\s+/g, '_').substring(0, 40);
-}
-
-function abrirAulasPlano(subjectId, subjectName, topico) {
-    function scoreMatch(title, topic) {
-        var t = (title || '').toLowerCase(), p = (topic || '').toLowerCase();
-        if (t.indexOf(p) !== -1 || p.indexOf(t) !== -1) return 2;
-        var words = p.split(/\s+/).filter(function(w) { return w.length > 3; });
-        var hits = words.filter(function(w) { return t.indexOf(w) !== -1; }).length;
-        return hits;
-    }
-    function showLessonPicker(sid, sname, lessons) {
-        var existing = document.getElementById('lesson-picker-overlay');
-        if (existing) existing.remove();
-        var overlay = document.createElement('div');
-        overlay.id = 'lesson-picker-overlay';
-        overlay.className = 'topic-modal-overlay';
-        overlay.innerHTML =
-            '<div class="topic-modal" style="max-width:480px">' +
-              '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
-                '<h3 style="margin:0;font-size:1rem"><i class="fas fa-play-circle" style="color:var(--accent);margin-right:8px"></i>' +
-                  'Qual aula corresponde a <em>' + escapeHtml(topico || sname) + '</em>?' +
-                '</h3>' +
-                '<button onclick="document.getElementById(\'lesson-picker-overlay\').remove()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text-muted)">✕</button>' +
-              '</div>' +
-              '<p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:14px">Selecione a aula para vincular a este tópico do plano:</p>' +
-              '<div style="display:flex;flex-direction:column;gap:8px">' +
-                lessons.map(function(l) {
-                    return '<button onclick="escolherAulaPlano(' + sid + ',' + l.id + ',\'' + escapeHtml(topico || '').replace(/'/g,"\\'") + '\')" ' +
-                      'style="text-align:left;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;cursor:pointer;font-size:.9rem;transition:border-color .15s" ' +
-                      'onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-                      '<span style="color:var(--text-secondary);font-size:.8rem;margin-right:6px">' + l.order_index + '.</span>' +
-                      escapeHtml(l.title) + '</button>';
-                }).join('') +
-              '</div>' +
-            '</div>';
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
-        document.body.appendChild(overlay);
-    }
-    function navigateToLesson(sid, sname) {
-        // Check saved association first
-        if (topico) {
-            var saved = null;
-            try { saved = _store.getItem(_topicoLessonKey(topico, sid)); } catch(e) {}
-            if (saved) { navigate('student-lesson', { subjectId: sid, lessonId: parseInt(saved) }); return; }
-        }
-        API.request('GET', '/api/lessons?subjectId=' + encodeURIComponent(sid)).then(function(data) {
-            var lessons = data && data.lessons ? data.lessons : (Array.isArray(data) ? data : []);
-            if (!lessons.length) { navigate('student-subject', { subjectId: sid }); return; }
-            var best = null, bestScore = 0;
-            if (topico) {
-                lessons.forEach(function(l) {
-                    var s = scoreMatch(l.title, topico);
-                    if (s > bestScore) { bestScore = s; best = l; }
-                });
-            }
-            if (best && bestScore > 0) {
-                navigate('student-lesson', { subjectId: sid, lessonId: best.id });
-            } else {
-                showLessonPicker(sid, sname, lessons);
-            }
-        }).catch(function() { navigate('student-subject', { subjectId: sid }); });
-    }
-    if (subjectId) {
-        navigateToLesson(subjectId, subjectName);
+function abrirAulasPlano(subjectId, lessonId) {
+    if (subjectId && lessonId) {
+        navigate('student-lesson', { subjectId: parseInt(subjectId, 10), lessonId: parseInt(lessonId, 10) });
         return;
     }
-    // Fallback: search subjects by name
-    if (!subjectName) { showToast('Aulas não encontradas para esta matéria', 'warning'); return; }
-    API.request('GET', '/api/subjects').then(function(subs) {
-        var found = (subs || []).find(function(s) {
-            return s.name && s.name.toLowerCase() === subjectName.toLowerCase();
-        });
-        if (found) navigateToLesson(found.id, found.name);
-        else { showToast('Nenhuma aula cadastrada para ' + subjectName + ' ainda', 'warning'); navigate('student-dashboard'); }
-    }).catch(function() { navigate('student-dashboard'); });
-}
-
-function escolherAulaPlano(subjectId, lessonId, topico) {
-    document.getElementById('lesson-picker-overlay').remove();
-    if (topico) {
-        try { _store.setItem(_topicoLessonKey(topico, subjectId), String(lessonId)); } catch(e) {}
-    }
-    navigate('student-lesson', { subjectId: subjectId, lessonId: lessonId });
+    showToast('Este item ainda não possui uma aula cadastrada', 'warning');
+    if (subjectId) navigate('student-subject', { subjectId: subjectId });
 }
 
 function praticaTopico(subject, topic) {

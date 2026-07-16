@@ -1,5 +1,10 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
+const {
+  formatLessonCatalog,
+  planNeedsRepair,
+  repairMacroPlan,
+} = require('../../lib/macro-plan');
 
 const CACD_DATA = {
   totalTopicos: 473,
@@ -158,52 +163,15 @@ const CACD_DATA = {
 
 const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
 
-// Enrich plan: add IDs, spaced repetition review items, subject_id references, done flags
-function enrichPlan(plano, subjectMap) {
-  const n = (plano.semanas || []).length;
-  // Tag study items
-  plano.semanas.forEach((sem, wi) => {
-    sem.materias = (sem.materias || []).map((m, mi) => {
-      const sid = subjectMap[m.nome] || null;
-      return { ...m, id: 'w' + (wi + 1) + '-m' + mi, tipo: 'estudo', done: false, subject_id: sid };
-    });
-  });
-
-  // Collect study items for spaced repetition
-  const studyItems = [];
-  plano.semanas.forEach((sem, wi) => {
-    sem.materias.forEach(m => {
-      if (m.tipo === 'estudo') studyItems.push({ wi, nome: m.nome, topico: m.topico, subject_id: m.subject_id });
-    });
-  });
-
-  // Track added reviews per (week, subject) to avoid duplicates
-  const added = {};
-  studyItems.forEach(({ wi, nome, topico, subject_id }) => {
-    [1, 2, 4].forEach(function(interval) {
-      const targetWi = wi + interval;
-      if (targetWi >= n) return;
-      const key = targetWi + ':' + nome;
-      if (added[key]) return;
-      // Skip if subject is being actively studied that week already
-      const targetSem = plano.semanas[targetWi];
-      const alreadyStudied = targetSem.materias.some(function(m) { return m.tipo === 'estudo' && m.nome === nome; });
-      if (alreadyStudied) return;
-      added[key] = true;
-      targetSem.materias.push({
-        id: 'rev-w' + (wi + 1) + '-' + nome.replace(/\s+/g, '') + '-d' + (interval * 7),
-        nome: nome,
-        topico: 'Revisão espaçada: ' + (topico || nome),
-        tipo: 'revisao',
-        done: false,
-        subject_id: subject_id,
-        atividades: [{ tipo: 'revisao', descricao: 'Fazer exercícios de ' + nome + ' (revisão espaçada em ' + (interval * 7) + ' dias)', horas: 1 }],
-        leituras: '',
-      });
-    });
-  });
-
-  return plano;
+async function loadCurriculum(supabase) {
+  const [subjectResult, lessonResult] = await Promise.all([
+    supabase.from('subjects').select('id, name'),
+    supabase.from('lessons').select('id, subject_id, title, order_index')
+      .order('subject_id').order('order_index').order('id'),
+  ]);
+  if (subjectResult.error) throw subjectResult.error;
+  if (lessonResult.error) throw lessonResult.error;
+  return { subjects: subjectResult.data || [], lessons: lessonResult.data || [] };
 }
 
 module.exports = async function handler(req, res) {
@@ -227,14 +195,13 @@ module.exports = async function handler(req, res) {
       if (error) throw error;
       if (!mp) return res.status(200).json(null);
 
-      // Check if plan needs enrichment (old plans lack id/tipo/done on items)
-      const firstItem = mp.plan_json?.semanas?.[0]?.materias?.[0];
-      if (firstItem && !firstItem.id) {
-        const { data: subjects } = await supabase.from('subjects').select('id, name');
-        const subjectMap = {};
-        (subjects || []).forEach(s => { subjectMap[s.name] = s.id; subjectMap[s.name.toLowerCase()] = s.id; });
-        enrichPlan(mp.plan_json, subjectMap);
-        await supabase.from('macro_plans').update({ plan_json: mp.plan_json }).eq('id', mp.id);
+      // Repair legacy plans against the current, real lesson catalog on load.
+      const curriculum = await loadCurriculum(supabase);
+      if (planNeedsRepair(mp.plan_json, curriculum.subjects, curriculum.lessons)) {
+        mp.plan_json = repairMacroPlan(mp.plan_json, curriculum.subjects, curriculum.lessons);
+        const { error: updateError } = await supabase
+          .from('macro_plans').update({ plan_json: mp.plan_json }).eq('id', mp.id);
+        if (updateError) throw updateError;
       }
 
       return res.status(200).json(mp);
@@ -280,11 +247,13 @@ module.exports = async function handler(req, res) {
 
     // Adjust total hours based on capped weeks to avoid confusing the LLM
     const totalHoras = totalSemanas * horasPorSemana;
+    const curriculum = await loadCurriculum(supabase);
 
     const materiasTexto = CACD_DATA.materias.map(m => {
       const blocos = m.blocos.map(b => `  • [${b.rec}] ${b.bloco}${b.leituras ? ': ' + b.leituras : ''}`).join('\n');
       return `**${m.nome}** (${m.totalTopicos} tópicos, prioridade ${m.prioridade}):\n${blocos}`;
     }).join('\n\n');
+    const aulasTexto = formatLessonCatalog(curriculum.subjects, curriculum.lessons);
 
     const systemPrompt = `Você é o Barão — um coach de estudos especializado no CACD (Concurso de Admissão à Carreira Diplomática). Sua missão é criar um Plano Mestre de estudos, distribuindo as 11 matérias do CACD semana a semana até a data da prova.
 
@@ -333,6 +302,16 @@ ${materiasTexto}
 6. O dataInicio da semana 1 é ${hoje.toISOString().split('T')[0]}
 7. Calcule dataInicio e dataFim de cada semana corretamente (7 dias por semana)
 8. Retorne SOMENTE o JSON, sem markdown adicional`;
+    const curriculumInstructions = `
+
+## Aulas reais cadastradas no EduFlow (ordem pedagógica do Supabase):
+${aulasTexto}
+
+## Regras obrigatórias de sequência:
+9. Use os títulos das aulas reais acima como tópicos e avance sempre pela ordem indicada em cada matéria
+10. A primeira aparição de cada matéria deve ser estudo introdutório e corresponder à primeira aula cadastrada dessa matéria
+11. Nunca crie uma revisão antes da primeira aula da matéria
+12. Não crie itens de revisão espaçada; o EduFlow os adicionará somente depois da aula correspondente`;
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -346,7 +325,7 @@ ${materiasTexto}
         model: OPENROUTER_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+          { role: 'user', content: userPrompt + curriculumInstructions }
         ],
         temperature: 0.7
       })
@@ -370,25 +349,18 @@ ${materiasTexto}
       else return res.status(502).json({ error: 'Resposta do modelo não está em formato válido.' });
     }
 
-    // Fetch subjects to build name→id map for lesson links
-    const { data: subjects } = await supabase.from('subjects').select('id, name');
-    const subjectMap = {};
-    (subjects || []).forEach(s => {
-      subjectMap[s.name] = s.id;
-      // Also map common name variations
-      subjectMap[s.name.toLowerCase()] = s.id;
-    });
-
-    // Enrich plan with IDs, spaced repetition items, subject_id, done flags
-    enrichPlan(plano, subjectMap);
+    // Link every item to the real curriculum and add reviews only after study.
+    plano = repairMacroPlan(plano, curriculum.subjects, curriculum.lessons);
 
     // Persist plan (replace any existing)
-    await supabase.from('macro_plans').delete().eq('user_id', user.id);
-    await supabase.from('macro_plans').insert({
+    const { error: deleteError } = await supabase.from('macro_plans').delete().eq('user_id', user.id);
+    if (deleteError) throw deleteError;
+    const { error: insertError } = await supabase.from('macro_plans').insert({
       user_id: user.id,
       plan_json: plano,
       data_prova: dataProva,
     });
+    if (insertError) throw insertError;
 
     return res.status(200).json(plano);
 
