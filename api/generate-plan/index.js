@@ -182,7 +182,10 @@ function getCurrentMasterWeek(planJson, requestedDate) {
   const week = planJson.semanas.find(s => s.dataInicio && s.dataFim && today >= s.dataInicio && today <= s.dataFim) || null;
   if (!week) return null;
   const dayItems = (week.materias || []).filter(function(item) { return item.data === today; });
-  return dayItems.length ? { ...week, materias: dayItems } : week;
+  const hasDailySchedule = planJson.macro_plan_version >= 3 || (week.materias || []).some(function(item) { return item.data; });
+  return hasDailySchedule
+    ? { ...week, materias: dayItems, _isRestDay: (week.datasDescanso || []).includes(today) }
+    : week;
 }
 
 module.exports = async function handler(req, res) {
@@ -294,7 +297,12 @@ module.exports = async function handler(req, res) {
 
     // Build Plano Mestre week context string
     let macroPlanContext = '';
-    if (currentWeek) {
+    if (currentWeek && currentWeek._isRestDay) {
+      macroPlanContext = `\n\n## Plano Mestre — dia de descanso:
+Esta data foi reservada pelo estudante como dia sem disponibilidade para estudar.
+
+⚠️ Não programe aulas, revisões ou exercícios para hoje. Oriente o estudante a descansar e retomar o cronograma no próximo dia disponível.`;
+    } else if (currentWeek) {
       const semanaNum = currentWeek.semana;
       const daysToExam = macroPlanRow.data_prova
         ? Math.max(0, Math.floor((new Date(macroPlanRow.data_prova) - new Date()) / 86400000))

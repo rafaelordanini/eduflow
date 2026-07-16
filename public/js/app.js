@@ -103,14 +103,15 @@ function enableVisualPreview() {
         }
     });
     var macroPlan = {
-        resumo:'Todas as 4 aulas foram distribuídas em 2 dias, com até 2 aulas por dia e alternância equilibrada entre as matérias.',
-        macro_plan_version:3,aulasPorDia:2,totalAulas:4,totalDias:2,totalSemanas:1,totalHoras:4,dataInicio:'2026-06-06',dataFim:'2026-06-07',
+        resumo:'Todas as 4 aulas foram distribuídas com até 2 aulas por dia, 1 dia de descanso por semana e revisões em D+1, D+7 e D+30.',
+        macro_plan_version:4,aulasPorDia:2,diasDescansoPorSemana:1,totalAulas:4,totalRevisoes:12,totalDiasEstudo:2,totalDiasAulas:2,totalDias:32,totalSemanas:5,totalHoras:10,dataInicio:'2026-06-06',dataFimAulas:'2026-06-07',dataFim:'2026-07-07',
         semanas:[
-            {semana:1,dataInicio:'2026-06-06',dataFim:'2026-06-07',materias:[
+            {semana:1,dataInicio:'2026-06-06',dataFim:'2026-06-12',datasDescanso:['2026-06-12'],materias:[
                 {id:'lesson-2001',subject_id:2,lesson_id:2001,lesson_title:'Ciclo do Ouro e Reformas Pombalinas',tipo:'estudo',nome:'História do Brasil',topico:'Ciclo do Ouro e Reformas Pombalinas',data:'2026-06-06',dia:1,atividades:[{tipo:'aula',descricao:'Assistir à aula',horas:1}],done:true},
                 {id:'lesson-3001',subject_id:3,lesson_id:3001,lesson_title:'Aula introdutória',tipo:'estudo',nome:'História Mundial',topico:'Aula introdutória',data:'2026-06-06',dia:1,atividades:[{tipo:'aula',descricao:'Assistir à aula',horas:1}],done:false},
                 {id:'lesson-1001',subject_id:1,lesson_id:1001,lesson_title:'Aula introdutória',tipo:'estudo',nome:'Português',topico:'Aula introdutória',data:'2026-06-07',dia:2,atividades:[{tipo:'aula',descricao:'Assistir à aula',horas:1}],done:false},
-                {id:'lesson-2002',subject_id:2,lesson_id:2002,lesson_title:'Aula 2',tipo:'estudo',nome:'História do Brasil',topico:'Aula 2',data:'2026-06-07',dia:2,atividades:[{tipo:'aula',descricao:'Assistir à aula',horas:1}],done:false}
+                {id:'lesson-2002',subject_id:2,lesson_id:2002,lesson_title:'Aula 2',tipo:'estudo',nome:'História do Brasil',topico:'Aula 2',data:'2026-06-07',dia:2,atividades:[{tipo:'aula',descricao:'Assistir à aula',horas:1}],done:false},
+                {id:'review-2001-d1',subject_id:2,lesson_id:2001,lesson_title:'Ciclo do Ouro e Reformas Pombalinas',review_of_id:'lesson-2001',review_interval_days:1,tipo:'revisao',nome:'História do Brasil',topico:'Revisão espaçada (D+1): Ciclo do Ouro e Reformas Pombalinas',data:'2026-06-07',dia:2,atividades:[{tipo:'revisao',descricao:'Revisar a aula',horas:.5}],done:false}
             ]}
         ]
     };
@@ -763,8 +764,11 @@ function renderMasterWeekPanel(macro) {
 
     var materias = currentWeek.materias || [];
     var todayLessons = materias.filter(function(m) { return m.data === today; });
-    var showingToday = todayLessons.length > 0;
+    var isTodayInWeek = currentWeek.dataInicio && currentWeek.dataFim && today >= currentWeek.dataInicio && today <= currentWeek.dataFim;
+    var showingToday = macro.plan_json.macro_plan_version >= 3 && isTodayInWeek;
+    var isRestToday = (currentWeek.datasDescanso || []).indexOf(today) !== -1;
     if (showingToday) materias = todayLessons;
+    var noTasksToday = showingToday && !isRestToday && materias.length === 0;
     var pendingStudy = materias.filter(function(m) { return m.tipo === 'estudo' && !m.done; });
     var pendingReview = materias.filter(function(m) { return m.tipo === 'revisao' && !m.done; });
     var doneCount = materias.filter(function(m) { return m.done; }).length;
@@ -802,7 +806,7 @@ function renderMasterWeekPanel(macro) {
           '<div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:22px">' +
             '<div style="display:flex;align-items:center;gap:18px">' +
               '<div class="subject-icon"><i class="fas fa-calendar-plus"></i></div><div>' +
-              '<h2 style="font-size:1.55rem;margin:0">Plano Mestre — ' + (showingToday ? 'Aulas de Hoje' : 'Semana ' + (currentWeek.semana || '')) + '</h2>' +
+              '<h2 style="font-size:1.55rem;margin:0">Plano Mestre — ' + (isRestToday ? 'Descanso de Hoje' : (showingToday ? 'Tarefas de Hoje' : 'Semana ' + (currentWeek.semana || ''))) + '</h2>' +
               '<div style="font-size:.9rem;color:var(--text-secondary);margin-top:4px">' +
                 (currentWeek.dataInicio ? escapeHtml(currentWeek.dataInicio) + ' a ' + escapeHtml(currentWeek.dataFim) : '') +
                 (daysLeft !== null ? ' · ' + daysLeft + ' dias para a prova' : '') +
@@ -813,11 +817,11 @@ function renderMasterWeekPanel(macro) {
         '</div>' +
           '<div style="display:flex;flex-direction:column;gap:10px">' +
             itemsHtml +
-            (pendingStudy.length === 0 && pendingReview.length === 0 ? '<div style="padding:12px 0;font-size:.85rem;color:var(--success);font-weight:600"><i class="fas fa-check-circle"></i> Semana concluída! Excelente trabalho.</div>' : '') +
+            (isRestToday ? '<div style="padding:16px 0;font-size:.9rem;color:var(--primary);font-weight:600"><i class="fas fa-mug-hot"></i> Dia reservado para descanso. Não há aulas nem revisões agendadas.</div>' : (noTasksToday ? '<div style="padding:16px 0;font-size:.9rem;color:var(--text-secondary);font-weight:600"><i class="fas fa-calendar-check"></i> Nenhuma tarefa agendada para hoje.</div>' : (pendingStudy.length === 0 && pendingReview.length === 0 ? '<div style="padding:12px 0;font-size:.85rem;color:var(--success);font-weight:600"><i class="fas fa-check-circle"></i> Tarefas concluídas! Excelente trabalho.</div>' : ''))) +
           '</div>' +
           '<div style="padding:18px 10px;font-size:.9rem;color:var(--text-secondary)">' +
             '<i class="fas fa-magic" style="color:var(--accent);margin-right:5px"></i>' +
-            'O plano de hoje será gerado levando em conta os itens pendentes desta semana.' +
+            (isRestToday ? 'O Plano Mestre reservou hoje para descanso.' : (noTasksToday ? 'O Plano Mestre não possui tarefas para esta data.' : 'O plano de hoje será gerado levando em conta os itens pendentes desta data.')) +
           '</div>';
 }
 
@@ -1654,10 +1658,11 @@ function renderStudentMacroPlan() {
 
         var formHtml = '<div class="macro-form" id="macro-gen-form">' +
             '<h2><i class="fas fa-cog" style="color:var(--accent);margin-right:8px"></i>' + (existingDate ? 'Substituir Plano Mestre' : 'Configurar Plano Mestre') + '</h2>' +
-            (existingDate ? '<div style="background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:.88rem"><i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:6px"></i>Você já tem um Plano Mestre criado em ' + existingDate + '. Gerar um novo irá <strong>redistribuir todas as aulas conforme o novo ritmo</strong>.</div>' : '') +
+            (existingDate ? '<div style="background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:.88rem"><i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:6px"></i>Você já tem um Plano Mestre criado em ' + existingDate + '. Gerar um novo irá <strong>redistribuir aulas e revisões conforme o novo ritmo e os dias de descanso</strong>.</div>' : '') +
             '<div class="form-row">' +
               '<div class="form-group"><label>Data da Prova</label><input type="date" id="macro-data-prova" value="' + (macro && macro.data_prova ? macro.data_prova : defaultDate) + '"></div>' +
               '<div class="form-group"><label>Aulas por Dia</label><input type="number" id="macro-aulas-dia" min="1" max="20" value="' + (macro && macro.plan_json && macro.plan_json.aulasPorDia ? macro.plan_json.aulasPorDia : 2) + '"><small style="display:block;color:var(--text-muted);margin-top:5px">O plano incluirá 100% das aulas e calculará a duração automaticamente.</small></div>' +
+              '<div class="form-group"><label>Dias de Descanso por Semana</label><input type="number" id="macro-dias-descanso" min="0" max="6" value="' + (macro && macro.plan_json && macro.plan_json.diasDescansoPorSemana != null ? macro.plan_json.diasDescansoPorSemana : 1) + '"><small style="display:block;color:var(--text-muted);margin-top:5px">De 0 a 6 dias, intercalados automaticamente.</small></div>' +
             '</div>' +
             '<button class="btn btn-primary" style="width:100%;justify-content:center;padding:14px" onclick="gerarMacroPlan()">' +
               '<i class="fas fa-calendar-check"></i> ' + (existingDate ? 'Gerar Novo Plano Mestre' : 'Gerar Plano Mestre') +
@@ -1671,7 +1676,7 @@ function renderStudentMacroPlan() {
                 '<img class="zen-hero-avatar" src="/baron-thinking-sm.png" alt="Barão" onerror="this.src=\'/baron-avatar.png\'">' +
                 '<div><h2 style="font-size:1.55rem;margin-bottom:6px">Seu Plano Mestre está ativo</h2>' +
                 '<p>Criado em ' + existingDate + ' · Prova em ' + (macro.data_prova ? new Date(macro.data_prova + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</p>' +
-                '<p style="font-size:.86rem;margin-top:8px"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:6px"></i>' + (macro.plan_json.totalAulas || 0) + ' aulas · ' + (macro.plan_json.aulasPorDia || 0) + ' por dia · conclusão em ' + (macro.plan_json.dataFim ? new Date(macro.plan_json.dataFim + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</p></div>' +
+                '<p style="font-size:.86rem;margin-top:8px"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:6px"></i>' + (macro.plan_json.totalAulas || 0) + ' aulas · ' + (macro.plan_json.aulasPorDia || 0) + ' por dia · ' + (macro.plan_json.diasDescansoPorSemana || 0) + ' descanso(s)/semana · aulas até ' + (macro.plan_json.dataFimAulas ? new Date(macro.plan_json.dataFimAulas + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</p></div>' +
                 '<button class="btn btn-secondary btn-sm" style="margin-left:auto;align-self:center" onclick="document.getElementById(\'macro-gen-form-wrap\').style.display=document.getElementById(\'macro-gen-form-wrap\').style.display===\'none\'?\'block\':\'none\'">' +
                   '<i class="fas fa-sync"></i> Recriar plano' +
                 '</button></div>' +
@@ -1694,13 +1699,16 @@ function renderStudentMacroPlan() {
 function gerarMacroPlan() {
     var dataProva = document.getElementById('macro-data-prova').value;
     var aulasPorDia = parseInt(document.getElementById('macro-aulas-dia').value, 10) || 2;
+    var diasDescansoPorSemana = parseInt(document.getElementById('macro-dias-descanso').value, 10);
+    if (!Number.isFinite(diasDescansoPorSemana)) diasDescansoPorSemana = 1;
     if (!dataProva) { showToast('Informe a data da prova', 'error'); return; }
     if (aulasPorDia < 1 || aulasPorDia > 20) { showToast('Informe entre 1 e 20 aulas por dia', 'error'); return; }
+    if (diasDescansoPorSemana < 0 || diasDescansoPorSemana > 6) { showToast('Informe entre 0 e 6 dias de descanso por semana', 'error'); return; }
     var out = document.getElementById('macro-output');
     out.style.display = 'block';
-    out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>Organizando 100% das aulas em uma sequência equilibrada…</p></div>';
+    out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>Organizando 100% das aulas, os descansos e as revisões espaçadas…</p></div>';
     baronFloatPose('reading', 15000);
-    API.generateMacroPlan({ dataProva: dataProva, aulasPorDia: aulasPorDia }).then(function(plano) {
+    API.generateMacroPlan({ dataProva: dataProva, aulasPorDia: aulasPorDia, diasDescansoPorSemana: diasDescansoPorSemana }).then(function(plano) {
         renderMacroPlan(plano, out);
     }).catch(function(err) {
         out.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
@@ -1758,6 +1766,9 @@ function renderMacroPlan(plano, container) {
         var done = materias.filter(function(m){ return m.done; }).length;
         var progressStr = done + '/' + total + ' itens concluídos';
         var materiasHtml = materias.map(buildMateriaHtml).join('');
+        var descansosHtml = (s.datasDescanso || []).length
+            ? '<div style="margin:0 0 12px;padding:10px 14px;border-radius:var(--radius-md);background:var(--surface-hover);color:var(--text-secondary);font-size:.84rem"><i class="fas fa-mug-hot" style="color:var(--primary);margin-right:6px"></i>Descanso: ' + (s.datasDescanso || []).map(function(data) { return new Date(data + 'T12:00:00').toLocaleDateString('pt-BR'); }).join(', ') + '</div>'
+            : '';
         var dateStr = s.dataInicio && s.dataFim
             ? ' <span style="font-size:.8rem;font-weight:400;color:var(--text-secondary)">' + escapeHtml(s.dataInicio) + ' – ' + escapeHtml(s.dataFim) + '</span>'
             : '';
@@ -1773,7 +1784,7 @@ function renderMacroPlan(plano, container) {
               '<span class="sem-progress">' + escapeHtml(progressStr) + '</span></span>' +
               '<i class="fas fa-chevron-down" style="color:var(--text-muted);transition:transform .2s"></i>' +
             '</div>' +
-            '<div class="macro-semana-body' + (isCurrentWeek ? ' open' : '') + '" id="msb-' + i + '">' + materiasHtml + '</div>' +
+            '<div class="macro-semana-body' + (isCurrentWeek ? ' open' : '') + '" id="msb-' + i + '">' + descansosHtml + materiasHtml + '</div>' +
         '</div>';
     }).join('');
 
@@ -1790,9 +1801,11 @@ function renderMacroPlan(plano, container) {
             '<h2 style="font-size:1.7rem;margin-bottom:8px">Plano Mestre CACD</h2>' +
             '<p style="color:var(--text);max-width:760px">' + escapeHtml(plano.resumo || '') + '</p>' +
             '<div class="macro-metrics">' +
-              '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-stopwatch" style="color:var(--primary);margin-right:6px"></i>Duração</span><strong>' + (plano.totalDias || 0) + ' dias</strong></div>' +
+              '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-stopwatch" style="color:var(--primary);margin-right:6px"></i>Aulas concluídas em</span><strong>' + (plano.totalDiasAulas || 0) + ' dias corridos</strong></div>' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-film" style="color:var(--primary);margin-right:6px"></i>Cobertura</span><strong>' + (plano.totalAulas || totalItems) + ' aulas</strong></div>' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-gauge-high" style="color:var(--primary);margin-right:6px"></i>Ritmo</span><strong>' + (plano.aulasPorDia || 0) + ' por dia</strong></div>' +
+              '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-mug-hot" style="color:var(--primary);margin-right:6px"></i>Descanso</span><strong>' + (plano.diasDescansoPorSemana || 0) + ' por semana</strong></div>' +
+              '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-rotate-left" style="color:var(--primary);margin-right:6px"></i>Revisões</span><strong>' + (plano.totalRevisoes || 0) + ' em D+1, D+7 e D+30</strong></div>' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-chart-line" style="color:var(--primary);margin-right:6px"></i>Progresso geral</span><strong>' + pct + '%</strong><div class="card-progress-bar" style="margin-top:6px"><div class="fill" style="width:' + pct + '%"></div></div></div>' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-clipboard-check" style="color:var(--primary);margin-right:6px"></i>Itens concluídos</span><strong>' + doneItems + ' de ' + totalItems + '</strong></div>' +
             '</div>' +
@@ -1800,6 +1813,7 @@ function renderMacroPlan(plano, container) {
         '</div>' +
         '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 16px">' +
           '<span class="macro-badge estudo" style="padding:12px 22px"><i class="fas fa-play-circle"></i> Aulas <small style="font-weight:500;color:var(--text-secondary);margin-left:6px">100% do catálogo em ordem pedagógica</small></span>' +
+          '<span class="macro-badge revisao" style="padding:12px 22px"><i class="fas fa-rotate-left"></i> Revisões espaçadas <small style="font-weight:500;color:var(--text-secondary);margin-left:6px">D+1, D+7 e D+30 após cada aula</small></span>' +
         '</div>' +
         semanasHtml;
 }
