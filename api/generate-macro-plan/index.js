@@ -274,7 +274,11 @@ module.exports = async function handler(req, res) {
     const prova = new Date(dataProva);
     const diffMs = prova - hoje;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const totalSemanas = Math.max(1, Math.floor(diffDays / 7));
+    const maxSemanasAllowed = 26; // Approx 6 months max for generation safety
+    const calculaSemanas = Math.max(1, Math.floor(diffDays / 7));
+    const totalSemanas = Math.min(calculaSemanas, maxSemanasAllowed);
+
+    // Adjust total hours based on capped weeks to avoid confusing the LLM
     const totalHoras = totalSemanas * horasPorSemana;
 
     const materiasTexto = CACD_DATA.materias.map(m => {
