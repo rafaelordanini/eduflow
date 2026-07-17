@@ -104,7 +104,7 @@ function enableVisualPreview() {
     });
     var macroPlan = {
         resumo:'Todas as 4 aulas foram distribuídas com até 2 aulas por dia, 1 dia de descanso por semana e revisões em D+1, D+7 e D+30.',
-        macro_plan_version:4,aulasPorDia:2,diasDescansoPorSemana:1,totalAulas:4,totalRevisoes:12,totalDiasEstudo:2,totalDiasAulas:2,totalDias:32,totalSemanas:5,totalHoras:10,dataInicio:'2026-06-06',dataFimAulas:'2026-06-07',dataFim:'2026-07-07',
+        macro_plan_version:5,modoPlanejamento:'aulas_por_dia',aulasPorDia:2,diasDescansoPorSemana:1,dataProva:null,totalAulas:4,totalRevisoes:12,totalDiasEstudo:2,totalDiasAulas:2,totalDias:32,totalSemanas:5,totalHoras:10,dataInicio:'2026-06-06',dataFimAulas:'2026-06-07',dataFim:'2026-07-07',
         semanas:[
             {semana:1,dataInicio:'2026-06-06',dataFim:'2026-06-12',datasDescanso:['2026-06-12'],materias:[
                 {id:'lesson-2001',subject_id:2,lesson_id:2001,lesson_title:'Ciclo do Ouro e Reformas Pombalinas',tipo:'estudo',nome:'História do Brasil',topico:'Ciclo do Ouro e Reformas Pombalinas',data:'2026-06-06',dia:1,atividades:[{tipo:'aula',descricao:'Assistir à aula',horas:1}],done:true},
@@ -150,7 +150,7 @@ function enableVisualPreview() {
         if (url.indexOf('/api/generate-macro-plan') === 0) return delayed({ created_at:'2026-06-06T12:00:00Z', data_prova:'2027-08-06', plan_json:macroPlan });
         if (url.indexOf('/api/generate-plan') === 0 && method === 'GET') return delayed([todayPlan]);
         if (url.indexOf('/api/generate-plan') === 0 && method === 'POST') return delayed(todayPlan.plan_json);
-        if (url.indexOf('/api/performance?action=macro') === 0) return delayed({ data_prova:'2027-08-06' });
+        if (url.indexOf('/api/performance?action=macro') === 0) return delayed({ data_prova:'2026-06-07', plan_json:macroPlan });
         if (url.indexOf('/api/performance?action=study') === 0) return delayed([{subject:'História do Brasil',duration_minutes:70,started_at:'2026-06-16T12:00:00Z'},{subject:'Português',duration_minutes:45,started_at:'2026-06-15T12:00:00Z'}]);
         if (url.indexOf('/api/performance') === 0) return delayed(performance);
         if (url.indexOf('/api/baron-chat') === 0) return delayed({ reply:'Modo preview ativo. Navegue livremente para revisar o visual.' });
@@ -798,7 +798,8 @@ function renderMasterWeekPanel(macro) {
     }).join('');
 
     var pct = materias.length > 0 ? Math.round(doneCount / materias.length * 100) : 0;
-    var provaDate = macro.data_prova ? new Date(macro.data_prova + 'T12:00:00') : null;
+    var provaDateValue = macro.plan_json.modoPlanejamento === 'data_prova' ? macro.plan_json.dataProva : null;
+    var provaDate = provaDateValue ? new Date(provaDateValue + 'T12:00:00') : null;
     var daysLeft = provaDate ? Math.max(0, Math.ceil((provaDate - new Date()) / 86400000)) : null;
 
     panel.innerHTML =
@@ -1644,7 +1645,7 @@ function renderStudentMacroPlan() {
     var app = document.getElementById('app');
     var nav = renderNavbar(studentNav());
     app.innerHTML = nav + '<div class="container"><div class="page-content">' +
-        zenTitle('fa-map', 'Plano Mestre CACD', 'Um plano longo, sereno e progressivo para sustentar seu preparo até a prova.') +
+        zenTitle('fa-map', 'Plano Mestre CACD', 'Escolha seu ritmo diário ou uma data-alvo; o Barão distribui 100% do conteúdo.') +
         '<div class="loading-spinner" id="macro-main-area"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>' +
         '</div></div>';
 
@@ -1652,17 +1653,37 @@ function renderStudentMacroPlan() {
         var area = document.getElementById('macro-main-area');
         if (!area) return;
 
-        var today = new Date(); today.setMonth(today.getMonth() + 4);
-        var defaultDate = today.toISOString().split('T')[0];
+        var currentPlan = macro && macro.plan_json ? macro.plan_json : null;
+        var todayIso = new Date().toISOString().split('T')[0];
+        var suggestedExam = new Date(); suggestedExam.setMonth(suggestedExam.getMonth() + 4);
+        var defaultMode = currentPlan && currentPlan.modoPlanejamento === 'data_prova' ? 'data_prova' : 'aulas_por_dia';
+        var savedExamDate = currentPlan && currentPlan.dataProva;
+        var defaultDate = savedExamDate && savedExamDate >= todayIso ? savedExamDate : suggestedExam.toISOString().split('T')[0];
         var existingDate = macro && macro.created_at ? new Date(macro.created_at).toLocaleDateString('pt-BR') : null;
 
         var formHtml = '<div class="macro-form" id="macro-gen-form">' +
             '<h2><i class="fas fa-cog" style="color:var(--accent);margin-right:8px"></i>' + (existingDate ? 'Substituir Plano Mestre' : 'Configurar Plano Mestre') + '</h2>' +
-            (existingDate ? '<div style="background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:.88rem"><i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:6px"></i>Você já tem um Plano Mestre criado em ' + existingDate + '. Gerar um novo irá <strong>redistribuir aulas e revisões conforme o novo ritmo e os dias de descanso</strong>.</div>' : '') +
-            '<div class="form-row">' +
-              '<div class="form-group"><label>Data da Prova</label><input type="date" id="macro-data-prova" value="' + (macro && macro.data_prova ? macro.data_prova : defaultDate) + '"></div>' +
-              '<div class="form-group"><label>Aulas por Dia</label><input type="number" id="macro-aulas-dia" min="1" max="20" value="' + (macro && macro.plan_json && macro.plan_json.aulasPorDia ? macro.plan_json.aulasPorDia : 2) + '"><small style="display:block;color:var(--text-muted);margin-top:5px">O plano incluirá 100% das aulas e calculará a duração automaticamente.</small></div>' +
-              '<div class="form-group"><label>Dias de Descanso por Semana</label><input type="number" id="macro-dias-descanso" min="0" max="6" value="' + (macro && macro.plan_json && macro.plan_json.diasDescansoPorSemana != null ? macro.plan_json.diasDescansoPorSemana : 1) + '"><small style="display:block;color:var(--text-muted);margin-top:5px">De 0 a 6 dias, intercalados automaticamente.</small></div>' +
+            (existingDate ? '<div style="background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:.88rem"><i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:6px"></i>Você já tem um Plano Mestre criado em ' + existingDate + '. Gerar um novo irá <strong>redistribuir todas as aulas e revisões conforme o modo escolhido</strong>.</div>' : '') +
+            '<div class="macro-mode-options">' +
+              '<label class="macro-mode-option' + (defaultMode === 'aulas_por_dia' ? ' active' : '') + '">' +
+                '<input type="radio" name="macro-modo" value="aulas_por_dia"' + (defaultMode === 'aulas_por_dia' ? ' checked' : '') + ' onchange="atualizarModoMacroPlan()">' +
+                '<span class="macro-mode-icon"><i class="fas fa-gauge-high"></i></span>' +
+                '<span><strong>Aulas por dia</strong><small>Você define o ritmo e os dias de descanso. O plano calcula quantos dias serão necessários.</small></span>' +
+              '</label>' +
+              '<label class="macro-mode-option' + (defaultMode === 'data_prova' ? ' active' : '') + '">' +
+                '<input type="radio" name="macro-modo" value="data_prova"' + (defaultMode === 'data_prova' ? ' checked' : '') + ' onchange="atualizarModoMacroPlan()">' +
+                '<span class="macro-mode-icon"><i class="fas fa-calendar-check"></i></span>' +
+                '<span><strong>Data da prova</strong><small>Você informa somente a data. O plano calcula e distribui a quantidade necessária de aulas por dia.</small></span>' +
+              '</label>' +
+            '</div>' +
+            '<div id="macro-mode-aulas" style="display:' + (defaultMode === 'aulas_por_dia' ? 'block' : 'none') + '">' +
+              '<div class="form-row">' +
+                '<div class="form-group"><label>Aulas por Dia</label><input type="number" id="macro-aulas-dia" min="1" max="20" value="' + (currentPlan && currentPlan.aulasPorDia ? currentPlan.aulasPorDia : 2) + '"' + (defaultMode === 'aulas_por_dia' ? '' : ' disabled') + '><small style="display:block;color:var(--text-muted);margin-top:5px">O plano incluirá 100% das aulas e calculará a duração total.</small></div>' +
+                '<div class="form-group"><label>Dias de Descanso por Semana</label><input type="number" id="macro-dias-descanso" min="0" max="6" value="' + (currentPlan && currentPlan.diasDescansoPorSemana != null ? currentPlan.diasDescansoPorSemana : 1) + '"' + (defaultMode === 'aulas_por_dia' ? '' : ' disabled') + '><small style="display:block;color:var(--text-muted);margin-top:5px">De 0 a 6 dias sem aulas ou revisões, intercalados automaticamente.</small></div>' +
+              '</div>' +
+            '</div>' +
+            '<div id="macro-mode-prova" style="display:' + (defaultMode === 'data_prova' ? 'block' : 'none') + '">' +
+              '<div class="form-group"><label>Data da Prova</label><input type="date" id="macro-data-prova" min="' + todayIso + '" value="' + defaultDate + '"' + (defaultMode === 'data_prova' ? '' : ' disabled') + '><small style="display:block;color:var(--text-muted);margin-top:5px">As aulas serão equilibradas entre hoje e a prova; o teto diário será calculado automaticamente.</small></div>' +
             '</div>' +
             '<button class="btn btn-primary" style="width:100%;justify-content:center;padding:14px" onclick="gerarMacroPlan()">' +
               '<i class="fas fa-calendar-check"></i> ' + (existingDate ? 'Gerar Novo Plano Mestre' : 'Gerar Plano Mestre') +
@@ -1671,12 +1692,18 @@ function renderStudentMacroPlan() {
           '<div id="macro-output" class="macro-output" style="display:none"></div>';
 
         if (macro && macro.plan_json) {
+            var isExamDateMode = currentPlan.modoPlanejamento === 'data_prova';
+            var planExamLabel = isExamDateMode && currentPlan.dataProva ? new Date(currentPlan.dataProva + 'T12:00:00').toLocaleDateString('pt-BR') : null;
+            var planModeLead = isExamDateMode ? 'Prova em ' + planExamLabel : 'Ritmo definido pelo aluno';
+            var planModeDetails = isExamDateMode
+                ? (currentPlan.totalAulas || 0) + ' aulas · até ' + (currentPlan.aulasPorDia || 0) + ' por dia (calculado) · conteúdo concluído até ' + planExamLabel
+                : (currentPlan.totalAulas || 0) + ' aulas · ' + (currentPlan.aulasPorDia || 0) + ' por dia · ' + (currentPlan.diasDescansoPorSemana || 0) + ' descanso(s)/semana · aulas até ' + (currentPlan.dataFimAulas ? new Date(currentPlan.dataFimAulas + 'T12:00:00').toLocaleDateString('pt-BR') : '—');
             area.className = '';
             area.innerHTML = '<div class="zen-hero" style="min-height:134px;margin-bottom:22px">' +
                 '<img class="zen-hero-avatar" src="/baron-thinking-sm.png" alt="Barão" onerror="this.src=\'/baron-avatar.png\'">' +
                 '<div><h2 style="font-size:1.55rem;margin-bottom:6px">Seu Plano Mestre está ativo</h2>' +
-                '<p>Criado em ' + existingDate + ' · Prova em ' + (macro.data_prova ? new Date(macro.data_prova + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</p>' +
-                '<p style="font-size:.86rem;margin-top:8px"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:6px"></i>' + (macro.plan_json.totalAulas || 0) + ' aulas · ' + (macro.plan_json.aulasPorDia || 0) + ' por dia · ' + (macro.plan_json.diasDescansoPorSemana || 0) + ' descanso(s)/semana · aulas até ' + (macro.plan_json.dataFimAulas ? new Date(macro.plan_json.dataFimAulas + 'T12:00:00').toLocaleDateString('pt-BR') : '—') + '</p></div>' +
+                '<p>Criado em ' + existingDate + ' · ' + planModeLead + '</p>' +
+                '<p style="font-size:.86rem;margin-top:8px"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:6px"></i>' + planModeDetails + '</p></div>' +
                 '<button class="btn btn-secondary btn-sm" style="margin-left:auto;align-self:center" onclick="document.getElementById(\'macro-gen-form-wrap\').style.display=document.getElementById(\'macro-gen-form-wrap\').style.display===\'none\'?\'block\':\'none\'">' +
                   '<i class="fas fa-sync"></i> Recriar plano' +
                 '</button></div>' +
@@ -1696,19 +1723,54 @@ function renderStudentMacroPlan() {
     });
 }
 
+function atualizarModoMacroPlan() {
+    var selected = document.querySelector('input[name="macro-modo"]:checked');
+    if (!selected) return;
+    var isLessonsMode = selected.value === 'aulas_por_dia';
+    var lessonsBlock = document.getElementById('macro-mode-aulas');
+    var examBlock = document.getElementById('macro-mode-prova');
+    var lessonsInput = document.getElementById('macro-aulas-dia');
+    var restInput = document.getElementById('macro-dias-descanso');
+    var examInput = document.getElementById('macro-data-prova');
+
+    if (lessonsBlock) lessonsBlock.style.display = isLessonsMode ? 'block' : 'none';
+    if (examBlock) examBlock.style.display = isLessonsMode ? 'none' : 'block';
+    if (lessonsInput) lessonsInput.disabled = !isLessonsMode;
+    if (restInput) restInput.disabled = !isLessonsMode;
+    if (examInput) examInput.disabled = isLessonsMode;
+    document.querySelectorAll('.macro-mode-option').forEach(function(option) {
+        var radio = option.querySelector('input[type="radio"]');
+        option.classList.toggle('active', Boolean(radio && radio.checked));
+    });
+}
+
 function gerarMacroPlan() {
-    var dataProva = document.getElementById('macro-data-prova').value;
-    var aulasPorDia = parseInt(document.getElementById('macro-aulas-dia').value, 10) || 2;
-    var diasDescansoPorSemana = parseInt(document.getElementById('macro-dias-descanso').value, 10);
-    if (!Number.isFinite(diasDescansoPorSemana)) diasDescansoPorSemana = 1;
-    if (!dataProva) { showToast('Informe a data da prova', 'error'); return; }
-    if (aulasPorDia < 1 || aulasPorDia > 20) { showToast('Informe entre 1 e 20 aulas por dia', 'error'); return; }
-    if (diasDescansoPorSemana < 0 || diasDescansoPorSemana > 6) { showToast('Informe entre 0 e 6 dias de descanso por semana', 'error'); return; }
+    var selectedMode = document.querySelector('input[name="macro-modo"]:checked');
+    var mode = selectedMode ? selectedMode.value : null;
+    var payload = { modoPlanejamento: mode };
+
+    if (mode === 'aulas_por_dia') {
+        var aulasPorDia = parseInt(document.getElementById('macro-aulas-dia').value, 10);
+        var diasDescansoPorSemana = parseInt(document.getElementById('macro-dias-descanso').value, 10);
+        if (!Number.isFinite(aulasPorDia) || aulasPorDia < 1 || aulasPorDia > 20) { showToast('Informe entre 1 e 20 aulas por dia', 'error'); return; }
+        if (!Number.isFinite(diasDescansoPorSemana) || diasDescansoPorSemana < 0 || diasDescansoPorSemana > 6) { showToast('Informe entre 0 e 6 dias de descanso por semana', 'error'); return; }
+        payload.aulasPorDia = aulasPorDia;
+        payload.diasDescansoPorSemana = diasDescansoPorSemana;
+    } else if (mode === 'data_prova') {
+        var dataProva = document.getElementById('macro-data-prova').value;
+        var hoje = new Date().toISOString().split('T')[0];
+        if (!dataProva) { showToast('Informe a data da prova', 'error'); return; }
+        if (dataProva < hoje) { showToast('A data da prova não pode estar no passado', 'error'); return; }
+        payload.dataProva = dataProva;
+    } else {
+        showToast('Escolha como deseja criar o Plano Mestre', 'error');
+        return;
+    }
     var out = document.getElementById('macro-output');
     out.style.display = 'block';
     out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>Organizando 100% das aulas, os descansos e as revisões espaçadas…</p></div>';
     baronFloatPose('reading', 15000);
-    API.generateMacroPlan({ dataProva: dataProva, aulasPorDia: aulasPorDia, diasDescansoPorSemana: diasDescansoPorSemana }).then(function(plano) {
+    API.generateMacroPlan(payload).then(function(plano) {
         renderMacroPlan(plano, out);
     }).catch(function(err) {
         out.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
@@ -1793,6 +1855,11 @@ function renderMacroPlan(plano, container) {
         (s.materias || []).forEach(function(m) { totalItems++; if (m.done) doneItems++; });
     });
     var pct = totalItems > 0 ? Math.round(doneItems / totalItems * 100) : 0;
+    var isExamMode = plano.modoPlanejamento === 'data_prova';
+    var examLabel = isExamMode && plano.dataProva ? new Date(plano.dataProva + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+    var fourthMetric = isExamMode
+        ? '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-calendar-check" style="color:var(--primary);margin-right:6px"></i>Data-alvo</span><strong>' + examLabel + '</strong></div>'
+        : '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-mug-hot" style="color:var(--primary);margin-right:6px"></i>Descanso</span><strong>' + (plano.diasDescansoPorSemana || 0) + ' por semana</strong></div>';
 
     out.innerHTML =
         '<div class="card macro-summary-card">' +
@@ -1803,8 +1870,8 @@ function renderMacroPlan(plano, container) {
             '<div class="macro-metrics">' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-stopwatch" style="color:var(--primary);margin-right:6px"></i>Aulas concluídas em</span><strong>' + (plano.totalDiasAulas || 0) + ' dias corridos</strong></div>' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-film" style="color:var(--primary);margin-right:6px"></i>Cobertura</span><strong>' + (plano.totalAulas || totalItems) + ' aulas</strong></div>' +
-              '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-gauge-high" style="color:var(--primary);margin-right:6px"></i>Ritmo</span><strong>' + (plano.aulasPorDia || 0) + ' por dia</strong></div>' +
-              '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-mug-hot" style="color:var(--primary);margin-right:6px"></i>Descanso</span><strong>' + (plano.diasDescansoPorSemana || 0) + ' por semana</strong></div>' +
+              '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-gauge-high" style="color:var(--primary);margin-right:6px"></i>Ritmo</span><strong>' + (isExamMode ? 'até ' : '') + (plano.aulasPorDia || 0) + ' por dia' + (isExamMode ? ' (calculado)' : '') + '</strong></div>' +
+              fourthMetric +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-rotate-left" style="color:var(--primary);margin-right:6px"></i>Revisões</span><strong>' + (plano.totalRevisoes || 0) + ' em D+1, D+7 e D+30</strong></div>' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-chart-line" style="color:var(--primary);margin-right:6px"></i>Progresso geral</span><strong>' + pct + '%</strong><div class="card-progress-bar" style="margin-top:6px"><div class="fill" style="width:' + pct + '%"></div></div></div>' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-clipboard-check" style="color:var(--primary);margin-right:6px"></i>Itens concluídos</span><strong>' + doneItems + ' de ' + totalItems + '</strong></div>' +
@@ -2101,10 +2168,17 @@ function renderStudentPerformance() {
         // Plano Mestre progress
         var macroHtml = '<div class="perf-card">' +
             '<h3 style="margin-bottom:12px"><i class="fas fa-road" style="color:var(--accent);margin-right:8px"></i>Plano Mestre</h3>';
-        if (macro && macro.data_prova) {
-            var provaDate = new Date(macro.data_prova + 'T12:00:00');
-            var daysLeft = Math.max(0, Math.ceil((provaDate - new Date()) / (1000 * 60 * 60 * 24)));
-            macroHtml += '<div style="font-size:.92rem;margin-bottom:12px">Data da prova: <strong>' + provaDate.toLocaleDateString('pt-BR') + '</strong> — <strong style="color:' + (daysLeft > 30 ? 'var(--primary)' : 'var(--accent)') + '">' + daysLeft + ' dias restantes</strong></div>' +
+        if (macro && macro.plan_json) {
+            var performanceExamDate = macro.plan_json.modoPlanejamento === 'data_prova' ? macro.plan_json.dataProva : null;
+            var provaDate = performanceExamDate ? new Date(performanceExamDate + 'T12:00:00') : null;
+            var planStatusText;
+            if (provaDate) {
+                var daysLeft = Math.max(0, Math.ceil((provaDate - new Date()) / (1000 * 60 * 60 * 24)));
+                planStatusText = 'Data da prova: <strong>' + provaDate.toLocaleDateString('pt-BR') + '</strong> — <strong style="color:' + (daysLeft > 30 ? 'var(--primary)' : 'var(--accent)') + '">' + daysLeft + ' dias restantes</strong>';
+            } else {
+                planStatusText = 'Ritmo: <strong>' + (macro.plan_json.aulasPorDia || 0) + ' aula(s) por dia</strong> · <strong>' + (macro.plan_json.diasDescansoPorSemana || 0) + ' descanso(s) por semana</strong>';
+            }
+            macroHtml += '<div style="font-size:.92rem;margin-bottom:12px">' + planStatusText + '</div>' +
                 '<button class="btn btn-secondary btn-sm" onclick="navigate(\'student-macro-planner\')"><i class="fas fa-road"></i> Ver Plano Mestre</button>';
         } else {
             macroHtml += '<p style="color:var(--text-muted);font-size:.9rem;margin-bottom:12px">Você ainda não criou seu Plano Mestre de estudos.</p>' +

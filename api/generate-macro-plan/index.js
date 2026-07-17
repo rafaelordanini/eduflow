@@ -1,9 +1,8 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
 const {
-  MAX_LESSONS_PER_DAY,
-  MAX_REST_DAYS_PER_WEEK,
   buildCompleteMacroPlan,
+  normalizeMacroPlanRequest,
   planNeedsRepair,
   repairMacroPlan,
 } = require('../../lib/macro-plan');
@@ -67,7 +66,11 @@ module.exports = async function handler(req, res) {
           macroPlan.plan_json,
           curriculum.subjects,
           curriculum.lessons,
-          { doneByLessonId: completedLessons, doneByItemId: completedItems }
+          {
+            dataProva: macroPlan.data_prova,
+            doneByLessonId: completedLessons,
+            doneByItemId: completedItems,
+          }
         );
         const { error: updateError } = await supabase
           .from('macro_plans').update({ plan_json: macroPlan.plan_json }).eq('id', macroPlan.id);
@@ -104,21 +107,15 @@ module.exports = async function handler(req, res) {
 
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
-    const { dataProva, aulasPorDia, diasDescansoPorSemana } = req.body || {};
-    const parsedLessonsPerDay = parseInt(aulasPorDia, 10);
-    const parsedRestDays = parseInt(diasDescansoPorSemana == null ? 0 : diasDescansoPorSemana, 10);
-    if (!dataProva) return res.status(400).json({ error: 'Informe a data da prova (dataProva).' });
-    if (!Number.isFinite(parsedLessonsPerDay) || parsedLessonsPerDay < 1 || parsedLessonsPerDay > MAX_LESSONS_PER_DAY) {
-      return res.status(400).json({ error: 'Informe entre 1 e ' + MAX_LESSONS_PER_DAY + ' aulas por dia.' });
-    }
-    if (!Number.isFinite(parsedRestDays) || parsedRestDays < 0 || parsedRestDays > MAX_REST_DAYS_PER_WEEK) {
-      return res.status(400).json({ error: 'Informe entre 0 e ' + MAX_REST_DAYS_PER_WEEK + ' dias de descanso por semana.' });
-    }
+    const startDate = new Date().toISOString().split('T')[0];
+    const normalizedRequest = normalizeMacroPlanRequest(req.body, startDate);
+    if (normalizedRequest.error) return res.status(400).json({ error: normalizedRequest.error });
+    const planOptions = normalizedRequest.value;
 
     const [curriculum, completedLessons, existingResult] = await Promise.all([
       loadCurriculum(supabase),
       loadCompletedLessons(supabase, user.id),
-      supabase.from('macro_plans').select('plan_json').eq('user_id', user.id)
+      supabase.from('macro_plans').select('plan_json, data_prova').eq('user_id', user.id)
         .order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (existingResult.error) throw existingResult.error;
@@ -127,6 +124,7 @@ module.exports = async function handler(req, res) {
     mergeCompletedFromPlan(completedLessons, completedItems, existingPlan);
     if (existingPlan) {
       const normalizedExistingPlan = repairMacroPlan(existingPlan, curriculum.subjects, curriculum.lessons, {
+        dataProva: existingResult.data && existingResult.data.data_prova,
         doneByLessonId: completedLessons,
         doneByItemId: completedItems,
       });
@@ -137,9 +135,11 @@ module.exports = async function handler(req, res) {
     }
 
     const plan = buildCompleteMacroPlan(curriculum.subjects, curriculum.lessons, {
-      aulasPorDia: parsedLessonsPerDay,
-      diasDescansoPorSemana: parsedRestDays,
-      dataInicio: new Date().toISOString().split('T')[0],
+      modoPlanejamento: planOptions.modoPlanejamento,
+      aulasPorDia: planOptions.aulasPorDia,
+      diasDescansoPorSemana: planOptions.diasDescansoPorSemana,
+      dataInicio: startDate,
+      dataProva: planOptions.dataProva,
       doneByLessonId: completedLessons,
       doneByItemId: completedItems,
     });
@@ -149,7 +149,10 @@ module.exports = async function handler(req, res) {
     const { error: insertError } = await supabase.from('macro_plans').insert({
       user_id: user.id,
       plan_json: plan,
-      data_prova: dataProva,
+      // The current Supabase schema keeps this column NOT NULL. In pace mode,
+      // store the calculated lesson completion date; plan_json is the source
+      // of truth and keeps dataProva as null.
+      data_prova: plan.dataProva || plan.dataFimAulas,
     });
     if (insertError) throw insertError;
 

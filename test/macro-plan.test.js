@@ -2,9 +2,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
+  PLAN_MODE_EXAM_DATE,
+  PLAN_MODE_LESSONS_PER_DAY,
   REVIEW_INTERVALS_DAYS,
   buildCompleteMacroPlan,
   distributeLessons,
+  normalizeMacroPlanRequest,
   planNeedsRepair,
   repairMacroPlan,
 } = require('../lib/macro-plan');
@@ -69,6 +72,74 @@ test('mudar aulas por dia altera o ritmo, não a cobertura nem a sequência', fu
   assert.deepEqual(fastIds, slowIds);
   assert.equal(slowPlan.totalDiasEstudo, 5);
   assert.equal(fastPlan.totalDiasEstudo, 2);
+});
+
+test('modo data da prova calcula o teto diário e distribui todas as aulas até a data-alvo', function() {
+  const plan = buildCompleteMacroPlan(subjects, lessons, {
+    modoPlanejamento: PLAN_MODE_EXAM_DATE,
+    dataInicio: '2026-07-16',
+    dataProva: '2026-07-18',
+  });
+  const studies = studyItems(plan);
+  const countsByDate = new Map();
+  studies.forEach(function(item) {
+    countsByDate.set(item.data, (countsByDate.get(item.data) || 0) + 1);
+  });
+
+  assert.equal(plan.modoPlanejamento, PLAN_MODE_EXAM_DATE);
+  assert.equal(plan.dataProva, '2026-07-18');
+  assert.equal(plan.aulasPorDia, 2);
+  assert.equal(plan.diasDescansoPorSemana, 0);
+  assert.equal(plan.totalAulas, lessons.length);
+  assert.equal(plan.dataFimAulas, '2026-07-18');
+  assert.equal(plan.totalDiasAulas, 3);
+  assert.ok(Array.from(countsByDate.values()).every(function(count) { return count <= 2; }));
+  assert.equal(planNeedsRepair(plan, subjects, lessons), false);
+});
+
+test('modo data da prova aceita a carga necessária mesmo acima do limite do modo manual', function() {
+  const manyLessons = Array.from({ length: 25 }, function(_, index) {
+    return { id: 1000 + index, subject_id: 7, title: 'Aula ' + (index + 1), order_index: index + 1 };
+  });
+  const plan = buildCompleteMacroPlan(subjects, manyLessons, {
+    modoPlanejamento: PLAN_MODE_EXAM_DATE,
+    dataInicio: '2026-07-16',
+    dataProva: '2026-07-16',
+  });
+
+  assert.equal(plan.aulasPorDia, 25);
+  assert.equal(studyItems(plan).length, 25);
+  assert.ok(studyItems(plan).every(function(item) { return item.data === '2026-07-16'; }));
+});
+
+test('aceita somente os campos pertencentes ao modo de planejamento escolhido', function() {
+  const pace = normalizeMacroPlanRequest({
+    modoPlanejamento: PLAN_MODE_LESSONS_PER_DAY,
+    aulasPorDia: 3,
+    diasDescansoPorSemana: 2,
+  }, '2026-07-16');
+  const deadline = normalizeMacroPlanRequest({
+    modoPlanejamento: PLAN_MODE_EXAM_DATE,
+    dataProva: '2026-07-20',
+  }, '2026-07-16');
+  const mixedPace = normalizeMacroPlanRequest({
+    modoPlanejamento: PLAN_MODE_LESSONS_PER_DAY,
+    aulasPorDia: 3,
+    diasDescansoPorSemana: 2,
+    dataProva: '2026-07-20',
+  }, '2026-07-16');
+  const mixedDeadline = normalizeMacroPlanRequest({
+    modoPlanejamento: PLAN_MODE_EXAM_DATE,
+    dataProva: '2026-07-20',
+    aulasPorDia: 3,
+  }, '2026-07-16');
+
+  assert.equal(pace.value.modoPlanejamento, PLAN_MODE_LESSONS_PER_DAY);
+  assert.equal(pace.value.dataProva, null);
+  assert.equal(deadline.value.modoPlanejamento, PLAN_MODE_EXAM_DATE);
+  assert.equal(deadline.value.aulasPorDia, null);
+  assert.match(mixedPace.error, /não informe a data da prova/i);
+  assert.match(mixedDeadline.error, /calculado automaticamente/i);
 });
 
 test('respeita a quantidade semanal de descansos sem agendar tarefas nesses dias', function() {
