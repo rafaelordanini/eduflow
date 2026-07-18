@@ -304,8 +304,11 @@ Esta data foi reservada pelo estudante como dia sem disponibilidade para estudar
 ⚠️ Não programe aulas, revisões ou exercícios para hoje. Oriente o estudante a descansar e retomar o cronograma no próximo dia disponível.`;
     } else if (currentWeek) {
       const semanaNum = currentWeek.semana;
-      const daysToExam = macroPlanRow.data_prova
-        ? Math.max(0, Math.floor((new Date(macroPlanRow.data_prova) - new Date()) / 86400000))
+      const planExamDate = macroPlanRow.plan_json && macroPlanRow.plan_json.modoPlanejamento === 'data_prova'
+        ? macroPlanRow.plan_json.dataProva
+        : null;
+      const daysToExam = planExamDate
+        ? Math.max(0, Math.floor((new Date(planExamDate) - new Date()) / 86400000))
         : null;
 
       const itemLines = (currentWeek.materias || []).map(m => {
