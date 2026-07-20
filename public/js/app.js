@@ -930,7 +930,7 @@ function gerarPlano() {
     var obs = (document.getElementById('planner-obs').value || '').trim();
     var out = document.getElementById('plan-output');
     out.style.display = 'block';
-    out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>O Barão está elaborando seu plano personalizado…</p></div>';
+    out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.style.display=\'none\'"><p>O Barão está elaborando seu plano personalizado…</p></div>';
     baronFloatPose('reading', 8000);
     API.request('POST', '/api/generate-plan', { horasDisponiveis: hours, observacoes: obs }).then(function(plan) {
         renderPlano(plan);
@@ -939,6 +939,20 @@ function gerarPlano() {
     }).catch(function(err) {
         out.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
     });
+}
+
+
+function formatPlanPause(pause) {
+    if (pause == null) return '';
+    if (typeof pause === 'string' || typeof pause === 'number') return String(pause);
+    if (typeof pause !== 'object') return String(pause);
+
+    var parts = [];
+    if (pause.horario) parts.push(pause.horario);
+    if (pause.tipo) parts.push(pause.tipo);
+    if (pause.duracaoMin) parts.push(pause.duracaoMin + 'min');
+    if (pause.descricao) parts.push(pause.descricao);
+    return parts.length ? parts.join(' — ') : '';
 }
 
 function renderPlano(plan) {
@@ -958,7 +972,8 @@ function renderPlano(plan) {
             '</div>' +
         '</div>';
     }).join('');
-    var pausasHtml = (plan.pausas || []).length ? '<div style="font-size:.85rem;color:var(--text-muted);margin-top:8px"><i class="fas fa-coffee"></i> Pausas: ' + plan.pausas.map(function(p){ return escapeHtml(p); }).join(' · ') + '</div>' : '';
+    var pausas = (plan.pausas || []).map(formatPlanPause).filter(Boolean);
+    var pausasHtml = pausas.length ? '<div style="font-size:.85rem;color:var(--text-muted);margin-top:8px"><i class="fas fa-coffee"></i> Pausas: ' + pausas.map(escapeHtml).join(' · ') + '</div>' : '';
     out.innerHTML =
         '<div class="baron-header">' +
           '<div class="baron-avatar"><img src="/baron-pointing-sm.png" alt="Barão" onerror="this.src=\'/baron-avatar.png\'"></div>' +
@@ -1188,7 +1203,7 @@ function gerarQuestoes(lessonId, subjectName, lessonTitle) {
     _currentLesson = lessonTitle || '';
     var btn = document.getElementById('gen-questions-btn');
     var out = document.getElementById('questions-output');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<img src="/baron-reading-sm.png" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"> Gerando questões…'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<img src="/baron-reading-sm.png" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" onerror="this.style.display=\'none\'"> Gerando questões…'; }
     baronFloatPose('reading', 10000);
     out.innerHTML = '';
     _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0 };
@@ -1801,7 +1816,7 @@ function gerarMacroPlan() {
     }
     var out = document.getElementById('macro-output');
     out.style.display = 'block';
-    out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.outerHTML=\'<i class=\\\"fas fa-spinner fa-spin\\\"></i>\'"><p>Organizando 100% das aulas, os descansos e as revisões espaçadas…</p></div>';
+    out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.style.display=\'none\'"><p>Organizando 100% das aulas, os descansos e as revisões espaçadas…</p></div>';
     baronFloatPose('reading', 15000);
     API.generateMacroPlan(payload).then(function(plano) {
         renderMacroPlan(plano, out);
