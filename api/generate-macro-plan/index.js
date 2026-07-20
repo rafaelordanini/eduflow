@@ -5,6 +5,7 @@ const {
   normalizeMacroPlanRequest,
   planNeedsRepair,
   repairMacroPlan,
+  rescheduleMacroPlanFromPendingStudy,
 } = require('../../lib/macro-plan');
 
 async function loadCurriculum(supabase) {
@@ -81,15 +82,27 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
-      const { itemId, done } = req.body || {};
-      if (!itemId || typeof done !== 'boolean') {
-        return res.status(400).json({ error: 'Informe itemId e done (boolean).' });
-      }
+      const { itemId, done, action } = req.body || {};
 
       const { data: macroPlan, error: fetchError } = await supabase
         .from('macro_plans').select('id, plan_json').eq('user_id', user.id)
         .order('created_at', { ascending: false }).limit(1).maybeSingle();
       if (fetchError || !macroPlan) return res.status(404).json({ error: 'Plano não encontrado.' });
+
+      if (action === 'reschedule_from_pending') {
+        macroPlan.plan_json = rescheduleMacroPlanFromPendingStudy(
+          macroPlan.plan_json,
+          new Date().toISOString().split('T')[0]
+        );
+        const { error: updateError } = await supabase
+          .from('macro_plans').update({ plan_json: macroPlan.plan_json }).eq('id', macroPlan.id);
+        if (updateError) throw updateError;
+        return res.status(200).json({ ok: true, plan_json: macroPlan.plan_json });
+      }
+
+      if (!itemId || typeof done !== 'boolean') {
+        return res.status(400).json({ error: 'Informe itemId e done (boolean).' });
+      }
 
       let found = false;
       (macroPlan.plan_json.semanas || []).forEach(function(week) {

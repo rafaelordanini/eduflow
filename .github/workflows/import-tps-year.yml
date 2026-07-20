@@ -1,0 +1,42 @@
+name: Upload curated CACD TPS year
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'TPS year to upload. Run one year at a time.'
+        required: true
+        default: '2003'
+      input:
+        description: 'Curated JSON file path.'
+        required: true
+        default: 'data/processed/tps-2003.json'
+      dry_run:
+        description: 'Validate only; do not write to Supabase.'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Upload curated TPS year
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          ARGS="--year=${{ inputs.year }} --input=${{ inputs.input }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          node scripts/import-tps-year.js $ARGS
