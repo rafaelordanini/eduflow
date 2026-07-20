@@ -743,6 +743,33 @@ function renderStudentPlanner() {
     });
 }
 
+
+function getSequentialMacroStudyDate(planJson, requestedDate) {
+    var target = requestedDate || new Date().toISOString().split('T')[0];
+    var pending = [];
+    (planJson && planJson.semanas || []).forEach(function(week) {
+        (week.materias || []).forEach(function(item) {
+            if (item && item.tipo === 'estudo' && !item.done && item.data) pending.push(item);
+        });
+    });
+    pending.sort(function(a, b) { return String(a.data).localeCompare(String(b.data)) || Number(a.dia || 0) - Number(b.dia || 0); });
+    return pending.length && pending[0].data <= target ? pending[0].data : target;
+}
+
+function atualizarDatasMacroPlan() {
+    var btn = document.getElementById('macro-reschedule-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando datas…'; }
+    API.request('PUT', '/api/generate-macro-plan', { action: 'reschedule_from_pending' }).then(function(resp) {
+        showToast('Datas do Plano Mestre atualizadas a partir de hoje.', 'success');
+        var out = document.querySelector('#macro-main-area .macro-output') || document.getElementById('macro-output');
+        if (resp && resp.plan_json && out) renderMacroPlan(resp.plan_json, out);
+        renderStudentMacroPlan();
+    }).catch(function(err) {
+        showToast(err.message || 'Erro ao atualizar datas do Plano Mestre', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-calendar-day"></i> Atualizar datas atrasadas'; }
+    });
+}
+
 function renderMasterWeekPanel(macro) {
     var panel = document.getElementById('master-week-panel');
     if (!panel) return;
@@ -754,8 +781,10 @@ function renderMasterWeekPanel(macro) {
         return;
     }
     var today = new Date().toISOString().split('T')[0];
+    var studyDate = getSequentialMacroStudyDate(macro.plan_json, today);
+    var isSequentialCatchUp = studyDate !== today;
     var semanas = macro.plan_json.semanas || [];
-    var currentWeek = semanas.find(function(s) { return s.dataInicio && s.dataFim && today >= s.dataInicio && today <= s.dataFim; });
+    var currentWeek = semanas.find(function(s) { return s.dataInicio && s.dataFim && studyDate >= s.dataInicio && studyDate <= s.dataFim; });
     if (!currentWeek) {
         // Find the next upcoming week
         currentWeek = semanas.find(function(s) { return s.dataInicio && today < s.dataInicio; });
@@ -763,10 +792,10 @@ function renderMasterWeekPanel(macro) {
     if (!currentWeek) { panel.innerHTML = ''; return; }
 
     var materias = currentWeek.materias || [];
-    var todayLessons = materias.filter(function(m) { return m.data === today; });
-    var isTodayInWeek = currentWeek.dataInicio && currentWeek.dataFim && today >= currentWeek.dataInicio && today <= currentWeek.dataFim;
+    var todayLessons = materias.filter(function(m) { return m.data === studyDate; });
+    var isTodayInWeek = currentWeek.dataInicio && currentWeek.dataFim && studyDate >= currentWeek.dataInicio && studyDate <= currentWeek.dataFim;
     var showingToday = macro.plan_json.macro_plan_version >= 3 && isTodayInWeek;
-    var isRestToday = (currentWeek.datasDescanso || []).indexOf(today) !== -1;
+    var isRestToday = (currentWeek.datasDescanso || []).indexOf(studyDate) !== -1;
     if (showingToday) materias = todayLessons;
     var noTasksToday = showingToday && !isRestToday && materias.length === 0;
     var pendingStudy = materias.filter(function(m) { return m.tipo === 'estudo' && !m.done; });
@@ -807,9 +836,10 @@ function renderMasterWeekPanel(macro) {
           '<div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:22px">' +
             '<div style="display:flex;align-items:center;gap:18px">' +
               '<div class="subject-icon"><i class="fas fa-calendar-plus"></i></div><div>' +
-              '<h2 style="font-size:1.55rem;margin:0">Plano Mestre — ' + (isRestToday ? 'Descanso de Hoje' : (showingToday ? 'Tarefas de Hoje' : 'Semana ' + (currentWeek.semana || ''))) + '</h2>' +
+              '<h2 style="font-size:1.55rem;margin:0">Plano Mestre — ' + (isRestToday ? 'Descanso de Hoje' : (showingToday ? (isSequentialCatchUp ? 'Próxima etapa pendente' : 'Tarefas de Hoje') : 'Semana ' + (currentWeek.semana || ''))) + '</h2>' +
               '<div style="font-size:.9rem;color:var(--text-secondary);margin-top:4px">' +
                 (currentWeek.dataInicio ? escapeHtml(currentWeek.dataInicio) + ' a ' + escapeHtml(currentWeek.dataFim) : '') +
+                (isSequentialCatchUp ? ' · retomando ' + new Date(studyDate + 'T12:00:00').toLocaleDateString('pt-BR') : '') +
                 (daysLeft !== null ? ' · ' + daysLeft + ' dias para a prova' : '') +
               '</div>' +
             '</div></div>' +
@@ -822,7 +852,7 @@ function renderMasterWeekPanel(macro) {
           '</div>' +
           '<div style="padding:18px 10px;font-size:.9rem;color:var(--text-secondary)">' +
             '<i class="fas fa-magic" style="color:var(--accent);margin-right:5px"></i>' +
-            (isRestToday ? 'O Plano Mestre reservou hoje para descanso.' : (noTasksToday ? 'O Plano Mestre não possui tarefas para esta data.' : 'O plano de hoje será gerado levando em conta os itens pendentes desta data.')) +
+            (isSequentialCatchUp ? 'Há estudo pendente em data anterior; o Plano de Hoje seguirá esta etapa antes de avançar.' : (isRestToday ? 'O Plano Mestre reservou hoje para descanso.' : (noTasksToday ? 'O Plano Mestre não possui tarefas para esta data.' : 'O plano de hoje será gerado levando em conta os itens pendentes desta data.'))) +
           '</div>';
 }
 
@@ -1704,9 +1734,12 @@ function renderStudentMacroPlan() {
                 '<div><h2 style="font-size:1.55rem;margin-bottom:6px">Seu Plano Mestre está ativo</h2>' +
                 '<p>Criado em ' + existingDate + ' · ' + planModeLead + '</p>' +
                 '<p style="font-size:.86rem;margin-top:8px"><i class="fas fa-circle-info" style="color:var(--accent);margin-right:6px"></i>' + planModeDetails + '</p></div>' +
-                '<button class="btn btn-secondary btn-sm" style="margin-left:auto;align-self:center" onclick="document.getElementById(\'macro-gen-form-wrap\').style.display=document.getElementById(\'macro-gen-form-wrap\').style.display===\'none\'?\'block\':\'none\'">' +
-                  '<i class="fas fa-sync"></i> Recriar plano' +
-                '</button></div>' +
+                '<div style="margin-left:auto;align-self:center;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">' +
+                  '<button id="macro-reschedule-btn" class="btn btn-primary btn-sm" onclick="atualizarDatasMacroPlan()"><i class="fas fa-calendar-day"></i> Atualizar datas atrasadas</button>' +
+                  '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'macro-gen-form-wrap\').style.display=document.getElementById(\'macro-gen-form-wrap\').style.display===\'none\'?\'block\':\'none\'">' +
+                    '<i class="fas fa-sync"></i> Recriar plano' +
+                  '</button>' +
+                '</div></div>' +
                 '<div id="macro-gen-form-wrap" style="display:none">' + formHtml + '</div>';
             var tempDiv = document.createElement('div');
             tempDiv.className = 'macro-output';

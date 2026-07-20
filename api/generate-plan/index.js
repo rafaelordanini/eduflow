@@ -1,5 +1,6 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
+const { getSequentialStudyDate } = require('../../lib/macro-plan');
 
 // ──────────────────────────────────────────────────────────
 //  DADOS DO CACD extraídos do Google Drive (IRBr_Planner)
@@ -171,21 +172,24 @@ const CACD_DATA = {
   }
 };
 
-const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 
-// Find which week of the Plano Mestre contains today's date
+// Find which Plano Mestre day should be studied next. If previous study days
+// have pending study items, the daily plan remains anchored to the earliest
+// unfinished study date instead of jumping to the calendar date.
 function getCurrentMasterWeek(planJson, requestedDate) {
-  const today = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || '')
+  const calendarDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || '')
     ? requestedDate
     : new Date().toISOString().split('T')[0];
+  const studyDate = getSequentialStudyDate(planJson, calendarDate);
   if (!planJson || !planJson.semanas) return null;
-  const week = planJson.semanas.find(s => s.dataInicio && s.dataFim && today >= s.dataInicio && today <= s.dataFim) || null;
+  const week = planJson.semanas.find(s => s.dataInicio && s.dataFim && studyDate >= s.dataInicio && studyDate <= s.dataFim) || null;
   if (!week) return null;
-  const dayItems = (week.materias || []).filter(function(item) { return item.data === today; });
+  const dayItems = (week.materias || []).filter(function(item) { return item.data === studyDate; });
   const hasDailySchedule = planJson.macro_plan_version >= 3 || (week.materias || []).some(function(item) { return item.data; });
   return hasDailySchedule
-    ? { ...week, materias: dayItems, _isRestDay: (week.datasDescanso || []).includes(today) }
-    : week;
+    ? { ...week, materias: dayItems, _isRestDay: (week.datasDescanso || []).includes(studyDate), _studyDate: studyDate, _calendarDate: calendarDate }
+    : { ...week, _studyDate: studyDate, _calendarDate: calendarDate };
 }
 
 module.exports = async function handler(req, res) {
@@ -330,7 +334,7 @@ ${daysToExam !== null ? `Faltam ${daysToExam} dias para a prova.\n` : ''}${itemL
 
     const userPrompt = `# Plano de estudos para hoje
 
-**Data:** ${hoje}
+**Data:** ${hoje}${currentWeek && currentWeek._studyDate && currentWeek._studyDate !== currentWeek._calendarDate ? ` (sequência do Plano Mestre em ${currentWeek._studyDate})` : ``}
 **Horas disponíveis:** ${horasDisponiveis}h
 **Matérias em foco atual:** ${focoStr}
 ${observacoes ? `**Observações do estudante:** ${observacoes}` : ''}
@@ -353,28 +357,34 @@ ${materiasTexto}
 9. Seja específico: não diga "estude história", diga "Leia Fausto HB cap.4 pp.141-180: Primeiro Reinado"
 10. Retorne SOMENTE o JSON, sem markdown adicional`;
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
+    if (!deepseekApiKey) {
+      return res.status(500).json({ error: 'DEEPSEEK_API_KEY não configurada.' });
+    }
+
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Authorization': `Bearer ${deepseekApiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://eduflow.vercel.app',
-        'X-Title': 'EduFlow CACD Coach',
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+        model: DEEPSEEK_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.7
+        response_format: { type: 'json_object' },
+        thinking: { type: 'disabled' },
+        temperature: 0.7,
+        max_tokens: 4096
       })
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('OpenRouter error:', errText);
-      return res.status(502).json({ error: 'Erro ao chamar o modelo de IA: ' + errText.substring(0, 200) });
+      console.error('DeepSeek error:', errText);
+      return res.status(502).json({ error: 'Erro ao chamar o modelo DeepSeek: ' + errText.substring(0, 200) });
     }
 
     const aiResponse = await response.json();
