@@ -6,10 +6,12 @@ const {
   PLAN_MODE_LESSONS_PER_DAY,
   REVIEW_INTERVALS_DAYS,
   buildCompleteMacroPlan,
+  getSequentialStudyDate,
   distributeLessons,
   normalizeMacroPlanRequest,
   planNeedsRepair,
   repairMacroPlan,
+  rescheduleMacroPlanFromPendingStudy,
 } = require('../lib/macro-plan');
 
 const subjects = [
@@ -254,4 +256,29 @@ test('detecta plano que deixou uma aula ou revisão obrigatória de fora', funct
 
   assert.equal(planNeedsRepair(missingLesson, subjects, lessons), true);
   assert.equal(planNeedsRepair(missingReview, subjects, lessons), true);
+});
+
+
+test('mantém o Plano de Hoje na primeira aula pendente atrasada', function() {
+  const plan = buildCompleteMacroPlan(subjects, lessons, { aulasPorDia: 1, dataInicio: '2026-07-16' });
+  const studies = studyItems(plan);
+  studies[0].done = true;
+  studies[1].done = false;
+
+  assert.equal(getSequentialStudyDate(plan, '2026-07-20'), studies[1].data);
+});
+
+test('atualiza datas para que a primeira aula pendente vire hoje', function() {
+  const plan = buildCompleteMacroPlan(subjects, lessons, { aulasPorDia: 1, dataInicio: '2026-07-16' });
+  const studies = studyItems(plan);
+  studies[0].done = true;
+  studies[1].done = false;
+
+  const updated = rescheduleMacroPlanFromPendingStudy(plan, '2026-07-20');
+  const updatedStudies = studyItems(updated);
+
+  assert.equal(updatedStudies[1].data, '2026-07-20');
+  assert.equal(updatedStudies[0].done, true);
+  assert.equal(updatedStudies[1].done, false);
+  assert.equal(dateDiffDays(plan.dataInicio, updated.dataInicio), dateDiffDays(studies[1].data, '2026-07-20'));
 });
