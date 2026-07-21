@@ -13,14 +13,9 @@
  *   node scripts/generate-exams-sql.js --year=2010       # só um ano
  *   node scripts/generate-exams-sql.js --out=custom.sql  # caminho de saída
  *
- * Env vars necessárias (.env) — use UMA das opções abaixo:
- *   ANTHROPIC_API_KEY  → usa Claude (Haiku = barato, Sonnet = melhor qualidade)
- *   POE_API_KEY        → usa DeepSeek-V3 via Poe
- *   OPENROUTER_API_KEY → usa Gemini 2.5 Flash via OpenRouter
- *
- * Para escolher o modelo Claude, adicione também:
- *   ANTHROPIC_MODEL=claude-haiku-4-5-20251001   # mais barato
- *   ANTHROPIC_MODEL=claude-sonnet-4-6            # melhor qualidade (padrão)
+ * Env vars necessárias (.env):
+ *   DEEPSEEK_API_KEY
+ *   DEEPSEEK_MODEL=deepseek-v4-flash  # opcional
  */
 
 require('dotenv').config();
@@ -28,11 +23,8 @@ const { google } = require('googleapis');
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
 
-const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
-const POE_BOT = 'deepseek-v3-5';
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 
 const ARGS = process.argv.slice(2);
 const YEAR_ARG = (ARGS.find(a => a.startsWith('--year=')) || '').replace('--year=', '');
@@ -95,69 +87,6 @@ async function downloadPdf(fileId, authClient) {
   return Buffer.from(response.data);
 }
 
-// Calls Anthropic API and returns the full text response
-async function callClaude(prompt) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 16000,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
-  if (!response.ok) throw new Error(`Anthropic ${response.status}: ${await response.text()}`);
-  const data = await response.json();
-  return data.content?.[0]?.text || '';
-}
-
-// Calls Poe API (SSE) and returns the full concatenated text response
-async function callPoe(prompt) {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({
-      version: '1.0',
-      type: 'query',
-      query: [{ role: 'user', content: prompt }],
-      temperature: 0.1,
-    });
-
-    const req = https.request({
-      hostname: 'api.poe.com',
-      path: `/bot/${POE_BOT}`,
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.POE_API_KEY}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, (res) => {
-      let chunks = [];
-      let raw = '';
-      res.on('data', (d) => { raw += d.toString(); });
-      res.on('end', () => {
-        // Parse SSE: each line is "data: {...}"
-        for (const line of raw.split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const evt = JSON.parse(line.slice(6));
-            if (evt.event === 'text' && evt.data && evt.data.text) chunks.push(evt.data.text);
-            if (evt.event === 'error') return reject(new Error(evt.data?.text || 'Poe error'));
-          } catch (_) {}
-        }
-        resolve(chunks.join(''));
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
-
 async function extractQuestionsFromText(fullText, year) {
   const prompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática).
 
@@ -180,31 +109,24 @@ Extraia TODOS os itens. Para cada item:
 Responda APENAS com JSON válido, sem markdown:
 {"questoes":[{"subject":"...","topic":"...","questao_num":1,"item_num":1,"enunciado":"...","item_text":"...","gabarito":"C"}]}`;
 
-  let content;
-  if (process.env.ANTHROPIC_API_KEY) {
-    content = await callClaude(prompt);
-  } else if (process.env.POE_API_KEY) {
-    content = await callPoe(prompt);
-  } else {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://eduflow.vercel.app',
-        'X-Title': 'Barão CACD SQL Generator',
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.1,
-        max_tokens: 32000,
-      }),
-    });
-    if (!response.ok) throw new Error(`OpenRouter ${response.status}: ${await response.text()}`);
-    const data = await response.json();
-    content = data.choices?.[0]?.message?.content || '';
-  }
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: DEEPSEEK_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      thinking: { type: 'disabled' },
+      temperature: 0.1,
+      max_tokens: 16000,
+    }),
+  });
+  if (!response.ok) throw new Error(`DeepSeek ${response.status}: ${await response.text()}`);
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || '';
 
   const cleaned = content.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
   const match = cleaned.match(/\{[\s\S]+\}/);
@@ -234,14 +156,11 @@ async function main() {
   console.log('  EduFlow — Gerador de SQL para TPS CACD');
   console.log('══════════════════════════════════════════════════\n');
 
-  if (!process.env.ANTHROPIC_API_KEY && !process.env.POE_API_KEY && !process.env.OPENROUTER_API_KEY) {
-    console.error('ERRO: defina ANTHROPIC_API_KEY, POE_API_KEY ou OPENROUTER_API_KEY no .env');
+  if (!process.env.DEEPSEEK_API_KEY) {
+    console.error('ERRO: defina DEEPSEEK_API_KEY no .env');
     process.exit(1);
   }
-  const aiProvider = process.env.ANTHROPIC_API_KEY
-    ? `Claude (${ANTHROPIC_MODEL})`
-    : process.env.POE_API_KEY ? `Poe/${POE_BOT}` : `OpenRouter/${OPENROUTER_MODEL}`;
-  console.log(`IA: ${aiProvider}`);
+  console.log(`IA: DeepSeek (${DEEPSEEK_MODEL})`);
 
   console.log('Autenticando com Google Drive...');
   let authClient;

@@ -39,11 +39,17 @@
           <option>Direito Interno</option><option>Geografia</option><option>Inglês</option>
           <option>Francês</option><option>Espanhol</option>
         </select>
+        <label style="font-size:.88rem;color:var(--text-muted);display:block;margin:14px 0 8px">Por quanto tempo?</label>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <input id="timer-duration" type="number" min="1" max="240" value="25" style="width:96px;text-align:center;padding:10px;border:1px solid var(--border);border-radius:var(--radius-md);font-size:.95rem;background:var(--bg)">
+          <span style="color:var(--text-secondary);font-size:.9rem">minutos</span>
+        </div>
       </div>
-      <div id="timer-display" style="font-size:3rem;font-weight:800;font-family:'Fraunces',serif;color:var(--primary);margin-bottom:20px;display:none">00:00:00</div>
-      <div style="display:flex;gap:10px;justify-content:center">
+      <div id="timer-display" style="font-size:3rem;font-weight:800;font-family:'Fraunces',serif;color:var(--primary);margin-bottom:20px;display:none">25:00</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button id="timer-start-btn" class="btn btn-primary" onclick="startStudyTimer()"><i class="fas fa-play"></i> Começar</button>
-        <button id="timer-stop-btn" class="btn btn-danger" onclick="stopStudyTimer()" style="display:none"><i class="fas fa-stop"></i> Encerrar</button>
+        <button id="timer-pause-btn" class="btn btn-secondary" onclick="pauseStudyTimer()" style="display:none"><i class="fas fa-pause"></i> Pausar</button>
+        <button id="timer-cancel-btn" class="btn btn-danger" onclick="cancelStudyTimer()" style="display:none"><i class="fas fa-times"></i> Cancelar</button>
         <button class="btn btn-secondary" onclick="closeStudyTimer()">Fechar</button>
       </div>
     </div>
