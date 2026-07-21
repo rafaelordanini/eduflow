@@ -405,6 +405,7 @@ var DEFAULT_STUDY_TIMER_MINUTES = 25;
 var _studyTimerInterval = null;
 var _studyTimerState = loadStudyTimerState();
 var _studyTimerAudioContext = null;
+var _studyTimerLastCompleted = null;
 
 function loadStudyTimerState() {
     try {
@@ -433,6 +434,40 @@ function getStudyTimerRemainingSeconds() {
     if (!_studyTimerState) return DEFAULT_STUDY_TIMER_MINUTES * 60;
     if (_studyTimerState.status === 'paused') return Math.max(0, Math.ceil((_studyTimerState.remainingMs || 0) / 1000));
     return Math.max(0, Math.ceil((_studyTimerState.endAt - Date.now()) / 1000));
+}
+
+function getStudyTimerProgressPercent() {
+    if (!_studyTimerState || !_studyTimerState.durationMinutes) return 0;
+    var total = _studyTimerState.durationMinutes * 60;
+    var remaining = getStudyTimerRemainingSeconds();
+    return Math.max(0, Math.min(100, ((total - remaining) / total) * 100));
+}
+
+function selectStudyTimerDuration(minutes, el) {
+    var input = document.getElementById('timer-duration');
+    if (input) input.value = minutes;
+    var buttons = document.querySelectorAll('.timer-duration-preset');
+    buttons.forEach(function(btn) { btn.classList.remove('active'); });
+    if (el) el.classList.add('active');
+}
+
+function syncStudyTimerDurationPreset() {
+    var input = document.getElementById('timer-duration');
+    var value = input ? String(parseInt(input.value, 10) || '') : '';
+    var buttons = document.querySelectorAll('.timer-duration-preset');
+    buttons.forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-minutes') === value);
+    });
+}
+
+function startAnotherStudyTimer(minutes) {
+    if (_studyTimerLastCompleted && _studyTimerLastCompleted.subject) {
+        var subject = document.getElementById('timer-subject');
+        if (subject) subject.value = _studyTimerLastCompleted.subject;
+    }
+    _studyTimerLastCompleted = null;
+    selectStudyTimerDuration(minutes || DEFAULT_STUDY_TIMER_MINUTES);
+    updateStudyTimerUI();
 }
 
 function openStudyTimer() {
@@ -512,6 +547,7 @@ function finishStudyTimer(completed) {
     if (!_studyTimerState) return;
     var finishedState = _studyTimerState;
     _studyTimerState = null;
+    _studyTimerLastCompleted = completed ? finishedState : null;
     saveStudyTimerState();
     updateStudyTimerUI();
     if (completed) playStudyTimerAlert();
@@ -525,6 +561,7 @@ function finishStudyTimer(completed) {
     var msg = completed
         ? 'Timer concluído: ' + finishedState.durationMinutes + ' min de ' + finishedState.subject + '!'
         : 'Sessão de ' + finishedState.durationMinutes + ' min de ' + finishedState.subject + ' registrada!';
+    updateStudyTimerUI();
     showToast(msg, 'success');
     baronFloatPose('thumbsup', 4000);
     baronShowSpeech(completed ? 'Tempo concluído. Faça uma pausa breve e volte com foco.' : 'Ótima sessão registrada.');
@@ -556,19 +593,26 @@ function updateStudyTimerUI() {
     var navbarTimer = document.getElementById('navbar-study-timer');
     if (navbarTimer) {
         navbarTimer.innerHTML = isActive
-            ? '<button class="study-timer-pill active" onclick="openStudyTimer()"><i class="fas ' + (isPaused ? 'fa-pause' : 'fa-hourglass-half') + '"></i> ' + formatTimerSeconds(remaining) + '</button>'
+            ? '<button class="study-timer-pill active ' + (isPaused ? 'paused' : '') + '" onclick="openStudyTimer()"><span><i class="fas ' + (isPaused ? 'fa-pause' : 'fa-hourglass-half') + '"></i> ' + escapeHtml(isPaused ? 'Pausado' : (_studyTimerState.subject || 'Foco')) + ' · ' + formatTimerSeconds(remaining) + '</span><em style="width:' + getStudyTimerProgressPercent().toFixed(1) + '%"></em></button>'
             : '<button class="btn btn-accent btn-sm" onclick="openStudyTimer()" style="display:flex;align-items:center;gap:8px"><i class="fas fa-hourglass-start"></i> Estudar Agora</button>';
     }
     var modal = document.getElementById('study-timer-modal');
     if (!modal) return;
-    document.getElementById('timer-subject-select').style.display = isActive ? 'none' : 'block';
-    document.getElementById('timer-display').style.display = isActive ? 'block' : 'none';
-    document.getElementById('timer-start-btn').style.display = isActive && !isPaused ? 'none' : 'inline-flex';
+    var hasCompletion = !!_studyTimerLastCompleted && !isActive;
+    document.getElementById('timer-subject-select').style.display = isActive || hasCompletion ? 'none' : 'block';
+    document.getElementById('timer-active-panel').style.display = isActive ? 'block' : 'none';
+    document.getElementById('timer-complete-panel').style.display = hasCompletion ? 'block' : 'none';
+    document.getElementById('timer-start-btn').style.display = (hasCompletion || (isActive && !isPaused)) ? 'none' : 'inline-flex';
     document.getElementById('timer-pause-btn').style.display = isActive ? 'inline-flex' : 'none';
     document.getElementById('timer-cancel-btn').style.display = isActive ? 'inline-flex' : 'none';
     document.getElementById('timer-start-btn').innerHTML = isPaused ? '<i class="fas fa-play"></i> Retomar' : '<i class="fas fa-play"></i> Começar';
     document.getElementById('timer-pause-btn').innerHTML = isPaused ? '<i class="fas fa-play"></i> Retomar' : '<i class="fas fa-pause"></i> Pausar';
     document.getElementById('timer-display').textContent = formatTimerSeconds(remaining);
+    document.getElementById('timer-active-subject').textContent = isActive ? (_studyTimerState.subject || 'Sessão em andamento') : 'Sessão em andamento';
+    document.getElementById('timer-progress-fill').style.width = getStudyTimerProgressPercent().toFixed(1) + '%';
+    if (_studyTimerLastCompleted) {
+        document.getElementById('timer-complete-message').textContent = _studyTimerLastCompleted.durationMinutes + ' min de ' + _studyTimerLastCompleted.subject + ' registrados. Faça uma pausa breve ou comece outro bloco.';
+    }
     document.getElementById('timer-baron-img').src = isActive ? '/baron-reading-sm.png' : '/baron-thumbsup-sm.png';
 }
 
