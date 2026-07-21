@@ -86,29 +86,28 @@ Responda sempre em português, de forma concisa e prática. Máximo 3 parágrafo
         });
         messages.push({ role: 'user', content: message.trim() });
 
-        // Call OpenRouter
-        const apiKey = process.env.OPENROUTER_API_KEY;
-        if (!apiKey) return res.status(500).json({ error: 'OPENROUTER_API_KEY não configurada.' });
+        // Call DeepSeek
+        const apiKey = process.env.DEEPSEEK_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'DEEPSEEK_API_KEY não configurada.' });
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + apiKey,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://eduflow.app',
-                'X-Title': 'EduFlow CACD'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'google/gemini-2.5-flash',
+                model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
                 messages: messages,
+                thinking: { type: 'disabled' },
                 max_tokens: 600
             })
         });
 
         if (!response.ok) {
             const errText = await response.text();
-            console.error('OpenRouter error:', errText);
-            return res.status(502).json({ error: 'Erro ao chamar o modelo de IA.' });
+            console.error('DeepSeek error:', errText);
+            return res.status(502).json({ error: 'Erro ao chamar o modelo DeepSeek.' });
         }
 
         const data = await response.json();

@@ -1,6 +1,6 @@
 /**
  * Processa um ano: lê o arquivo de texto do PDF (já salvo),
- * chama OpenRouter e grava SQL em output/tps-YEAR.sql
+ * chama DeepSeek e grava SQL em output/tps-YEAR.sql
  * Uso: node scripts/process-year.js <year> <caminho-arquivo-json>
  */
 require('dotenv').config();
@@ -42,23 +42,23 @@ Extraia TODOS os itens. Para cada item informe:
 Responda APENAS com JSON válido sem markdown:
 {"questoes":[{"subject":"...","topic":"...","questao_num":1,"item_num":1,"enunciado":"...","item_text":"...","gabarito":"C"}]}`;
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://eduflow.vercel.app',
-      'X-Title': 'EduFlow CACD Import',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
       messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      thinking: { type: 'disabled' },
       temperature: 0.1,
-      max_tokens: 32000,
+      max_tokens: 16000,
     }),
   });
 
-  if (!response.ok) throw new Error(`OpenRouter ${response.status}: ${await response.text()}`);
+  if (!response.ok) throw new Error(`DeepSeek ${response.status}: ${await response.text()}`);
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content || '';
   const cleaned = content.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
@@ -72,7 +72,7 @@ async function main() {
   const parsed = JSON.parse(raw);
   const fullText = parsed.fileContent || parsed;
 
-  console.log(`[${year}] ${fullText.length} chars — chamando OpenRouter...`);
+  console.log(`[${year}] ${fullText.length} chars — chamando DeepSeek...`);
 
   const questoes = await extractQuestions(String(fullText), year);
   console.log(`[${year}] ${questoes.length} itens extraídos`);
