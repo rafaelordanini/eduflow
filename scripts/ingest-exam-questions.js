@@ -1,7 +1,7 @@
 /**
  * Script to ingest CACD TPS exam questions into the `questions` table.
  * Usage: node scripts/ingest-exam-questions.js
- * Requires: OPENROUTER_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY env vars
+ * Requires: DEEPSEEK_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY env vars
  */
 
 require('dotenv').config();
@@ -14,8 +14,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const MODEL = 'google/gemini-2.5-flash';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 
 const SUBJECT_MAP = {
   'LÍNGUA PORTUGUESA': 'Português',
@@ -40,16 +40,19 @@ const SUBJECT_MAP = {
 };
 
 async function callAI(prompt) {
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const res = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       model: MODEL,
       messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      thinking: { type: 'disabled' },
       temperature: 0.1,
+      max_tokens: 4096,
     })
   });
   if (!res.ok) throw new Error(`AI error: ${await res.text()}`);

@@ -1,7 +1,8 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
 
-const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const DEEPSEEK_MAX_TOKENS = 4096;
 
 const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Seu papel é gerar questões de múltipla escolha no estilo exato das provas TPS do CACD aplicadas de 2003 a 2025.
 
@@ -45,27 +46,33 @@ Requisitos obrigatórios:
 ${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas anteriormente sobre este tópico` : ''}
 6. Retorne SOMENTE o JSON, sem markdown`;
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
+  if (!deepseekApiKey) {
+    throw new Error('DEEPSEEK_API_KEY não configurada.');
+  }
+
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Authorization': `Bearer ${deepseekApiKey}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://eduflow.vercel.app',
-      'X-Title': 'EduFlow CACD Coach',
     },
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
+      model: DEEPSEEK_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.8
+      response_format: { type: 'json_object' },
+      thinking: { type: 'disabled' },
+      temperature: 0.8,
+      max_tokens: DEEPSEEK_MAX_TOKENS
     })
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error('Erro ao chamar o modelo de IA: ' + errText.substring(0, 200));
+    throw new Error('Erro ao chamar o modelo DeepSeek: ' + errText.substring(0, 200));
   }
 
   const aiResponse = await response.json();

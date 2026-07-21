@@ -14,7 +14,7 @@
  * Required env vars (in .env):
  *   SUPABASE_URL
  *   SUPABASE_SERVICE_KEY   (service role key)
- *   OPENROUTER_API_KEY
+ *   DEEPSEEK_API_KEY
  */
 
 require('dotenv').config();
@@ -24,7 +24,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const OPENROUTER_MODEL = 'google/gemini-2.5-flash';
+const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 const BATCH_SIZE = 50;
 
 const ARGS = process.argv.slice(2);
@@ -89,7 +89,7 @@ async function extractPdfText(pdfBuffer) {
   return data.text || '';
 }
 
-// ─── OpenRouter extraction ────────────────────────────────────────────────────
+// ─── DeepSeek extraction ────────────────────────────────────────────────────
 
 async function extractQuestionsFromText(fullText, year) {
   const prompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática).
@@ -113,25 +113,25 @@ Extraia TODOS os itens no formato JSON. Para cada item extraia:
 Responda APENAS com JSON válido, sem markdown, sem explicações:
 {"questoes":[{"subject":"...","topic":"...","questao_num":1,"item_num":1,"enunciado":"...","item_text":"...","gabarito":"C"}]}`;
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://eduflow.vercel.app',
-      'X-Title': 'EduFlow CACD Import',
     },
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
+      model: DEEPSEEK_MODEL,
       messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      thinking: { type: 'disabled' },
       temperature: 0.1,
-      max_tokens: 32000,
+      max_tokens: 16000,
     }),
   });
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`OpenRouter error ${response.status}: ${err}`);
+    throw new Error(`DeepSeek error ${response.status}: ${err}`);
   }
 
   const data = await response.json();
@@ -140,7 +140,7 @@ Responda APENAS com JSON válido, sem markdown, sem explicações:
   // Strip markdown code fences if present
   const cleaned = content.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
   const match = cleaned.match(/\{[\s\S]+\}/);
-  if (!match) throw new Error('No JSON found in OpenRouter response');
+  if (!match) throw new Error('No JSON found in DeepSeek response');
 
   const parsed = JSON.parse(match[0]);
   return parsed.questoes || [];
@@ -202,7 +202,7 @@ async function processYear(year, authClient) {
     return { year, status: 'error', error: e.message };
   }
 
-  console.log(`  [${year}] Calling OpenRouter (${OPENROUTER_MODEL}) for question extraction...`);
+  console.log(`  [${year}] Calling DeepSeek (${DEEPSEEK_MODEL}) for question extraction...`);
   let questoes;
   try {
     questoes = await extractQuestionsFromText(fullText, year);
@@ -257,8 +257,8 @@ async function main() {
   if (FORCE)   console.log(' MODE: FORCE (will overwrite existing)');
   console.log('');
 
-  if (!process.env.OPENROUTER_API_KEY) {
-    console.error('ERROR: OPENROUTER_API_KEY not set in .env');
+  if (!process.env.DEEPSEEK_API_KEY) {
+    console.error('ERROR: DEEPSEEK_API_KEY not set in .env');
     process.exit(1);
   }
   if (!process.env.SUPABASE_URL) {
