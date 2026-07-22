@@ -2305,14 +2305,19 @@ function abrirRevisaoPlano(subjectName) {
                 '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
                 renderEnunciado(q.enunciado) +
                 '<div style="display:flex;gap:10px">' +
-                  '<button type="button" class="btn btn-secondary btn-sm" id="' + qId + '-a" onclick="conferirRevisao(' + JSON.stringify(qId) + ',' + JSON.stringify(q.id) + ',' + JSON.stringify(q.gabarito) + ',' + JSON.stringify(subjectName) + ',\'a\')">Certo</button>' +
-                  '<button type="button" class="btn btn-secondary btn-sm" id="' + qId + '-b" onclick="conferirRevisao(' + JSON.stringify(qId) + ',' + JSON.stringify(q.id) + ',' + JSON.stringify(q.gabarito) + ',' + JSON.stringify(subjectName) + ',\'b\')">Errado</button>' +
+                  '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-a" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-answer="a">Certo</button>' +
+                  '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-b" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-answer="b">Errado</button>' +
                 '</div>' +
                 '<div id="' + qId + '-result" style="margin-top:10px;font-size:.85rem;display:none"></div>' +
                 (q.explicacao ? '<div id="' + qId + '-exp" style="display:none;margin-top:8px;padding:10px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem">' + escapeHtml(q.explicacao) + '</div>' : '') +
             '</div>';
         });
         body.innerHTML = html;
+        body.onclick = function(e) {
+            var btn = e.target.closest('.review-answer-btn');
+            if (!btn || !body.contains(btn)) return;
+            conferirRevisao(btn.dataset.qid, btn.dataset.questionId, btn.dataset.gabarito, btn.dataset.subject, btn.dataset.answer);
+        };
     }).catch(function() {
         var body = document.getElementById('review-modal-body');
         if (body) body.innerHTML = '<p style="color:var(--danger)">Erro ao carregar questões.</p>';
