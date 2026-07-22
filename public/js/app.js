@@ -2237,7 +2237,21 @@ function praticaTopico(subject, topic) {
     });
 }
 
+
+function normalizeAnswer(value) {
+    var normalized = (value == null ? '' : String(value)).trim().toLowerCase();
+    if (normalized === 'c' || normalized === 'certo') return 'a';
+    if (normalized === 'e' || normalized === 'errado') return 'b';
+    return normalized;
+}
+
+function answerLabel(value) {
+    return normalizeAnswer(value) === 'a' ? 'Certo' : 'Errado';
+}
+
 function praticaResponder(questionId, chosen, gabarito) {
+    chosen = normalizeAnswer(chosen);
+    gabarito = normalizeAnswer(gabarito);
     var correct = chosen === gabarito;
     // Highlight options
     ['a','b','c','d','e'].forEach(function(k) {
@@ -2252,7 +2266,7 @@ function praticaResponder(questionId, chosen, gabarito) {
         expEl.style.display = 'block';
         expEl.innerHTML = correct
             ? '<span style="color:var(--success);font-weight:700">✓ Correto!</span>'
-            : '<span style="color:var(--danger);font-weight:700">✗ Errado.</span> Resposta correta: <strong>' + gabarito + ')</strong>';
+            : '<span style="color:var(--danger);font-weight:700">✗ Errado.</span> Resposta correta: <strong>' + answerLabel(gabarito) + '</strong>';
     }
     API.request('POST', '/api/questions', { action: 'record', subject: '', question_id: questionId, correct: correct }).catch(function(){});
 }
@@ -2291,14 +2305,19 @@ function abrirRevisaoPlano(subjectName) {
                 '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
                 renderEnunciado(q.enunciado) +
                 '<div style="display:flex;gap:10px">' +
-                  '<button class="btn btn-secondary btn-sm" id="' + qId + '-a" onclick="conferirRevisao(' + JSON.stringify(qId) + ',' + JSON.stringify(q.id) + ',' + JSON.stringify(q.gabarito) + ',' + JSON.stringify(subjectName) + ',\'a\')">Certo</button>' +
-                  '<button class="btn btn-secondary btn-sm" id="' + qId + '-b" onclick="conferirRevisao(' + JSON.stringify(qId) + ',' + JSON.stringify(q.id) + ',' + JSON.stringify(q.gabarito) + ',' + JSON.stringify(subjectName) + ',\'b\')">Errado</button>' +
+                  '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-a" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-answer="a">Certo</button>' +
+                  '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-b" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-answer="b">Errado</button>' +
                 '</div>' +
                 '<div id="' + qId + '-result" style="margin-top:10px;font-size:.85rem;display:none"></div>' +
                 (q.explicacao ? '<div id="' + qId + '-exp" style="display:none;margin-top:8px;padding:10px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem">' + escapeHtml(q.explicacao) + '</div>' : '') +
             '</div>';
         });
         body.innerHTML = html;
+        body.onclick = function(e) {
+            var btn = e.target.closest('.review-answer-btn');
+            if (!btn || !body.contains(btn)) return;
+            conferirRevisao(btn.dataset.qid, btn.dataset.questionId, btn.dataset.gabarito, btn.dataset.subject, btn.dataset.answer);
+        };
     }).catch(function() {
         var body = document.getElementById('review-modal-body');
         if (body) body.innerHTML = '<p style="color:var(--danger)">Erro ao carregar questões.</p>';
@@ -2306,6 +2325,8 @@ function abrirRevisaoPlano(subjectName) {
 }
 
 function conferirRevisao(qId, questionId, gabarito, subjectName, answer) {
+    gabarito = normalizeAnswer(gabarito);
+    answer = normalizeAnswer(answer);
     var correct = answer === gabarito;
     var resultEl = document.getElementById(qId + '-result');
     var expEl = document.getElementById(qId + '-exp');
@@ -2316,8 +2337,8 @@ function conferirRevisao(qId, questionId, gabarito, subjectName, answer) {
     if (resultEl) {
         resultEl.style.display = 'block';
         resultEl.innerHTML = correct
-            ? '<span style="color:var(--success);font-weight:700"><i class="fas fa-check-circle"></i> Correto! ' + (gabarito === 'a' ? 'Certo' : 'Errado') + '</span>'
-            : '<span style="color:var(--danger);font-weight:700"><i class="fas fa-times-circle"></i> Incorreto. A resposta é ' + (gabarito === 'a' ? 'Certo' : 'Errado') + '</span>';
+            ? '<span style="color:var(--success);font-weight:700"><i class="fas fa-check-circle"></i> Correto! ' + answerLabel(gabarito) + '</span>'
+            : '<span style="color:var(--danger);font-weight:700"><i class="fas fa-times-circle"></i> Incorreto. A resposta é ' + answerLabel(gabarito) + '</span>';
     }
     if (expEl) expEl.style.display = 'block';
     API.request('POST', '/api/questions', { action: 'record', subject: subjectName, question_id: questionId || null, correct: correct }).catch(function(){});
