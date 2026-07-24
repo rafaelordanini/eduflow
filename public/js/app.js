@@ -1646,6 +1646,23 @@ function renderStudentSimulado() {
         renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
         return;
     }
+    if (!_simuladoCheckedActive && !_simuladoLoadingActive) {
+        _simuladoLoadingActive = true;
+        app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Verificando simulados em andamento...</div></div></div>';
+        API.getActiveSimulado().then(function(data) {
+            _simuladoLoadingActive = false;
+            _simuladoCheckedActive = true;
+            if (data && data.simulado) {
+                var respostas = {};
+                (data.simulado.questoes || []).forEach(function(q, i) { if (q.user_answer) respostas[i] = q.user_answer; });
+                _simuladoAtivo = { id: data.simulado.id, questoes: data.simulado.questoes, respostas: respostas, elapsedSeconds: data.simulado.elapsed_seconds || 0 };
+                renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
+            } else {
+                renderStudentSimulado();
+            }
+        }).catch(function() { _simuladoLoadingActive = false; _simuladoCheckedActive = true; showToast('Não foi possível verificar simulados em andamento.', 'info'); renderStudentSimulado(); });
+        return;
+    }
 
     var ongoingHtml = '<div class="simulado-card" id="simulados-andamento"><h2 style="margin-bottom:4px;font-size:1.25rem"><span class="subject-icon" style="width:38px;height:38px;margin-right:10px;display:inline-flex"><i class="fas fa-clock-rotate-left"></i></span>Simulados em andamento</h2>';
     if (_simuladosEmAndamento === null) {
