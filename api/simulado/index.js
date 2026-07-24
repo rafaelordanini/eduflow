@@ -79,6 +79,40 @@ Responda SOMENTE com JSON válido (sem markdown):
   return (result.questoes || []).map(q => ({ ...q, subject: subjectName }));
 }
 
+
+function stripSimuladoForClient(simulado) {
+  const questoes = (simulado.questoes || []).map(q => ({
+    question_id: q.question_id,
+    subject: q.subject,
+    enunciado: q.enunciado,
+    opcoes: q.opcoes,
+    explicacao: simulado.finished_at ? q.explicacao : null,
+    user_answer: q.user_answer || null,
+    is_correct: simulado.finished_at ? q.is_correct : undefined
+  }));
+
+  const progress = simulado.config && simulado.config._progress || {};
+  return {
+    id: simulado.id,
+    tipo: simulado.tipo,
+    config: simulado.config,
+    score: simulado.score,
+    total: simulado.total,
+    started_at: simulado.started_at,
+    finished_at: simulado.finished_at,
+    elapsed_seconds: progress.elapsed_seconds || 0,
+    saved_at: progress.saved_at || null,
+    questoes
+  };
+}
+
+function mergeAnswersIntoQuestoes(questoes, respostas) {
+  return (questoes || []).map((q, idx) => ({
+    ...q,
+    user_answer: respostas && respostas[idx] ? respostas[idx] : q.user_answer || null
+  }));
+}
+
 async function fetchQuestionsForSubjects(supabase, subjectList, fonte) {
   const allQuestoes = [];
 
@@ -150,6 +184,32 @@ module.exports = async function handler(req, res) {
     const supabase = getSupabase();
 
     if (req.method === 'GET') {
+      if (req.query.ongoing === 'true') {
+        const { data: ongoing, error: ongoingError } = await supabase
+          .from('simulados')
+          .select('*')
+          .eq('user_id', user.id)
+          .is('finished_at', null)
+          .order('started_at', { ascending: false });
+
+        if (ongoingError) throw ongoingError;
+        return res.status(200).json({ simulados: (ongoing || []).map(stripSimuladoForClient) });
+      }
+
+      if (req.query.active === 'true') {
+        const { data: active, error: activeError } = await supabase
+          .from('simulados')
+          .select('*')
+          .eq('user_id', user.id)
+          .is('finished_at', null)
+          .order('started_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (activeError) throw activeError;
+        return res.status(200).json({ simulado: active ? stripSimuladoForClient(active) : null });
+      }
+
       const limit = parseInt(req.query.limit) || 10;
       const { data, error } = await supabase
         .from('simulados')
@@ -214,6 +274,67 @@ module.exports = async function handler(req, res) {
         return res.status(201).json({ simuladoId: simulado.id, questoes: questoesForClient });
       }
 
+      if (action === 'save') {
+        const { simuladoId, respostas, elapsedSeconds } = req.body;
+        if (!simuladoId) return res.status(400).json({ error: 'Informe simuladoId.' });
+
+        const { data: simulado, error } = await supabase
+          .from('simulados')
+          .select('*')
+          .eq('id', simuladoId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (error || !simulado) return res.status(404).json({ error: 'Simulado não encontrado.' });
+        if (simulado.finished_at) return res.status(400).json({ error: 'Simulado já finalizado.' });
+
+        const savedAt = new Date().toISOString();
+        const updatedConfig = {
+          ...(simulado.config || {}),
+          _progress: {
+            ...((simulado.config && simulado.config._progress) || {}),
+            elapsed_seconds: Math.max(0, parseInt(elapsedSeconds, 10) || 0),
+            saved_at: savedAt
+          }
+        };
+        const questoes = mergeAnswersIntoQuestoes(simulado.questoes || [], respostas || {});
+
+        const { data: updated, error: updateError } = await supabase
+          .from('simulados')
+          .update({ questoes, config: updatedConfig })
+          .eq('id', simuladoId)
+          .eq('user_id', user.id)
+          .select('*')
+          .single();
+
+        if (updateError) throw updateError;
+        return res.status(200).json({ simulado: stripSimuladoForClient(updated) });
+      }
+
+      if (action === 'cancel') {
+        const { simuladoId } = req.body;
+        if (!simuladoId) return res.status(400).json({ error: 'Informe simuladoId.' });
+
+        const { data: simulado, error } = await supabase
+          .from('simulados')
+          .select('id, finished_at')
+          .eq('id', simuladoId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (error || !simulado) return res.status(404).json({ error: 'Simulado não encontrado.' });
+        if (simulado.finished_at) return res.status(400).json({ error: 'Simulado já finalizado.' });
+
+        const { error: deleteError } = await supabase
+          .from('simulados')
+          .delete()
+          .eq('id', simuladoId)
+          .eq('user_id', user.id);
+
+        if (deleteError) throw deleteError;
+        return res.status(200).json({ ok: true });
+      }
+
       if (action === 'submit') {
         const { simuladoId, respostas } = req.body;
         if (!simuladoId) return res.status(400).json({ error: 'Informe simuladoId.' });
@@ -232,7 +353,7 @@ module.exports = async function handler(req, res) {
         let correct = 0;
 
         const questoesComGabarito = questoes.map((q, idx) => {
-          const userAnswer = respostas ? respostas[idx] : null;
+          const userAnswer = respostas && respostas[idx] ? respostas[idx] : q.user_answer || null;
           const isCorrect = userAnswer && userAnswer.toLowerCase() === (q.gabarito || '').toLowerCase();
           if (isCorrect) correct++;
           return {
@@ -267,7 +388,7 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ score, total, questoes_with_gabarito: questoesComGabarito, subject_stats: subjectStats });
       }
 
-      return res.status(400).json({ error: 'action deve ser "create" ou "submit".' });
+      return res.status(400).json({ error: 'action deve ser "create", "save", "cancel" ou "submit".' });
     }
 
     return res.status(405).json({ error: 'Método não permitido' });
