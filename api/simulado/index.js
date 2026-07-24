@@ -375,6 +375,67 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
+      if (action === 'save') {
+        const { simuladoId, respostas, elapsedSeconds } = req.body;
+        if (!simuladoId) return res.status(400).json({ error: 'Informe simuladoId.' });
+
+        const { data: simulado, error } = await supabase
+          .from('simulados')
+          .select('*')
+          .eq('id', simuladoId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (error || !simulado) return res.status(404).json({ error: 'Simulado não encontrado.' });
+        if (simulado.finished_at) return res.status(400).json({ error: 'Simulado já finalizado.' });
+
+        const savedAt = new Date().toISOString();
+        const updatedConfig = {
+          ...(simulado.config || {}),
+          _progress: {
+            ...((simulado.config && simulado.config._progress) || {}),
+            elapsed_seconds: Math.max(0, parseInt(elapsedSeconds, 10) || 0),
+            saved_at: savedAt
+          }
+        };
+        const questoes = mergeAnswersIntoQuestoes(simulado.questoes || [], respostas || {});
+
+        const { data: updated, error: updateError } = await supabase
+          .from('simulados')
+          .update({ questoes, config: updatedConfig })
+          .eq('id', simuladoId)
+          .eq('user_id', user.id)
+          .select('*')
+          .single();
+
+        if (updateError) throw updateError;
+        return res.status(200).json({ simulado: stripSimuladoForClient(updated) });
+      }
+
+      if (action === 'cancel') {
+        const { simuladoId } = req.body;
+        if (!simuladoId) return res.status(400).json({ error: 'Informe simuladoId.' });
+
+        const { data: simulado, error } = await supabase
+          .from('simulados')
+          .select('id, finished_at')
+          .eq('id', simuladoId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (error || !simulado) return res.status(404).json({ error: 'Simulado não encontrado.' });
+        if (simulado.finished_at) return res.status(400).json({ error: 'Simulado já finalizado.' });
+
+        const { error: deleteError } = await supabase
+          .from('simulados')
+          .delete()
+          .eq('id', simuladoId)
+          .eq('user_id', user.id);
+
+        if (deleteError) throw deleteError;
+        return res.status(200).json({ ok: true });
+      }
+
       if (action === 'submit') {
         const { simuladoId, respostas } = req.body;
         if (!simuladoId) return res.status(400).json({ error: 'Informe simuladoId.' });

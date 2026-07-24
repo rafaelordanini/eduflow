@@ -1676,6 +1676,44 @@ function renderStudentSimulado() {
     }
     ongoingHtml += '</div>';
 
+    var ongoingHtml = '<div class="simulado-card" id="simulados-andamento"><h2 style="margin-bottom:4px;font-size:1.25rem"><span class="subject-icon" style="width:38px;height:38px;margin-right:10px;display:inline-flex"><i class="fas fa-clock-rotate-left"></i></span>Simulados em andamento</h2>';
+    if (_simuladosEmAndamento === null) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px"><i class="fas fa-spinner fa-spin"></i> Carregando simulados salvos...</p>';
+    } else if (!_simuladosEmAndamento.length) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px">Você ainda não tem simulados pausados ou em andamento.</p>';
+    } else {
+        ongoingHtml += _simuladosEmAndamento.map(function(sim) {
+            var answered = (sim.questoes || []).filter(function(q) { return q.user_answer; }).length;
+            var total = sim.total || (sim.questoes || []).length;
+            var started = sim.started_at ? new Date(sim.started_at).toLocaleDateString('pt-BR') : 'data desconhecida';
+            var tipo = sim.tipo === 'cacd' ? 'CACD' : 'Personalizado';
+            return '<div class="simulado-ongoing-row">' +
+                '<div><strong>' + escapeHtml(tipo) + '</strong><small>' + answered + '/' + total + ' respondidas • iniciado em ' + escapeHtml(started) + ' • tempo: ' + formatTime(sim.elapsed_seconds || 0) + '</small></div>' +
+                '<button class="btn btn-primary" onclick="retomarSimulado(' + sim.id + ')"><i class="fas fa-play"></i> Continuar</button>' +
+            '</div>';
+        }).join('');
+    }
+    ongoingHtml += '</div>';
+
+    var ongoingHtml = '<div class="simulado-card" id="simulados-andamento"><h2 style="margin-bottom:4px;font-size:1.25rem"><span class="subject-icon" style="width:38px;height:38px;margin-right:10px;display:inline-flex"><i class="fas fa-clock-rotate-left"></i></span>Simulados em andamento</h2>';
+    if (_simuladosEmAndamento === null) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px"><i class="fas fa-spinner fa-spin"></i> Carregando simulados salvos...</p>';
+    } else if (!_simuladosEmAndamento.length) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px">Você ainda não tem simulados pausados ou em andamento.</p>';
+    } else {
+        ongoingHtml += _simuladosEmAndamento.map(function(sim) {
+            var answered = (sim.questoes || []).filter(function(q) { return q.user_answer; }).length;
+            var total = sim.total || (sim.questoes || []).length;
+            var started = sim.started_at ? new Date(sim.started_at).toLocaleDateString('pt-BR') : 'data desconhecida';
+            var tipo = sim.tipo === 'cacd' ? 'CACD' : 'Personalizado';
+            return '<div class="simulado-ongoing-row">' +
+                '<div><strong>' + escapeHtml(tipo) + '</strong><small>' + answered + '/' + total + ' respondidas • iniciado em ' + escapeHtml(started) + ' • tempo: ' + formatTime(sim.elapsed_seconds || 0) + '</small></div>' +
+                '<button class="btn btn-primary" onclick="retomarSimulado(' + sim.id + ')"><i class="fas fa-play"></i> Continuar</button>' +
+            '</div>';
+        }).join('');
+    }
+    ongoingHtml += '</div>';
+
     var subjectCheckboxes = CACD_SUBJECTS_LIST.map(function(s, i) {
         return '<div class="custom-subject-row">' +
             '<input type="checkbox" id="sim-sub-' + i + '" value="' + escapeHtml(s) + '" style="width:18px;height:18px;accent-color:var(--primary)">' +
