@@ -60,6 +60,8 @@ var API = {
     },
     createSimulado: function(data) { return this.request('POST', '/api/simulado', Object.assign({action:'create'}, data)); },
     submitSimulado: function(simuladoId, respostas) { return this.request('POST', '/api/simulado', {action:'submit', simuladoId:simuladoId, respostas:respostas}); },
+    saveSimulado: function(simuladoId, respostas, elapsedSeconds) { return this.request('POST', '/api/simulado', {action:'save', simuladoId:simuladoId, respostas:respostas, elapsedSeconds:elapsedSeconds}); },
+    getActiveSimulado: function() { return this.request('GET', '/api/simulado?active=true'); },
     getSimulados: function(limit) { return this.request('GET', '/api/simulado' + (limit ? '?limit='+limit : '')); }
 };
 
@@ -146,6 +148,8 @@ function enableVisualPreview() {
     API.generateQuestions = function() { return delayed({ questoes: [] }); };
     API.createSimulado = function() { return delayed({ simuladoId:1, questoes: [] }); };
     API.submitSimulado = function() { return delayed({ score:0,total:1,questoes_with_gabarito:[],subject_stats:{} }); };
+    API.saveSimulado = function() { return delayed({ simulado: null }); };
+    API.getActiveSimulado = function() { return delayed({ simulado: null }); };
     API.request = function(method, url, body) {
         if (url.indexOf('/api/generate-macro-plan') === 0) return delayed({ created_at:'2026-06-06T12:00:00Z', data_prova:'2027-08-06', plan_json:macroPlan });
         if (url.indexOf('/api/generate-plan') === 0 && method === 'GET') return delayed([todayPlan]);
@@ -1622,6 +1626,9 @@ function findLessonAndRender(subjects, lid, prog, nav) {
 var _simuladoAtivo = null; // { id, questoes, respostas, timer, timerInterval }
 var _simuladoTimer = 0;
 var _simuladoTimerInterval = null;
+var _simuladoSaveTimeout = null;
+var _simuladoLoadingActive = false;
+var _simuladoCheckedActive = false;
 
 var CACD_SUBJECTS = ['Português','História do Brasil','História Mundial','Política Internacional','Economia','Direito Interno','Direito Internacional','Geografia','Inglês','Inglês','Inglês'];
 var CACD_SUBJECTS_LIST = ['Português','História do Brasil','História Mundial','Política Internacional','Economia','Direito Interno','Direito Internacional','Geografia','Inglês'];
@@ -1630,9 +1637,26 @@ function renderStudentSimulado() {
     var app = document.getElementById('app');
     var nav = renderNavbar(studentNav());
 
-    // If simulado is active, show it
+    // If simulado is active, show it. Otherwise, try to resume the latest unfinished simulado.
     if (_simuladoAtivo) {
         renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
+        return;
+    }
+    if (!_simuladoCheckedActive && !_simuladoLoadingActive) {
+        _simuladoLoadingActive = true;
+        app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Verificando simulados em andamento...</div></div></div>';
+        API.getActiveSimulado().then(function(data) {
+            _simuladoLoadingActive = false;
+            _simuladoCheckedActive = true;
+            if (data && data.simulado) {
+                var respostas = {};
+                (data.simulado.questoes || []).forEach(function(q, i) { if (q.user_answer) respostas[i] = q.user_answer; });
+                _simuladoAtivo = { id: data.simulado.id, questoes: data.simulado.questoes, respostas: respostas, elapsedSeconds: data.simulado.elapsed_seconds || 0 };
+                renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
+            } else {
+                renderStudentSimulado();
+            }
+        }).catch(function() { _simuladoLoadingActive = false; _simuladoCheckedActive = true; showToast('Não foi possível verificar simulados em andamento.', 'info'); renderStudentSimulado(); });
         return;
     }
 
@@ -1701,7 +1725,8 @@ function criarSimulado(tipo, config) {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparando simulado…'; }
 
     API.createSimulado({ tipo: tipo, config: config }).then(function(data) {
-        _simuladoAtivo = { id: data.simuladoId, questoes: data.questoes, respostas: {} };
+        _simuladoCheckedActive = true;
+        _simuladoAtivo = { id: data.simuladoId, questoes: data.questoes, respostas: {}, elapsedSeconds: 0 };
         renderSimuladoAtivo(data.simuladoId, data.questoes);
     }).catch(function(err) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-play"></i> ' + (tipo === 'cacd' ? 'Iniciar Simulado CACD' : 'Criar Simulado'); }
@@ -1713,13 +1738,14 @@ function renderSimuladoAtivo(simuladoId, questoes) {
     var app = document.getElementById('app');
     var nav = renderNavbar(studentNav());
 
-    // Start timer
+    // Start or resume timer
     if (_simuladoTimerInterval) clearInterval(_simuladoTimerInterval);
-    _simuladoTimer = 0;
+    _simuladoTimer = _simuladoAtivo && _simuladoAtivo.elapsedSeconds ? _simuladoAtivo.elapsedSeconds : 0;
     _simuladoTimerInterval = setInterval(function() {
         _simuladoTimer++;
         var el = document.getElementById('simulado-timer');
         if (el) el.textContent = formatTime(_simuladoTimer);
+        if (_simuladoAtivo) _simuladoAtivo.elapsedSeconds = _simuladoTimer;
     }, 1000);
 
     var questoesHtml = (questoes || []).map(function(q, qi) {
@@ -1727,7 +1753,7 @@ function renderSimuladoAtivo(simuladoId, questoes) {
             var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
             if (!text) return '';
             return '<label class="questao-opcao" for="sq' + qi + op + '">' +
-                '<input type="radio" name="sq' + qi + '" id="sq' + qi + op + '" value="' + op + '" onchange="registrarResposta(' + qi + ',this.value)">' +
+                '<input type="radio" name="sq' + qi + '" id="sq' + qi + op + '" value="' + op + '"' + ((_simuladoAtivo && _simuladoAtivo.respostas && _simuladoAtivo.respostas[qi] === op) || q.user_answer === op ? ' checked' : '') + ' onchange="registrarResposta(' + qi + ',this.value)">' +
                 '<span class="opcao-letra">' + op + ')</span>' +
                 '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
                 '</label>';
@@ -1743,14 +1769,17 @@ function renderSimuladoAtivo(simuladoId, questoes) {
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">' +
             '<div>' +
                 '<h1 style="margin:0;font-size:1.3rem">Simulado em Andamento</h1>' +
-                '<div class="simulado-progress" id="simulado-answered">0/' + questoes.length + ' respondidas</div>' +
+                '<div class="simulado-progress" id="simulado-answered">' + (_simuladoAtivo ? Object.keys(_simuladoAtivo.respostas || {}).length : 0) + '/' + questoes.length + ' respondidas</div>' +
             '</div>' +
             '<div style="text-align:right">' +
-                '<div class="simulado-timer" id="simulado-timer">00:00</div>' +
+                '<div class="simulado-timer" id="simulado-timer">' + formatTime(_simuladoTimer) + '</div>' +
             '</div>' +
         '</div>' +
         questoesHtml +
         '<div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);text-align:center">' +
+            '<button class="btn" id="btn-pausar-simulado" onclick="pausarSimulado(' + simuladoId + ')" style="margin-right:10px">' +
+                '<i class="fas fa-pause"></i> Pausar e continuar depois' +
+            '</button>' +
             '<button class="btn btn-primary" id="btn-finalizar-simulado" onclick="finalizarSimulado(' + simuladoId + ',' + questoes.length + ')">' +
                 '<i class="fas fa-flag-checkered"></i> Finalizar Simulado' +
             '</button>' +
@@ -1769,7 +1798,44 @@ function registrarResposta(qi, value) {
         // Highlight answered card
         var card = document.getElementById('sqcard-' + qi);
         if (card) card.style.borderLeftColor = 'var(--primary)';
+        agendarSalvarSimulado();
     }
+}
+
+function agendarSalvarSimulado() {
+    if (!_simuladoAtivo || !API.saveSimulado) return;
+    if (_simuladoSaveTimeout) clearTimeout(_simuladoSaveTimeout);
+    _simuladoSaveTimeout = setTimeout(function() {
+        salvarSimuladoAtual(false);
+    }, 700);
+}
+
+function salvarSimuladoAtual(showSuccess) {
+    if (!_simuladoAtivo || !API.saveSimulado) return Promise.resolve();
+    return API.saveSimulado(_simuladoAtivo.id, _simuladoAtivo.respostas || {}, _simuladoTimer).then(function(data) {
+        if (data && data.simulado) {
+            _simuladoAtivo.elapsedSeconds = data.simulado.elapsed_seconds || _simuladoTimer;
+        }
+        if (showSuccess) showToast('Simulado pausado. Você poderá continuar depois.', 'success');
+    }).catch(function(err) {
+        showToast('Não foi possível salvar o simulado: ' + err.message, 'error');
+        throw err;
+    });
+}
+
+function pausarSimulado(simuladoId) {
+    var btn = document.getElementById('btn-pausar-simulado');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
+    if (_simuladoSaveTimeout) { clearTimeout(_simuladoSaveTimeout); _simuladoSaveTimeout = null; }
+    if (_simuladoTimerInterval) { clearInterval(_simuladoTimerInterval); _simuladoTimerInterval = null; }
+    salvarSimuladoAtual(true).then(function() {
+        _simuladoAtivo = null;
+        _simuladoCheckedActive = false;
+        navigate('student-dashboard');
+    }).catch(function() {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-pause"></i> Pausar e continuar depois'; }
+        renderSimuladoAtivo(simuladoId, _simuladoAtivo ? _simuladoAtivo.questoes : []);
+    });
 }
 
 function finalizarSimulado(simuladoId, total) {
@@ -1794,6 +1860,7 @@ function _doFinalizarSimulado(simuladoId, btn) {
     if (_simuladoTimerInterval) { clearInterval(_simuladoTimerInterval); _simuladoTimerInterval = null; }
 
     var respostas = _simuladoAtivo ? _simuladoAtivo.respostas : {};
+    if (_simuladoSaveTimeout) { clearTimeout(_simuladoSaveTimeout); _simuladoSaveTimeout = null; }
     API.submitSimulado(simuladoId, respostas).then(function(data) {
         _simuladoAtivo = null;
         renderSimuladoResult(data);
