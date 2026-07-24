@@ -184,6 +184,18 @@ module.exports = async function handler(req, res) {
     const supabase = getSupabase();
 
     if (req.method === 'GET') {
+      if (req.query.ongoing === 'true') {
+        const { data: ongoing, error: ongoingError } = await supabase
+          .from('simulados')
+          .select('*')
+          .eq('user_id', user.id)
+          .is('finished_at', null)
+          .order('started_at', { ascending: false });
+
+        if (ongoingError) throw ongoingError;
+        return res.status(200).json({ simulados: (ongoing || []).map(stripSimuladoForClient) });
+      }
+
       if (req.query.active === 'true') {
         const { data: active, error: activeError } = await supabase
           .from('simulados')
@@ -299,6 +311,30 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ simulado: stripSimuladoForClient(updated) });
       }
 
+      if (action === 'cancel') {
+        const { simuladoId } = req.body;
+        if (!simuladoId) return res.status(400).json({ error: 'Informe simuladoId.' });
+
+        const { data: simulado, error } = await supabase
+          .from('simulados')
+          .select('id, finished_at')
+          .eq('id', simuladoId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (error || !simulado) return res.status(404).json({ error: 'Simulado não encontrado.' });
+        if (simulado.finished_at) return res.status(400).json({ error: 'Simulado já finalizado.' });
+
+        const { error: deleteError } = await supabase
+          .from('simulados')
+          .delete()
+          .eq('id', simuladoId)
+          .eq('user_id', user.id);
+
+        if (deleteError) throw deleteError;
+        return res.status(200).json({ ok: true });
+      }
+
       if (action === 'submit') {
         const { simuladoId, respostas } = req.body;
         if (!simuladoId) return res.status(400).json({ error: 'Informe simuladoId.' });
@@ -352,7 +388,7 @@ module.exports = async function handler(req, res) {
         return res.status(200).json({ score, total, questoes_with_gabarito: questoesComGabarito, subject_stats: subjectStats });
       }
 
-      return res.status(400).json({ error: 'action deve ser "create", "save" ou "submit".' });
+      return res.status(400).json({ error: 'action deve ser "create", "save", "cancel" ou "submit".' });
     }
 
     return res.status(405).json({ error: 'Método não permitido' });

@@ -61,7 +61,9 @@ var API = {
     createSimulado: function(data) { return this.request('POST', '/api/simulado', Object.assign({action:'create'}, data)); },
     submitSimulado: function(simuladoId, respostas) { return this.request('POST', '/api/simulado', {action:'submit', simuladoId:simuladoId, respostas:respostas}); },
     saveSimulado: function(simuladoId, respostas, elapsedSeconds) { return this.request('POST', '/api/simulado', {action:'save', simuladoId:simuladoId, respostas:respostas, elapsedSeconds:elapsedSeconds}); },
+    cancelSimulado: function(simuladoId) { return this.request('POST', '/api/simulado', {action:'cancel', simuladoId:simuladoId}); },
     getActiveSimulado: function() { return this.request('GET', '/api/simulado?active=true'); },
+    getOngoingSimulados: function() { return this.request('GET', '/api/simulado?ongoing=true'); },
     getSimulados: function(limit) { return this.request('GET', '/api/simulado' + (limit ? '?limit='+limit : '')); }
 };
 
@@ -149,7 +151,9 @@ function enableVisualPreview() {
     API.createSimulado = function() { return delayed({ simuladoId:1, questoes: [] }); };
     API.submitSimulado = function() { return delayed({ score:0,total:1,questoes_with_gabarito:[],subject_stats:{} }); };
     API.saveSimulado = function() { return delayed({ simulado: null }); };
+    API.cancelSimulado = function() { return delayed({ ok: true }); };
     API.getActiveSimulado = function() { return delayed({ simulado: null }); };
+    API.getOngoingSimulados = function() { return delayed({ simulados: [] }); };
     API.request = function(method, url, body) {
         if (url.indexOf('/api/generate-macro-plan') === 0) return delayed({ created_at:'2026-06-06T12:00:00Z', data_prova:'2027-08-06', plan_json:macroPlan });
         if (url.indexOf('/api/generate-plan') === 0 && method === 'GET') return delayed([todayPlan]);
@@ -1629,6 +1633,7 @@ var _simuladoTimerInterval = null;
 var _simuladoSaveTimeout = null;
 var _simuladoLoadingActive = false;
 var _simuladoCheckedActive = false;
+var _simuladosEmAndamento = null;
 
 var CACD_SUBJECTS = ['Português','História do Brasil','História Mundial','Política Internacional','Economia','Direito Interno','Direito Internacional','Geografia','Inglês','Inglês','Inglês'];
 var CACD_SUBJECTS_LIST = ['Português','História do Brasil','História Mundial','Política Internacional','Economia','Direito Interno','Direito Internacional','Geografia','Inglês'];
@@ -1637,7 +1642,6 @@ function renderStudentSimulado() {
     var app = document.getElementById('app');
     var nav = renderNavbar(studentNav());
 
-    // If simulado is active, show it. Otherwise, try to resume the latest unfinished simulado.
     if (_simuladoAtivo) {
         renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
         return;
@@ -1660,6 +1664,25 @@ function renderStudentSimulado() {
         return;
     }
 
+    var ongoingHtml = '<div class="simulado-card" id="simulados-andamento"><h2 style="margin-bottom:4px;font-size:1.25rem"><span class="subject-icon" style="width:38px;height:38px;margin-right:10px;display:inline-flex"><i class="fas fa-clock-rotate-left"></i></span>Simulados em andamento</h2>';
+    if (_simuladosEmAndamento === null) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px"><i class="fas fa-spinner fa-spin"></i> Carregando simulados salvos...</p>';
+    } else if (!_simuladosEmAndamento.length) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px">Você ainda não tem simulados pausados ou em andamento.</p>';
+    } else {
+        ongoingHtml += _simuladosEmAndamento.map(function(sim) {
+            var answered = (sim.questoes || []).filter(function(q) { return q.user_answer; }).length;
+            var total = sim.total || (sim.questoes || []).length;
+            var started = sim.started_at ? new Date(sim.started_at).toLocaleDateString('pt-BR') : 'data desconhecida';
+            var tipo = sim.tipo === 'cacd' ? 'CACD' : 'Personalizado';
+            return '<div class="simulado-ongoing-row">' +
+                '<div><strong>' + escapeHtml(tipo) + '</strong><small>' + answered + '/' + total + ' respondidas • iniciado em ' + escapeHtml(started) + ' • tempo: ' + formatTime(sim.elapsed_seconds || 0) + '</small></div>' +
+                '<button class="btn btn-primary" onclick="retomarSimulado(' + sim.id + ')"><i class="fas fa-play"></i> Continuar</button>' +
+            '</div>';
+        }).join('');
+    }
+    ongoingHtml += '</div>';
+
     var subjectCheckboxes = CACD_SUBJECTS_LIST.map(function(s, i) {
         return '<div class="custom-subject-row">' +
             '<input type="checkbox" id="sim-sub-' + i + '" value="' + escapeHtml(s) + '" style="width:18px;height:18px;accent-color:var(--primary)">' +
@@ -1676,27 +1699,19 @@ function renderStudentSimulado() {
 
     app.innerHTML = nav + '<div class="container"><div class="page-content">' +
         zenTitle('fa-pen-to-square', 'Simulado', 'Teste seus conhecimentos com simulados no estilo CACD.') +
-
+        ongoingHtml +
         '<div class="simulado-card">' +
             '<h2 style="margin-bottom:4px;font-size:1.45rem"><span class="subject-icon" style="width:44px;height:44px;margin-right:12px;display:inline-flex"><i class="fas fa-landmark"></i></span>Simulado CACD</h2>' +
             '<p style="font-size:.92rem;color:var(--text-secondary);margin-bottom:18px">65 questões distribuídas pelas 9 matérias do CACD, conforme distribuição oficial.</p>' +
             '<div style="border:1px solid var(--border-warm);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.58)">' + fonteOptions('cacd') + '</div>' +
-            '<button class="btn btn-primary" style="margin-top:18px;width:100%;justify-content:center;padding:14px" id="btn-iniciar-cacd">' +
-                '<i class="fas fa-play"></i> Iniciar Simulado CACD' +
-            '</button>' +
+            '<button class="btn btn-primary" style="margin-top:18px;width:100%;justify-content:center;padding:14px" id="btn-iniciar-cacd"><i class="fas fa-play"></i> Iniciar Simulado CACD</button>' +
         '</div>' +
-
         '<div class="simulado-card">' +
             '<h2 style="margin-bottom:4px;font-size:1.45rem"><span class="subject-icon" style="width:44px;height:44px;margin-right:12px;display:inline-flex"><i class="fas fa-sliders"></i></span>Simulado Personalizado</h2>' +
             '<p style="font-size:.92rem;color:var(--text-secondary);margin-bottom:16px">Escolha as matérias e quantidade de questões.</p>' +
-            '<div style="margin-bottom:18px;border:1px solid var(--border-warm);border-radius:18px;padding:12px 20px;background:rgba(255,255,255,.58)">' +
-                '<label style="font-size:.9rem;font-weight:700;color:var(--text-strong);display:block;margin-bottom:6px">Matérias e quantidade de questões</label>' +
-                subjectCheckboxes +
-            '</div>' +
+            '<div style="margin-bottom:18px;border:1px solid var(--border-warm);border-radius:18px;padding:12px 20px;background:rgba(255,255,255,.58)"><label style="font-size:.9rem;font-weight:700;color:var(--text-strong);display:block;margin-bottom:6px">Matérias e quantidade de questões</label>' + subjectCheckboxes + '</div>' +
             '<div style="border:1px solid var(--border-warm);border-radius:18px;overflow:hidden;background:rgba(255,255,255,.58)">' + fonteOptions('custom') + '</div>' +
-            '<button class="btn btn-primary" style="margin-top:18px;width:100%;justify-content:center;padding:14px" id="btn-criar-custom">' +
-                '<i class="fas fa-play"></i> Criar Simulado' +
-            '</button>' +
+            '<button class="btn btn-primary" style="margin-top:18px;width:100%;justify-content:center;padding:14px" id="btn-criar-custom"><i class="fas fa-play"></i> Criar Simulado</button>' +
         '</div>' +
     '</div></div>';
 
@@ -1718,6 +1733,30 @@ function renderStudentSimulado() {
         var fonte = document.querySelector('input[name="fonte-custom"]:checked');
         criarSimulado('custom', { subjects: subjects, fonte: fonte ? fonte.value : 'ai' });
     });
+
+    if (_simuladosEmAndamento === null && !_simuladoLoadingActive) {
+        _simuladoLoadingActive = true;
+        API.getOngoingSimulados().then(function(data) {
+            _simuladoLoadingActive = false;
+            _simuladosEmAndamento = data && data.simulados ? data.simulados : [];
+            if (!_simuladoAtivo) renderStudentSimulado();
+        }).catch(function() {
+            _simuladoLoadingActive = false;
+            _simuladosEmAndamento = [];
+            showToast('Não foi possível carregar simulados em andamento.', 'info');
+            if (!_simuladoAtivo) renderStudentSimulado();
+        });
+    }
+}
+
+function retomarSimulado(simuladoId) {
+    var lista = _simuladosEmAndamento || [];
+    var sim = lista.find(function(item) { return String(item.id) === String(simuladoId); });
+    if (!sim) { showToast('Simulado em andamento não encontrado.', 'error'); return; }
+    var respostas = {};
+    (sim.questoes || []).forEach(function(q, i) { if (q.user_answer) respostas[i] = q.user_answer; });
+    _simuladoAtivo = { id: sim.id, questoes: sim.questoes || [], respostas: respostas, elapsedSeconds: sim.elapsed_seconds || 0 };
+    renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
 }
 
 function criarSimulado(tipo, config) {
@@ -1725,6 +1764,7 @@ function criarSimulado(tipo, config) {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparando simulado…'; }
 
     API.createSimulado({ tipo: tipo, config: config }).then(function(data) {
+        _simuladosEmAndamento = null;
         _simuladoCheckedActive = true;
         _simuladoAtivo = { id: data.simuladoId, questoes: data.questoes, respostas: {}, elapsedSeconds: 0 };
         renderSimuladoAtivo(data.simuladoId, data.questoes);
@@ -1778,7 +1818,10 @@ function renderSimuladoAtivo(simuladoId, questoes) {
         questoesHtml +
         '<div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--border);text-align:center">' +
             '<button class="btn" id="btn-pausar-simulado" onclick="pausarSimulado(' + simuladoId + ')" style="margin-right:10px">' +
-                '<i class="fas fa-pause"></i> Pausar e continuar depois' +
+                '<i class="fas fa-pause"></i> Pausar' +
+            '</button>' +
+            '<button class="btn btn-danger" id="btn-cancelar-simulado" onclick="cancelarSimulado(' + simuladoId + ')" style="margin-right:10px">' +
+                '<i class="fas fa-trash"></i> Cancelar' +
             '</button>' +
             '<button class="btn btn-primary" id="btn-finalizar-simulado" onclick="finalizarSimulado(' + simuladoId + ',' + questoes.length + ')">' +
                 '<i class="fas fa-flag-checkered"></i> Finalizar Simulado' +
@@ -1830,11 +1873,39 @@ function pausarSimulado(simuladoId) {
     if (_simuladoTimerInterval) { clearInterval(_simuladoTimerInterval); _simuladoTimerInterval = null; }
     salvarSimuladoAtual(true).then(function() {
         _simuladoAtivo = null;
+        _simuladosEmAndamento = null;
         _simuladoCheckedActive = false;
-        navigate('student-dashboard');
+        navigate('student-simulado');
     }).catch(function() {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-pause"></i> Pausar e continuar depois'; }
         renderSimuladoAtivo(simuladoId, _simuladoAtivo ? _simuladoAtivo.questoes : []);
+    });
+}
+
+function cancelarSimulado(simuladoId) {
+    showConfirmModal(
+        'Cancelar Simulado',
+        'Tem certeza que deseja cancelar este simulado? Todas as respostas salvas serão perdidas.',
+        'Cancelar simulado',
+        'btn-danger',
+        function() { _doCancelarSimulado(simuladoId); }
+    );
+}
+
+function _doCancelarSimulado(simuladoId) {
+    var btn = document.getElementById('btn-cancelar-simulado');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelando...'; }
+    if (_simuladoSaveTimeout) { clearTimeout(_simuladoSaveTimeout); _simuladoSaveTimeout = null; }
+    if (_simuladoTimerInterval) { clearInterval(_simuladoTimerInterval); _simuladoTimerInterval = null; }
+    API.cancelSimulado(simuladoId).then(function() {
+        _simuladoAtivo = null;
+        _simuladosEmAndamento = null;
+        showToast('Simulado cancelado.', 'success');
+        navigate('student-simulado');
+    }).catch(function(err) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash"></i> Cancelar'; }
+        showToast('Erro ao cancelar: ' + err.message, 'error');
+        if (_simuladoAtivo) renderSimuladoAtivo(simuladoId, _simuladoAtivo.questoes || []);
     });
 }
 
@@ -1863,6 +1934,7 @@ function _doFinalizarSimulado(simuladoId, btn) {
     if (_simuladoSaveTimeout) { clearTimeout(_simuladoSaveTimeout); _simuladoSaveTimeout = null; }
     API.submitSimulado(simuladoId, respostas).then(function(data) {
         _simuladoAtivo = null;
+        _simuladosEmAndamento = null;
         renderSimuladoResult(data);
     }).catch(function(err) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-flag-checkered"></i> Finalizar Simulado'; }
