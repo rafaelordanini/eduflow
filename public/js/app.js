@@ -1656,23 +1656,25 @@ function renderStudentSimulado() {
             showToast('Não foi possível salvar o simulado em andamento: ' + err.message, 'error');
         });
     }
-    if (!_simuladoCheckedActive && !_simuladoLoadingActive) {
-        _simuladoLoadingActive = true;
-        app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="loading"><i class="fas fa-spinner fa-spin"></i> Verificando simulados em andamento...</div></div></div>';
-        API.getActiveSimulado().then(function(data) {
-            _simuladoLoadingActive = false;
-            _simuladoCheckedActive = true;
-            if (data && data.simulado) {
-                var respostas = {};
-                (data.simulado.questoes || []).forEach(function(q, i) { if (q.user_answer) respostas[i] = q.user_answer; });
-                _simuladoAtivo = { id: data.simulado.id, questoes: data.simulado.questoes, respostas: respostas, elapsedSeconds: data.simulado.elapsed_seconds || 0 };
-                renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
-            } else {
-                renderStudentSimulado();
-            }
-        }).catch(function() { _simuladoLoadingActive = false; _simuladoCheckedActive = true; showToast('Não foi possível verificar simulados em andamento.', 'info'); renderStudentSimulado(); });
-        return;
+
+    var ongoingHtml = '<div class="simulado-card" id="simulados-andamento"><h2 style="margin-bottom:4px;font-size:1.25rem"><span class="subject-icon" style="width:38px;height:38px;margin-right:10px;display:inline-flex"><i class="fas fa-clock-rotate-left"></i></span>Simulados em andamento</h2>';
+    if (_simuladosEmAndamento === null) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px"><i class="fas fa-spinner fa-spin"></i> Carregando simulados salvos...</p>';
+    } else if (!_simuladosEmAndamento.length) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px">Você ainda não tem simulados pausados ou em andamento.</p>';
+    } else {
+        ongoingHtml += _simuladosEmAndamento.map(function(sim) {
+            var answered = (sim.questoes || []).filter(function(q) { return q.user_answer; }).length;
+            var total = sim.total || (sim.questoes || []).length;
+            var started = sim.started_at ? new Date(sim.started_at).toLocaleDateString('pt-BR') : 'data desconhecida';
+            var tipo = sim.tipo === 'cacd' ? 'CACD' : 'Personalizado';
+            return '<div class="simulado-ongoing-row">' +
+                '<div><strong>' + escapeHtml(tipo) + '</strong><small>' + answered + '/' + total + ' respondidas • iniciado em ' + escapeHtml(started) + ' • tempo: ' + formatTime(sim.elapsed_seconds || 0) + '</small></div>' +
+                '<button class="btn btn-primary" onclick="retomarSimulado(' + sim.id + ')"><i class="fas fa-play"></i> Continuar</button>' +
+            '</div>';
+        }).join('');
     }
+    ongoingHtml += '</div>';
 
     var ongoingHtml = '<div class="simulado-card" id="simulados-andamento"><h2 style="margin-bottom:4px;font-size:1.25rem"><span class="subject-icon" style="width:38px;height:38px;margin-right:10px;display:inline-flex"><i class="fas fa-clock-rotate-left"></i></span>Simulados em andamento</h2>';
     if (_simuladosEmAndamento === null) {
@@ -1784,7 +1786,7 @@ function retomarSimulado(simuladoId) {
     if (!sim) { showToast('Simulado em andamento não encontrado.', 'error'); return; }
     var respostas = {};
     (sim.questoes || []).forEach(function(q, i) { if (q.user_answer) respostas[i] = q.user_answer; });
-    _simuladoAtivo = { id: sim.id, questoes: sim.questoes || [], respostas: respostas, elapsedSeconds: sim.elapsed_seconds || 0 };
+    _simuladoAtivo = { id: sim.id, tipo: sim.tipo, started_at: sim.started_at, questoes: sim.questoes || [], respostas: respostas, elapsedSeconds: sim.elapsed_seconds || 0 };
     renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
 }
 
@@ -1795,7 +1797,7 @@ function criarSimulado(tipo, config) {
     API.createSimulado({ tipo: tipo, config: config }).then(function(data) {
         _simuladosEmAndamento = null;
         _simuladoCheckedActive = true;
-        _simuladoAtivo = { id: data.simuladoId, questoes: data.questoes, respostas: {}, elapsedSeconds: 0 };
+        _simuladoAtivo = { id: data.simuladoId, tipo: data.tipo || tipo, started_at: data.started_at || new Date().toISOString(), questoes: data.questoes, respostas: {}, elapsedSeconds: 0 };
         renderSimuladoAtivo(data.simuladoId, data.questoes);
     }).catch(function(err) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-play"></i> ' + (tipo === 'cacd' ? 'Iniciar Simulado CACD' : 'Criar Simulado'); }
@@ -1896,18 +1898,39 @@ function salvarSimuladoAtual(showSuccess) {
 }
 
 function pausarSimulado(simuladoId) {
+    if (!_simuladoAtivo) { navigate('student-simulado'); return; }
     var btn = document.getElementById('btn-pausar-simulado');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...'; }
     if (_simuladoSaveTimeout) { clearTimeout(_simuladoSaveTimeout); _simuladoSaveTimeout = null; }
     if (_simuladoTimerInterval) { clearInterval(_simuladoTimerInterval); _simuladoTimerInterval = null; }
-    salvarSimuladoAtual(true).then(function() {
-        _simuladoAtivo = null;
+
+    var pausedSimulado = _simuladoAtivo;
+    var pausedElapsed = _simuladoTimer;
+    var respostas = pausedSimulado.respostas || {};
+    var questoesPausadas = (pausedSimulado.questoes || []).map(function(q, idx) {
+        return Object.assign({}, q, { user_answer: respostas[idx] || q.user_answer || null });
+    });
+
+    _simuladoAtivo = null;
+    _simuladosEmAndamento = [{
+        id: pausedSimulado.id,
+        tipo: pausedSimulado.tipo || 'custom',
+        total: questoesPausadas.length,
+        started_at: pausedSimulado.started_at || new Date().toISOString(),
+        elapsed_seconds: pausedElapsed,
+        questoes: questoesPausadas
+    }];
+    showToast('Simulado pausado. Você poderá continuar depois.', 'success');
+    state.view = 'student-simulado';
+    renderStudentSimulado();
+    window.scrollTo(0, 0);
+
+    API.saveSimulado(pausedSimulado.id, respostas, pausedElapsed).then(function(data) {
+        if (data && data.simulado) _simuladosEmAndamento = [data.simulado];
+    }).catch(function(err) {
         _simuladosEmAndamento = null;
-        _simuladoCheckedActive = false;
-        navigate('student-simulado');
-    }).catch(function() {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-pause"></i> Pausar e continuar depois'; }
-        renderSimuladoAtivo(simuladoId, _simuladoAtivo ? _simuladoAtivo.questoes : []);
+        showToast('Não foi possível salvar o simulado: ' + err.message, 'error');
+        if (state.view === 'student-simulado') renderStudentSimulado();
     });
 }
 
