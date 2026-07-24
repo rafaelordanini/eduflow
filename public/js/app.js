@@ -1643,8 +1643,18 @@ function renderStudentSimulado() {
     var nav = renderNavbar(studentNav());
 
     if (_simuladoAtivo) {
-        renderSimuladoAtivo(_simuladoAtivo.id, _simuladoAtivo.questoes);
-        return;
+        var pausedSimulado = _simuladoAtivo;
+        var pausedElapsed = _simuladoTimer;
+        if (_simuladoSaveTimeout) { clearTimeout(_simuladoSaveTimeout); _simuladoSaveTimeout = null; }
+        if (_simuladoTimerInterval) { clearInterval(_simuladoTimerInterval); _simuladoTimerInterval = null; }
+        _simuladoAtivo = null;
+        _simuladosEmAndamento = null;
+        API.saveSimulado(pausedSimulado.id, pausedSimulado.respostas || {}, pausedElapsed).then(function() {
+            _simuladosEmAndamento = null;
+            renderStudentSimulado();
+        }).catch(function(err) {
+            showToast('Não foi possível salvar o simulado em andamento: ' + err.message, 'error');
+        });
     }
     if (!_simuladoCheckedActive && !_simuladoLoadingActive) {
         _simuladoLoadingActive = true;
@@ -1663,6 +1673,25 @@ function renderStudentSimulado() {
         }).catch(function() { _simuladoLoadingActive = false; _simuladoCheckedActive = true; showToast('Não foi possível verificar simulados em andamento.', 'info'); renderStudentSimulado(); });
         return;
     }
+
+    var ongoingHtml = '<div class="simulado-card" id="simulados-andamento"><h2 style="margin-bottom:4px;font-size:1.25rem"><span class="subject-icon" style="width:38px;height:38px;margin-right:10px;display:inline-flex"><i class="fas fa-clock-rotate-left"></i></span>Simulados em andamento</h2>';
+    if (_simuladosEmAndamento === null) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px"><i class="fas fa-spinner fa-spin"></i> Carregando simulados salvos...</p>';
+    } else if (!_simuladosEmAndamento.length) {
+        ongoingHtml += '<p style="font-size:.9rem;color:var(--text-secondary);margin-top:10px">Você ainda não tem simulados pausados ou em andamento.</p>';
+    } else {
+        ongoingHtml += _simuladosEmAndamento.map(function(sim) {
+            var answered = (sim.questoes || []).filter(function(q) { return q.user_answer; }).length;
+            var total = sim.total || (sim.questoes || []).length;
+            var started = sim.started_at ? new Date(sim.started_at).toLocaleDateString('pt-BR') : 'data desconhecida';
+            var tipo = sim.tipo === 'cacd' ? 'CACD' : 'Personalizado';
+            return '<div class="simulado-ongoing-row">' +
+                '<div><strong>' + escapeHtml(tipo) + '</strong><small>' + answered + '/' + total + ' respondidas • iniciado em ' + escapeHtml(started) + ' • tempo: ' + formatTime(sim.elapsed_seconds || 0) + '</small></div>' +
+                '<button class="btn btn-primary" onclick="retomarSimulado(' + sim.id + ')"><i class="fas fa-play"></i> Continuar</button>' +
+            '</div>';
+        }).join('');
+    }
+    ongoingHtml += '</div>';
 
     var ongoingHtml = '<div class="simulado-card" id="simulados-andamento"><h2 style="margin-bottom:4px;font-size:1.25rem"><span class="subject-icon" style="width:38px;height:38px;margin-right:10px;display:inline-flex"><i class="fas fa-clock-rotate-left"></i></span>Simulados em andamento</h2>';
     if (_simuladosEmAndamento === null) {
