@@ -11,7 +11,9 @@
     "import-exams:dry": "node scripts/import-all-exams.js --dry-run",
     "generate-sql": "node scripts/generate-exams-sql.js",
     "generate-sql:year": "node scripts/generate-exams-sql.js",
-    "import-tps-year": "node scripts/import-tps-year.js"
+    "import-tps-year": "node scripts/import-tps-year.js",
+    "questions:review": "node scripts/reclassify-questions.js",
+    "questions:reclassify": "node scripts/reclassify-questions.js --apply"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

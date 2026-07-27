@@ -1,5 +1,6 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth, requireAdmin } = require('../../lib/middleware');
+const { classifyQuestion } = require('../../lib/question-classifier');
 
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 const DEEPSEEK_MAX_TOKENS = 16000;
@@ -164,16 +165,20 @@ module.exports = async function handler(req, res) {
           return res.status(422).json({ error: 'Nenhuma questão extraída. Verifique o texto.' });
         }
 
-        const rows = questoes.map(q => ({
-          source: 'exam',
-          year: Number(year),
-          subject: q.subject,
-          topic: q.topic || null,
-          enunciado: `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''}`.substring(0, 1000),
-          opcoes: { a: 'Certo', b: 'Errado' },
-          gabarito: q.gabarito === 'C' ? 'a' : 'b',
-          explicacao: null,
-        }));
+        const rows = questoes.map(q => {
+          const enunciado = `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''} | ${q.item_text || ''}`.substring(0, 2000);
+          const classification = classifyQuestion({ ...q, enunciado });
+          return ({
+            source: 'exam',
+            year: Number(year),
+            subject: classification.subject,
+            topic: classification.topic,
+            enunciado,
+            opcoes: { a: 'Certo', b: 'Errado' },
+            gabarito: q.gabarito === 'C' ? 'a' : 'b',
+            explicacao: null,
+          });
+        });
 
         // Insert in batches
         const BATCH = 50;
