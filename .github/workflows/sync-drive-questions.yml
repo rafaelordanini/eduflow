@@ -1,0 +1,69 @@
+name: Copy Drive CSV into repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_id:
+        description: 'Public Google Drive file ID.'
+        required: true
+        default: '1LYV7KyAgTqFuSj7XHyDmSHbZhE9_SO_0'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-drive-questions
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the selected branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Download public CSV from Google Drive
+        env:
+          FILE_ID: ${{ inputs.file_id }}
+        run: |
+          mkdir -p data/review
+          curl --fail --location --retry 3 --retry-all-errors \
+            "https://drive.usercontent.google.com/download?id=${FILE_ID}&export=download&confirm=t" \
+            --output data/review/questions.csv
+
+      - name: Validate downloaded CSV
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+
+          path = Path('data/review/questions.csv')
+          if path.stat().st_size == 0:
+              raise SystemExit('O arquivo baixado está vazio.')
+          beginning = path.read_bytes()[:512].lower()
+          if b'<html' in beginning or b'<!doctype' in beginning:
+              raise SystemExit('O Google Drive retornou HTML em vez do CSV. Confirme o acesso público.')
+          with path.open('r', encoding='utf-8-sig', newline='') as stream:
+              reader = csv.reader(stream)
+              header = next(reader, None)
+          if not header or len(header) < 2:
+              raise SystemExit('O arquivo não parece ser um CSV com cabeçalho.')
+          print(f'CSV válido: {path.stat().st_size} bytes; {len(header)} colunas.')
+          PY
+
+      - name: Commit CSV to the repository
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/review/questions.csv
+          if git diff --cached --quiet; then
+            echo 'O CSV no repositório já está atualizado.'
+            exit 0
+          fi
+          git commit -m 'Add questions CSV for classification review'
+          git push origin "HEAD:${BRANCH}"
