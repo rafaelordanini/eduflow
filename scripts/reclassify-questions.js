@@ -4,15 +4,13 @@ const { createClient } = require('@supabase/supabase-js');
 const { classifyQuestion } = require('../lib/question-classifier');
 
 const apply = process.argv.includes('--apply');
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
-);
 
 async function main() {
-  if (!process.env.SUPABASE_URL || !(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY)) {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+  if (!process.env.SUPABASE_URL || !serviceKey) {
     throw new Error('Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SERVICE_KEY).');
   }
+  const supabase = createClient(process.env.SUPABASE_URL, serviceKey);
 
   let offset = 0;
   let reviewed = 0;
@@ -20,7 +18,11 @@ async function main() {
   const changes = [];
 
   while (true) {
-    const { data, error } = await supabase.from('questions').select('id,subject,topic,enunciado,opcoes,explicacao').range(offset, offset + 499);
+    const { data, error } = await supabase
+      .from('questions')
+      .select('id,subject,topic,enunciado,opcoes,explicacao')
+      .order('id', { ascending: true })
+      .range(offset, offset + 499);
     if (error) throw error;
     if (!data?.length) break;
 
