@@ -413,6 +413,32 @@ Compartilhe a URL com seus alunos. Cada aluno entra com o usuário/senha que o a
 
 ## Após o Deploy — Tarefas do Dia a Dia
 
+### Como revisar a classificação de todas as questões
+
+Esta revisão pode ser feita pelo próprio ChatGPT, sem chamar DeepSeek ou outro
+serviço de IA. Como os secrets do GitHub não podem ser lidos fora de um
+workflow, primeiro exporte as questões e depois envie o arquivo nesta conversa:
+
+1. No repositório do GitHub, clique em **Actions**.
+2. Na lista de workflows, escolha **Export questions for ChatGPT review**.
+3. Clique em **Run workflow**.
+4. Aguarde a conclusão e baixe o artefato **questions-for-chatgpt-review**.
+5. Descompacte o artefato e envie `questions-for-review.json` nesta conversa.
+6. O ChatGPT analisará o conteúdo de cada questão e devolverá um arquivo de
+   correções revisado, sem usar uma API externa de IA.
+
+O arquivo exportado contém as questões e suas classificações atuais, mas não
+contém as credenciais do Supabase. A exportação apenas lê o banco e não altera
+nenhum registro.
+
+Se o CSV já estiver no Google Drive e não puder ser baixado localmente, execute
+o workflow **Copy Drive CSV into repository**. Informe o ID do arquivo público;
+o workflow baixa, valida e grava o conteúdo em `data/review/questions.csv` na
+branch selecionada. Como essa opção adiciona o CSV ao histórico do Git, use-a
+somente se o arquivo não contiver dados pessoais ou sigilosos. Se a branch tiver
+proteção contra pushes diretos, execute o workflow em uma branch sem proteção e
+abra um pull request.
+
 ### Como recuperar a senha esquecida
 
 1. Adicione o seu `RESET_SECRET_TOKEN` configurado na Vercel no final da sua URL do site usando `?reset=`.

@@ -13,7 +13,8 @@
     "generate-sql:year": "node scripts/generate-exams-sql.js",
     "import-tps-year": "node scripts/import-tps-year.js",
     "questions:review": "node scripts/reclassify-questions.js",
-    "questions:reclassify": "node scripts/reclassify-questions.js --apply"
+    "questions:reclassify": "node scripts/reclassify-questions.js --apply",
+    "questions:export": "node scripts/export-questions-for-review.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

@@ -1,0 +1,38 @@
+name: Export questions for ChatGPT review
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Export all questions
+        run: npm run questions:export
+
+      - name: Upload questions for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: questions-for-chatgpt-review
+          path: artifacts/questions-for-review.json
+          if-no-files-found: error
+          retention-days: 30
