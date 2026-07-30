@@ -1,0 +1,41 @@
+name: Safely apply reviewed question classifications
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Use false para validar; true para aplicar após conferir o dry-run.'
+        required: true
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apply-question-classification-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Validate all corrections without writes
+        run: npm run questions:apply-review
+      - name: Apply reviewed corrections
+        if: inputs.apply == 'true'
+        env:
+          CONFIRM_QUESTION_REVIEW: APPLY
+        run: npm run questions:apply-review -- --apply
