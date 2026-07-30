@@ -427,6 +427,14 @@ workflow, primeiro exporte as questões e depois envie o arquivo nesta conversa:
 6. O ChatGPT analisará o conteúdo de cada questão e devolverá um arquivo de
    correções revisado, sem usar uma API externa de IA.
 
+As correções revisadas ficam em
+`data/review/question-classification-corrections.json`. Para aplicá-las, execute
+o workflow **Safely apply reviewed question classifications** primeiro com
+`apply=false`. O dry-run confere todas as classificações originais e não faz
+escritas. Somente depois de conferir o log, execute-o novamente com `apply=true`.
+O segundo passo exige confirmação explícita, impede execuções concorrentes e
+tenta reverter as alterações já feitas caso alguma atualização falhe.
+
 O arquivo exportado contém as questões e suas classificações atuais, mas não
 contém as credenciais do Supabase. A exportação apenas lê o banco e não altera
 nenhum registro.
