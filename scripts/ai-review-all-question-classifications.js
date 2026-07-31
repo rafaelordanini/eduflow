@@ -50,10 +50,15 @@ function buildPrompt(rows) {
 }
 
 function extractJson(content) {
+  if (!content || !String(content).trim()) throw new Error('DeepSeek retornou conteúdo vazio em vez de JSON.');
   const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1] : content;
   const match = candidate.match(/\{[\s\S]*\}/);
-  return JSON.parse(match ? match[0] : candidate);
+  try {
+    return JSON.parse(match ? match[0] : candidate);
+  } catch (error) {
+    throw new Error(`DeepSeek retornou JSON incompleto ou inválido: ${error.message}`);
+  }
 }
 
 function validateDecisions(rows, value) {
@@ -95,6 +100,23 @@ async function requestBatch(rows, apiKey, fetchImpl = fetch) {
     }
   }
   throw lastError;
+}
+
+async function reviewBatchAdaptive(rows, reviewer) {
+  try {
+    return await reviewer(rows);
+  } catch (error) {
+    if (rows.length === 1) {
+      throw new Error(`Falha ao revisar a questão ${rows[0].id} após todas as tentativas: ${error.message}`);
+    }
+    // A long or unusually complex item can make the model truncate a whole
+    // batch. Isolate it instead of discarding the progress of the global run.
+    const middle = Math.ceil(rows.length / 2);
+    console.warn(`Lote com IDs ${rows[0].id}–${rows[rows.length - 1].id} inválido; tentando dois lotes menores.`);
+    const left = await reviewBatchAdaptive(rows.slice(0, middle), reviewer);
+    const right = await reviewBatchAdaptive(rows.slice(middle), reviewer);
+    return left.concat(right);
+  }
 }
 
 function loadCheckpoint(sourceSha256) {
@@ -140,7 +162,7 @@ async function runAudit({ csvText, apiKey, fetchImpl = fetch }) {
   async function worker() {
     while (cursor < batches.length) {
       const batch = batches[cursor++];
-      const reviewed = await requestBatch(batch, apiKey, fetchImpl);
+      const reviewed = await reviewBatchAdaptive(batch, rowsToReview => requestBatch(rowsToReview, apiKey, fetchImpl));
       reviewed.forEach(item => decisions.set(item.id, item));
       saveCheckpoint(sourceSha256, decisions);
       console.log(`${decisions.size}/${rows.length} questões revisadas pelo ${MODEL}.`);
@@ -162,4 +184,4 @@ async function main() {
 
 if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });
 
-module.exports = { buildPrompt, extractJson, validateDecisions, requestBatch, buildOutputs, runAudit };
+module.exports = { buildPrompt, extractJson, validateDecisions, requestBatch, reviewBatchAdaptive, buildOutputs, runAudit };

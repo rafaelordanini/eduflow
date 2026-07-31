@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { QUESTION_TAXONOMY } = require('../lib/question-taxonomy');
-const { buildPrompt, validateDecisions, requestBatch, buildOutputs } = require('../scripts/ai-review-all-question-classifications');
+const { buildPrompt, extractJson, validateDecisions, requestBatch, reviewBatchAdaptive, buildOutputs } = require('../scripts/ai-review-all-question-classifications');
 
 const rows = [{
   id: '14515',
@@ -31,6 +31,21 @@ test('rejects missing, reordered and out-of-taxonomy AI decisions', () => {
   assert.throws(() => validateDecisions(rows, { decisions: [] }), /Quantidade/);
   assert.throws(() => validateDecisions(rows, { decisions: [{ ...aiDecision, id: 2 }] }), /fora de ordem/);
   assert.throws(() => validateDecisions(rows, { decisions: [{ ...aiDecision, topic: 'Tópico inventado' }] }), /fora da taxonomia/);
+});
+
+test('reports empty or truncated DeepSeek JSON clearly', () => {
+  assert.throws(() => extractJson(''), /conteúdo vazio/);
+  assert.throws(() => extractJson('{"decisions": ['), /JSON incompleto ou inválido/);
+});
+
+test('splits a malformed batch and preserves every individual decision', async () => {
+  const twoRows = [rows[0], { ...rows[0], id: '14516' }];
+  const reviewer = async batch => {
+    if (batch.length > 1) throw new Error('JSON truncado');
+    return [{ ...aiDecision, id: Number(batch[0].id) }];
+  };
+  const decisions = await reviewBatchAdaptive(twoRows, reviewer);
+  assert.deepEqual(decisions.map(item => item.id), [14515, 14516]);
 });
 
 test('calls DeepSeek V4 and validates its structured response', async () => {
