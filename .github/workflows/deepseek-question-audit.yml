@@ -1,0 +1,84 @@
+name: Audit all questions with DeepSeek V4
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Modelo DeepSeek V4 disponibilizado para a conta'
+        required: true
+        default: 'deepseek-v4-flash'
+        type: string
+      batch_size:
+        description: 'Questões analisadas por chamada'
+        required: true
+        default: '8'
+        type: string
+      concurrency:
+        description: 'Chamadas simultâneas'
+        required: true
+        default: '3'
+        type: string
+      apply:
+        description: 'Aplicar no Supabase após concluir e validar toda a auditoria'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deepseek-question-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.eduflow }}
+      DEEPSEEK_MODEL: ${{ inputs.model }}
+      DEEPSEEK_AUDIT_BATCH_SIZE: ${{ inputs.batch_size }}
+      DEEPSEEK_AUDIT_CONCURRENCY: ${{ inputs.concurrency }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Restore DeepSeek audit checkpoint
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/deepseek-question-audit.checkpoint.json
+          key: deepseek-question-audit-${{ hashFiles('data/review/questions.csv') }}-${{ inputs.model }}
+          restore-keys: |
+            deepseek-question-audit-${{ hashFiles('data/review/questions.csv') }}-${{ inputs.model }}-
+      - name: Analyze every question with DeepSeek V4
+        run: npm run questions:audit-all
+      - name: Save checkpoint for a retry
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: artifacts/deepseek-question-audit.checkpoint.json
+          key: deepseek-question-audit-${{ hashFiles('data/review/questions.csv') }}-${{ inputs.model }}-${{ github.run_id }}
+      - name: Upload complete AI audit and applicable corrections
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-v4-question-audit
+          path: |
+            artifacts/deepseek-question-audit.json
+            artifacts/deepseek-question-classification-corrections.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Validate AI corrections against the current database
+        if: inputs.apply
+        run: npm run questions:apply-review -- --file=artifacts/deepseek-question-classification-corrections.json
+      - name: Apply all AI-reviewed corrections
+        if: inputs.apply
+        env:
+          CONFIRM_QUESTION_REVIEW: APPLY
+        run: npm run questions:apply-review -- --apply --file=artifacts/deepseek-question-classification-corrections.json

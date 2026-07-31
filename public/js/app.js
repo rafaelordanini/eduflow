@@ -1002,7 +1002,7 @@ function renderMasterWeekPanel(macro) {
         var actBtns = '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' +
             '<button class="macro-link-btn lesson" style="font-size:.72rem;padding:3px 8px" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _jsNull(m.lesson_id) + ')">' +
                 '<i class="fas fa-play-circle"></i> Ver aulas</button>' +
-            '<button class="macro-link-btn exercise" style="font-size:.72rem;padding:3px 8px" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ')">' +
+            '<button class="macro-link-btn exercise" style="font-size:.72rem;padding:3px 8px" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ',' + _js(m.topico || '') + ',' + _jsNull(m.lesson_id) + ',' + _js(m.lesson_title || '') + ')">' +
                 '<i class="fas fa-question-circle"></i> ' + (isRev ? 'Fazer exercícios' : 'Praticar questões') + '</button>' +
         '</div>';
         return '<div id="mitem-' + escapeHtml(mId) + '" class="card planner-task tipo-' + (isRev ? 'revisao' : 'estudo') + (isDone ? ' done-item' : '') + '">' +
@@ -2221,7 +2221,7 @@ function buildMateriaHtml(m) {
     var linksHtml = '<div class="macro-links">';
     linksHtml += '<button class="macro-link-btn lesson" onclick="abrirAulasPlano(' + _jsNull(m.subject_id) + ',' + _jsNull(m.lesson_id) + ')" title="' + escapeHtml(m.lesson_title || 'Aula não vinculada') + '">' +
         '<i class="fas fa-play-circle"></i> Ver aulas</button>';
-    linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ')">' +
+    linksHtml += '<button class="macro-link-btn exercise" onclick="abrirRevisaoPlano(' + _js(m.nome || '') + ',' + _js(m.topico || '') + ',' + _jsNull(m.lesson_id) + ',' + _js(m.lesson_title || '') + ')">' +
         (isRevisao ? '<i class="fas fa-pen-to-square"></i> Fazer exercícios' : '<i class="fas fa-question-circle"></i> Praticar questões') + '</button>';
     linksHtml += '</div>';
 
@@ -2437,7 +2437,10 @@ function normalizeAnswer(value) {
 }
 
 function answerLabel(value) {
-    return normalizeAnswer(value) === 'a' ? 'Certo' : 'Errado';
+    var normalized = normalizeAnswer(value);
+    if (normalized === 'a') return 'Certo / alternativa A';
+    if (normalized === 'b') return 'Errado / alternativa B';
+    return 'alternativa ' + normalized.toUpperCase();
 }
 
 function praticaResponder(questionId, chosen, gabarito) {
@@ -2462,30 +2465,46 @@ function praticaResponder(questionId, chosen, gabarito) {
     API.request('POST', '/api/questions', { action: 'record', subject: '', question_id: questionId, correct: correct }).catch(function(){});
 }
 
-function abrirRevisaoPlano(subjectName) {
+function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
     if (!subjectName) return;
-    // Open practice modal for this subject
+    // A review belongs to a lesson, not merely to a subject. Asking the
+    // lesson-aware endpoint prevents an unrelated topic from being used as a
+    // subject-wide fallback and lets the AI fill any genuine content gap.
+    var preciseTopic = lessonTitle || String(scheduledTopic || '')
+        .replace(/^Revis[aã]o espa[cç]ada\s*\(D\+\d+\)\s*:\s*/i, '')
+        .replace(/^[A-Z]\d+[A-Z]?\d*\s*[-–_]\s*/i, '')
+        .replace(/_/g, ' ')
+        .trim();
     var overlay = document.createElement('div');
     overlay.className = 'review-modal-overlay';
     overlay.id = 'review-modal-overlay';
     overlay.innerHTML = '<div class="review-modal">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
-          '<h2 style="font-size:1.15rem"><i class="fas fa-pen-to-square" style="color:var(--accent);margin-right:8px"></i>Revisão: ' + escapeHtml(subjectName) + '</h2>' +
+          '<h2 style="font-size:1.15rem"><i class="fas fa-pen-to-square" style="color:var(--accent);margin-right:8px"></i>Revisão: ' + escapeHtml(preciseTopic || subjectName) + '</h2>' +
           '<button onclick="document.getElementById(\'review-modal-overlay\').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--text-muted)">✕</button>' +
         '</div>' +
         '<div id="review-modal-body"><i class="fas fa-spinner fa-spin"></i> Carregando questões de revisão…</div>' +
     '</div>';
     document.body.appendChild(overlay);
 
-    API.request('GET', '/api/questions?subject=' + encodeURIComponent(subjectName) + '&source=exam&limit=10').then(function(data) {
-        var qs = (data && data.questions) || [];
+    var request;
+    if (lessonId && preciseTopic) {
+        request = API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: preciseTopic, count: 10 });
+    } else if (preciseTopic) {
+        request = API.request('GET', '/api/questions?subject=' + encodeURIComponent(subjectName) + '&topic=' + encodeURIComponent(preciseTopic) + '&source=exam&limit=10');
+    } else {
+        request = Promise.resolve({ questions: [] });
+    }
+
+    request.then(function(data) {
+        var qs = (data && (data.questoes || data.questions)) || [];
         var body = document.getElementById('review-modal-body');
         if (!body) return;
         if (qs.length === 0) {
             body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted)">' +
                 '<i class="fas fa-database" style="font-size:2rem;margin-bottom:12px"></i>' +
-                '<p>Ainda não há questões de prova nesta matéria no banco.</p>' +
-                '<p style="font-size:.85rem;margin-top:8px">As questões do CACD TPS 2023+ estão sendo carregadas progressivamente. Em breve haverá mais questões disponíveis.</p>' +
+                '<p>Ainda não há questões para este tópico.</p>' +
+                '<p style="font-size:.85rem;margin-top:8px">Não exibimos questões de outro conteúdo apenas para completar a revisão.</p>' +
             '</div>';
             return;
         }
@@ -2495,10 +2514,9 @@ function abrirRevisaoPlano(subjectName) {
             html += '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
                 '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
                 renderEnunciado(q.enunciado) +
-                '<div style="display:flex;gap:10px">' +
-                  '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-a" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-answer="a">Certo</button>' +
-                  '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-b" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-answer="b">Errado</button>' +
-                '</div>' +
+                '<div style="display:flex;gap:10px;flex-wrap:wrap">' + Object.keys(q.opcoes || {}).sort().map(function(key) {
+                    return '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-' + escapeHtml(key) + '" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || q.question_id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-topic="' + escapeHtml(preciseTopic || '') + '" data-answer="' + escapeHtml(key) + '">' + escapeHtml((q.opcoes || {})[key]) + '</button>';
+                }).join('') + '</div>' +
                 '<div id="' + qId + '-result" style="margin-top:10px;font-size:.85rem;display:none"></div>' +
                 (q.explicacao ? '<div id="' + qId + '-exp" style="display:none;margin-top:8px;padding:10px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem">' + escapeHtml(q.explicacao) + '</div>' : '') +
             '</div>';
@@ -2507,7 +2525,7 @@ function abrirRevisaoPlano(subjectName) {
         body.onclick = function(e) {
             var btn = e.target.closest('.review-answer-btn');
             if (!btn || !body.contains(btn)) return;
-            conferirRevisao(btn.dataset.qid, btn.dataset.questionId, btn.dataset.gabarito, btn.dataset.subject, btn.dataset.answer);
+            conferirRevisao(btn.dataset.qid, btn.dataset.questionId, btn.dataset.gabarito, btn.dataset.subject, btn.dataset.answer, btn.dataset.topic);
         };
     }).catch(function() {
         var body = document.getElementById('review-modal-body');
@@ -2515,16 +2533,13 @@ function abrirRevisaoPlano(subjectName) {
     });
 }
 
-function conferirRevisao(qId, questionId, gabarito, subjectName, answer) {
+function conferirRevisao(qId, questionId, gabarito, subjectName, answer, topic) {
     gabarito = normalizeAnswer(gabarito);
     answer = normalizeAnswer(answer);
     var correct = answer === gabarito;
     var resultEl = document.getElementById(qId + '-result');
     var expEl = document.getElementById(qId + '-exp');
-    var btnA = document.getElementById(qId + '-a');
-    var btnB = document.getElementById(qId + '-b');
-    if (btnA) btnA.disabled = true;
-    if (btnB) btnB.disabled = true;
+    document.querySelectorAll('[id^="' + qId + '-"]').forEach(function(btn) { btn.disabled = true; });
     if (resultEl) {
         resultEl.style.display = 'block';
         resultEl.innerHTML = correct
@@ -2532,7 +2547,7 @@ function conferirRevisao(qId, questionId, gabarito, subjectName, answer) {
             : '<span style="color:var(--danger);font-weight:700"><i class="fas fa-times-circle"></i> Incorreto. A resposta é ' + answerLabel(gabarito) + '</span>';
     }
     if (expEl) expEl.style.display = 'block';
-    API.request('POST', '/api/questions', { action: 'record', subject: subjectName, question_id: questionId || null, correct: correct }).catch(function(){});
+    API.request('POST', '/api/questions', { action: 'record', subject: subjectName, topic: topic || null, question_id: questionId || null, correct: correct }).catch(function(){});
 }
 
 /* ============================================================
