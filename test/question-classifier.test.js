@@ -60,3 +60,25 @@ test('keeps a factual history assertion in História do Brasil', () => {
   assert.equal(result.subject, 'História do Brasil');
   assert.equal(result.topic, 'Brasil Colônia');
 });
+
+test('moves civil-military regime items out of world history', () => {
+  const result = classifyQuestion({
+    subject: 'História Mundial',
+    topic: 'Revoluções burguesas e industriais',
+    enunciado: 'Acerca do regime civil-militar (1964-1985), julgue o item. A Lei da Anistia foi promulgada em agosto de 1979.',
+  });
+
+  assert.equal(result.subject, 'História do Brasil');
+  assert.equal(result.topic, 'República de 1946 e regime militar');
+});
+
+test('classifies absolutism and the English revolutions as their precise review topic', () => {
+  const result = classifyQuestion({
+    subject: 'História Mundial',
+    topic: null,
+    enunciado: 'O absolutismo e o mercantilismo foram contestados pelas Revoluções Inglesas, culminando na Revolução Gloriosa.',
+  });
+
+  assert.equal(result.subject, 'História Mundial');
+  assert.equal(result.topic, 'Absolutismo, mercantilismo e Revoluções Inglesas');
+});
