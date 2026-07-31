@@ -6,6 +6,7 @@ const path = require('node:path');
 const { createClient } = require('@supabase/supabase-js');
 
 const DEFAULT_REVIEW = path.join(__dirname, '..', 'data', 'review', 'question-classification-corrections.json');
+const DEFAULT_SOURCE = path.join(__dirname, '..', 'data', 'review', 'questions.csv');
 
 function normalizeTopic(value) {
   return value === '' || value === undefined ? null : value;
@@ -41,6 +42,14 @@ function validateReview(review) {
   return review;
 }
 
+function assertSourceIntegrity(review, sourceText) {
+  if (!review.source_sha256) return;
+  const actual = require('node:crypto').createHash('sha256').update(sourceText).digest('hex');
+  if (actual !== review.source_sha256) {
+    throw new Error('Revisão abortada: o CSV de origem mudou depois da auditoria global. Exporte e revise novamente.');
+  }
+}
+
 async function fetchCurrent(supabase, corrections) {
   const rows = [];
   for (let offset = 0; offset < corrections.length; offset += 100) {
@@ -55,7 +64,11 @@ async function fetchCurrent(supabase, corrections) {
 function assertPreconditions(corrections, currentById) {
   const stale = corrections.filter(correction => {
     const current = currentById.get(correction.id);
-    return !current || current.subject !== correction.expected.subject || normalizeTopic(current.topic) !== correction.expected.topic;
+    if (!current) return true;
+    const matches = state => current.subject === state.subject && normalizeTopic(current.topic) === state.topic;
+    // A previous partial/global run is safe to resume when a row has already
+    // reached the reviewed state.
+    return !matches(correction.expected) && !matches(correction.reviewed);
   });
   if (stale.length) {
     const ids = stale.slice(0, 20).map(item => item.id).join(', ');
@@ -67,6 +80,9 @@ async function applyCorrections(supabase, corrections) {
   const applied = [];
   try {
     for (const correction of corrections) {
+      const { data: current, error: readError } = await supabase.from('questions').select('subject,topic').eq('id', correction.id).single();
+      if (readError) throw readError;
+      if (current.subject === correction.reviewed.subject && normalizeTopic(current.topic) === correction.reviewed.topic) continue;
       let query = supabase.from('questions')
         .update(correction.reviewed)
         .eq('id', correction.id)
@@ -93,6 +109,7 @@ async function main() {
   const fileArgument = process.argv.find(argument => argument.startsWith('--file='));
   const reviewPath = fileArgument ? path.resolve(fileArgument.slice('--file='.length)) : DEFAULT_REVIEW;
   const review = validateReview(JSON.parse(fs.readFileSync(reviewPath, 'utf8')));
+  if (review.source === 'data/review/questions.csv') assertSourceIntegrity(review, fs.readFileSync(DEFAULT_SOURCE, 'utf8'));
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
   if (!process.env.SUPABASE_URL || !serviceKey) throw new Error('Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.');
   if (apply && process.env.CONFIRM_QUESTION_REVIEW !== 'APPLY') {
@@ -110,4 +127,4 @@ async function main() {
 
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });
 
-module.exports = { normalizeTopic, validateReview, assertPreconditions };
+module.exports = { normalizeTopic, validateReview, assertSourceIntegrity, assertPreconditions };
