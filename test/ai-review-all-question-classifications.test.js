@@ -45,6 +45,7 @@ test('calls DeepSeek V4 and validates its structured response', async () => {
   assert.match(request.options.headers.Authorization, /^Bearer /);
   assert.equal(request.body.response_format.type, 'json_object');
   assert.match(request.body.model, /^deepseek-v4/);
+  assert.match(request.body.messages.map(message => message.content).join(' '), /json/i);
 });
 
 test('builds a full decision ledger and an applicable correction artifact', () => {

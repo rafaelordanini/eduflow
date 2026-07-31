@@ -23,7 +23,8 @@ Analise semanticamente CADA questão, sem usar a classificação atual como evid
 Identifique a habilidade efetivamente avaliada. Em questões de idioma, classifique pelo idioma e pela habilidade linguística, mesmo quando o texto-base tratar de história, direito ou economia.
 Escolha subject e topic EXATAMENTE da taxonomia fornecida. Não invente rótulos.
 Retorne uma decisão para cada ID, sem omitir, duplicar ou reordenar IDs.
-confidence deve estar entre 0 e 1. reason deve ser uma justificativa objetiva em até 240 caracteres.`;
+confidence deve estar entre 0 e 1. reason deve ser uma justificativa objetiva em até 240 caracteres.
+Retorne somente um objeto JSON válido no formato solicitado, sem markdown ou qualquer texto antes ou depois do JSON.`;
 
 function questionPayload(row) {
   let options = null;
