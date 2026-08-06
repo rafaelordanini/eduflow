@@ -2489,7 +2489,13 @@ function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
 
     var request;
     if (lessonId && preciseTopic) {
-        request = API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: preciseTopic, count: 10 });
+        // Five detailed questions fit reliably in the model response budget. If
+        // generation is temporarily unavailable, keep the review usable with
+        // matching questions that are already in the exam bank.
+        request = API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: preciseTopic, count: 5 })
+            .catch(function() {
+                return API.request('GET', '/api/questions?subject=' + encodeURIComponent(subjectName) + '&topic=' + encodeURIComponent(preciseTopic) + '&source=exam&limit=5');
+            });
     } else if (preciseTopic) {
         request = API.request('GET', '/api/questions?subject=' + encodeURIComponent(subjectName) + '&topic=' + encodeURIComponent(preciseTopic) + '&source=exam&limit=10');
     } else {
@@ -2508,7 +2514,8 @@ function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
             '</div>';
             return;
         }
-        var html = '<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px">' + qs.length + ' questões de prova real (CACD TPS) • Julgue cada item como Certo ou Errado</div>';
+        var sourceLabel = data && data.source && data.source !== 'bank' ? 'questões de revisão' : 'questões de prova real (CACD TPS)';
+        var html = '<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px">' + qs.length + ' ' + sourceLabel + ' • Responda e confira o gabarito</div>';
         qs.forEach(function(q, qi) {
             var qId = 'rev-q-' + qi;
             html += '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
@@ -2527,9 +2534,13 @@ function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
             if (!btn || !body.contains(btn)) return;
             conferirRevisao(btn.dataset.qid, btn.dataset.questionId, btn.dataset.gabarito, btn.dataset.subject, btn.dataset.answer, btn.dataset.topic);
         };
-    }).catch(function() {
+    }).catch(function(err) {
         var body = document.getElementById('review-modal-body');
-        if (body) body.innerHTML = '<p style="color:var(--danger)">Erro ao carregar questões.</p>';
+        if (body) body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger)">' +
+            '<p>Não foi possível carregar as questões agora.</p>' +
+            '<p style="font-size:.82rem;margin-top:8px;color:var(--text-muted)">' + escapeHtml(err && err.message ? err.message : 'Tente novamente em instantes.') + '</p>' +
+            '<button type="button" class="btn btn-secondary btn-sm" style="margin-top:14px" onclick="document.getElementById(\'review-modal-overlay\').remove();abrirRevisaoPlano(' + _js(subjectName) + ',' + _js(scheduledTopic || '') + ',' + _jsNull(lessonId) + ',' + _js(lessonTitle || '') + ')"><i class="fas fa-rotate-right"></i> Tentar novamente</button>' +
+        '</div>';
     });
 }
 
