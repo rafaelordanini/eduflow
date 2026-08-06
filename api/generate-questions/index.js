@@ -4,13 +4,12 @@ const { cors, requireAuth } = require('../../lib/middleware');
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 const DEEPSEEK_MAX_TOKENS = 4096;
 
-const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Seu papel é gerar questões de múltipla escolha no estilo exato das provas TPS do CACD aplicadas de 2003 a 2025.
+const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Seu papel é gerar itens de julgamento Certo ou Errado no estilo atual da prova TPS do CACD.
 
 ESTILO DAS QUESTÕES CACD:
-- Enunciados longos e analíticos, com contexto histórico/conceitual antes da pergunta
-- 5 alternativas (a-e), todas plausíveis, com apenas uma correta
-- Afirmações que testam nuances (datas precisas, nomes de tratados, detalhes de política externa)
-- Frequentemente usam estrutura "Julgue as afirmações I, II, III, IV e V" ou apresentam um texto-base
+- Cada questão deve conter uma única afirmação autônoma a ser julgada
+- As únicas respostas permitidas são "Certo" e "Errado"
+- Afirmações analíticas que testam nuances (datas precisas, nomes de tratados, detalhes de política externa)
 - PRIORIZE tópicos e abordagens que JÁ FORAM cobrados em provas anteriores do CACD
 - As questões de história têm forte ênfase em relações internacionais do Brasil e política externa
 - As questões de economia focam em política econômica brasileira e teoria econômica aplicada
@@ -26,9 +25,9 @@ Responda SOMENTE com JSON válido (sem markdown):
   "questoes": [
     {
       "enunciado": "texto da questão",
-      "opcoes": { "a": "...", "b": "...", "c": "...", "d": "...", "e": "..." },
-      "gabarito": "a",
-      "explicacao": "explicação detalhada: por que a alternativa correta está certa e as demais erradas, com base em fatos históricos e fontes bibliográficas do CACD",
+      "opcoes": { "a": "Certo", "b": "Errado" },
+      "gabarito": "a ou b",
+      "explicacao": "explicação detalhada de por que a afirmação está certa ou errada, com base em fatos históricos e fontes bibliográficas do CACD",
       "fonte": "Baseado em temas cobrados no CACD [ano(s)]"
     }
   ]
@@ -40,7 +39,7 @@ async function generateAIQuestions(subjectName, lessonTitle, count, offset = 0) 
 Requisitos obrigatórios:
 1. PRIORIZE subtópicos e abordagens que já foram cobrados nas provas do CACD — mencione o ano na propriedade "fonte"
 2. Questões desafiadoras que testam profundidade de conhecimento, não memorização superficial
-3. Alternativas plausíveis que testam distinções sutis (ex: datas, conceitos parecidos, nomes de acordos)
+3. Cada questão deve ser uma afirmação independente com exatamente duas opções: {"a":"Certo","b":"Errado"}; o gabarito deve ser somente "a" ou "b"
 4. A explicação deve citar as fontes bibliográficas do CACD relevantes (ex: Fausto HB, Cervo HPEB, Rezek DI)
 5. Escreva em português do Brasil, com linguagem acadêmica
 ${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas anteriormente sobre este tópico` : ''}
@@ -92,7 +91,34 @@ ${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas
     }
   }
 
-  return result.questoes || [];
+  const questoes = normalizeTrueFalseQuestions(result.questoes);
+  if (questoes.length !== count) {
+    throw new Error('O modelo não retornou todos os itens no formato Certo ou Errado.');
+  }
+  return questoes;
+}
+
+function normalizeTrueFalseQuestions(questions) {
+  return (Array.isArray(questions) ? questions : []).flatMap(question => {
+    if (!question || !question.enunciado) return [];
+    const answer = String(question.gabarito || '').trim().toLowerCase();
+    const normalizedAnswer = answer === 'c' || answer === 'certo' ? 'a'
+      : answer === 'e' || answer === 'errado' ? 'b' : answer;
+    if (normalizedAnswer !== 'a' && normalizedAnswer !== 'b') return [];
+    return [{
+      ...question,
+      opcoes: { a: 'Certo', b: 'Errado' },
+      gabarito: normalizedAnswer
+    }];
+  });
+}
+
+function isTrueFalseQuestion(question) {
+  if (!question || !question.opcoes) return false;
+  const keys = Object.keys(question.opcoes).sort();
+  return keys.length === 2 && keys[0] === 'a' && keys[1] === 'b' &&
+    String(question.opcoes.a).trim().toLowerCase() === 'certo' &&
+    String(question.opcoes.b).trim().toLowerCase() === 'errado';
 }
 
 module.exports = async function handler(req, res) {
@@ -164,7 +190,8 @@ module.exports = async function handler(req, res) {
         .limit(count);
     }
 
-    const { data: bankQuestions } = await bankQuery;
+    const { data: bankData } = await bankQuery;
+    const bankQuestions = (bankData || []).filter(isTrueFalseQuestion);
 
     if (bankQuestions && bankQuestions.length >= count) {
       // Enough real/cached questions found
@@ -187,8 +214,10 @@ module.exports = async function handler(req, res) {
         .eq('lesson_id', lessonId)
         .single();
 
-      if (cached && cached.questoes && cached.questoes.length >= count) {
-        return res.status(200).json({ questoes: cached.questoes.slice(0, count), cached: true, source: 'lesson_cache' });
+      const cachedQuestions = cached && Array.isArray(cached.questoes)
+        ? cached.questoes.filter(isTrueFalseQuestion) : [];
+      if (cachedQuestions.length >= count) {
+        return res.status(200).json({ questoes: cachedQuestions.slice(0, count), cached: true, source: 'lesson_cache' });
       }
     }
 
@@ -233,3 +262,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'Erro interno: ' + (err.message || 'desconhecido') });
   }
 };
+
+module.exports.normalizeTrueFalseQuestions = normalizeTrueFalseQuestions;
+module.exports.isTrueFalseQuestion = isTrueFalseQuestion;
