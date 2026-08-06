@@ -13,4 +13,5 @@ test('review generation uses a response-sized batch and falls back to the exam b
   assert.match(reviewSource, /lessonTitle: preciseTopic, count: 5/);
   assert.match(reviewSource, /\.catch\(function\(\) \{[\s\S]*source=exam&limit=5/);
   assert.match(reviewSource, /Tentar novamente/);
+  assert.match(reviewSource, /class="review-options"/);
 });

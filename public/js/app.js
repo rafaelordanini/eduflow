@@ -2521,7 +2521,7 @@ function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
             html += '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
                 '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
                 renderEnunciado(q.enunciado) +
-                '<div style="display:flex;gap:10px;flex-wrap:wrap">' + Object.keys(q.opcoes || {}).sort().map(function(key) {
+                '<div class="review-options">' + Object.keys(q.opcoes || {}).sort().map(function(key) {
                     return '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-' + escapeHtml(key) + '" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || q.question_id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-topic="' + escapeHtml(preciseTopic || '') + '" data-answer="' + escapeHtml(key) + '">' + escapeHtml((q.opcoes || {})[key]) + '</button>';
                 }).join('') + '</div>' +
                 '<div id="' + qId + '-result" style="margin-top:10px;font-size:.85rem;display:none"></div>' +
