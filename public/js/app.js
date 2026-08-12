@@ -290,14 +290,61 @@ var BARON_POSES = {
     winking:  '/baron-winking-sm.png'
 };
 var BARON_TIPS = [
-    'Estude pelo menos 4h/dia para passar no CACD.',
-    'Questões antigas são o melhor treino!',
-    'Revise o que errou — é onde mais aprende.',
-    'Foco em Português e História do Brasil.',
-    'Use o simulado para testar seu tempo.',
-    'Leia o Rezek para Direito Internacional.',
-    'Cervo & Bueno é essencial para a HPEB.',
-    'Pratique redação dissertativa toda semana.'
+    // Síntese editorial dos Guias dos Aprovados de 2013 a 2025.
+    // Rotina e planejamento (2014–17, 2019, 2022–25)
+    'Prefira constância a jornadas extremas: horas líquidas e sustentáveis rendem mais.',
+    'Planeje a rotina com o tempo que você realmente tem; não há carga horária universal.',
+    'Monte o cronograma a partir do edital e ajuste-o quando a realidade mudar.',
+    'Divida metas grandes em tarefas pequenas que possam ser concluídas hoje.',
+    'Registre suas horas líquidas para conhecer seu ritmo, não para competir com outros.',
+    'Alterne matérias no ciclo para avançar mesmo quando um dia sair do planejado.',
+    'Reserve margem no cronograma para atrasos, imprevistos e revisões.',
+    'Trabalho e estudo podem coexistir: adapte o plano à sua energia e disponibilidade.',
+    'Avalie o progresso por ciclos completos, não por um único dia ruim.',
+
+    // Revisão e materiais (2023 e 2025)
+    'Revise de forma ativa: tente recordar o conteúdo antes de abrir as anotações.',
+    'Faça revisões periódicas e espaçadas para não depender de releituras de última hora.',
+    'Transforme erros recorrentes em flashcards, perguntas ou notas curtas de revisão.',
+    'Consolide material próprio, mas só produza anotações que você conseguirá revisar.',
+    'Antes de adicionar outra fonte, verifique se ela cobre uma lacuna real.',
+    'Priorize técnicas de revisão que obriguem você a recuperar e explicar o conteúdo.',
+    'Ao terminar um bloco, anote a pergunta que você ainda não sabe responder.',
+    'Revisar também é selecionar: descarte detalhes que não ajudam a responder à prova.',
+
+    // Questões, simulados e diagnóstico (2013–25)
+    'Use provas anteriores para entender a cobrança, medir o tempo e encontrar lacunas.',
+    'Ao corrigir uma questão, descubra por que acertou ou errou antes de seguir adiante.',
+    'Mantenha um registro simples dos erros e procure padrões entre eles.',
+    'Refaça questões erradas depois de algum tempo para confirmar que houve aprendizado.',
+    'Simule as condições reais da prova: tempo, pausas, materiais e limite de linhas.',
+    'Não use o simulado apenas para obter uma nota; use-o para decidir o próximo estudo.',
+    'Compare respostas com notas diferentes para enxergar estrutura, escolhas e falhas.',
+    'Respostas aprovadas também contêm erros: busque consistência, não perfeição.',
+    'Questões antigas revelam padrões; questões novas verificam se você sabe transferi-los.',
+
+    // Discursivas e técnica de prova (2013–25)
+    'Não espere dominar todo o edital para começar a praticar questões discursivas.',
+    'Treine cada exercício no espaço exigido: conteúdo e concisão precisam andar juntos.',
+    'Faça um roteiro breve antes de escrever para proteger a estrutura da resposta.',
+    'Pratique redação, resumo, tradução e versão como habilidades diferentes.',
+    'Leia o comando duas vezes e confira se cada parte foi respondida.',
+    'Reserve minutos finais para revisar gramática, legibilidade e itens esquecidos.',
+    'Treine com caneta e papel quando esse for o formato da prova.',
+    'Estude os critérios da banca e use-os para revisar seus próprios textos.',
+    'Depois do TPS, mantenha a preparação discursiva: o intervalo pode ser curto.',
+    'Conheça as regras de recurso antes da prova e guarde argumentos objetivos.',
+
+    // Estratégia, bem-estar e perspectiva (2015–25)
+    'Não existe método único: preserve o que funciona e troque o que não produz resultado.',
+    'Adapte materiais e técnicas à fase da prova e ao seu estágio de preparação.',
+    'Descanso faz parte do plano; exaustão constante reduz a qualidade do estudo.',
+    'Inclua atividade física e sono no planejamento de uma rotina sustentável.',
+    'Se a preparação afetar sua saúde mental, reduza a carga e procure apoio.',
+    'Não compare bastidores próprios com resultados alheios; trajetórias variam muito.',
+    'Uma reprovação pode virar diagnóstico: identifique lacunas antes de recomeçar.',
+    'Conheça seus pontos fracos sem abandonar a manutenção das matérias fortes.',
+    'A aprovação não exige perfeição; exige estratégia, técnica e constância.'
 ];
 function baronFloatPose(pose, duration) {
     var img = document.getElementById('baron-float-img');
