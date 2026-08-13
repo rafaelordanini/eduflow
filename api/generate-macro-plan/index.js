@@ -2,6 +2,7 @@ const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
 const {
   buildCompleteMacroPlan,
+  advanceMacroPlanDay,
   normalizeMacroPlanRequest,
   planNeedsRepair,
   repairMacroPlan,
@@ -97,6 +98,31 @@ module.exports = async function handler(req, res) {
         const { error: updateError } = await supabase
           .from('macro_plans').update({ plan_json: macroPlan.plan_json }).eq('id', macroPlan.id);
         if (updateError) throw updateError;
+        return res.status(200).json({ ok: true, plan_json: macroPlan.plan_json });
+      }
+
+      if (action === 'advance_day') {
+        const today = new Date().toISOString().split('T')[0];
+        const items = (macroPlan.plan_json.semanas || []).flatMap(function(week) { return week.materias || []; });
+        const pendingToday = items.some(function(item) { return item.data === today && !item.done; });
+        const hasFutureItems = items.some(function(item) { return item.data > today; });
+        if (pendingToday) {
+          return res.status(409).json({ error: 'Conclua as tarefas de hoje antes de avançar o plano.' });
+        }
+        if (!hasFutureItems) {
+          return res.status(400).json({ error: 'Não há um próximo dia de estudos no Plano Mestre.' });
+        }
+
+        macroPlan.plan_json = advanceMacroPlanDay(macroPlan.plan_json, today);
+        const { error: updateError } = await supabase
+          .from('macro_plans').update({ plan_json: macroPlan.plan_json }).eq('id', macroPlan.id);
+        if (updateError) throw updateError;
+
+        // The generated daily plan described the old schedule. Removing it
+        // makes Plano de Hoje immediately offer a fresh plan for the new day.
+        const { error: dailyPlanError } = await supabase.from('daily_plans')
+          .delete().eq('user_id', user.id).eq('plan_date', today);
+        if (dailyPlanError) throw dailyPlanError;
         return res.status(200).json({ ok: true, plan_json: macroPlan.plan_json });
       }
 

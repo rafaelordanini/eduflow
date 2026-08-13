@@ -12,6 +12,7 @@ const {
   planNeedsRepair,
   repairMacroPlan,
   rescheduleMacroPlanFromPendingStudy,
+  advanceMacroPlanDay,
 } = require('../lib/macro-plan');
 
 const subjects = [
@@ -281,4 +282,25 @@ test('atualiza datas para que a primeira aula pendente vire hoje', function() {
   assert.equal(updatedStudies[0].done, true);
   assert.equal(updatedStudies[1].done, false);
   assert.equal(dateDiffDays(plan.dataInicio, updated.dataInicio), dateDiffDays(studies[1].data, '2026-07-20'));
+});
+
+test('antecipa o próximo dia e todo o planejamento futuro sem alterar o dia concluído', function() {
+  const plan = buildCompleteMacroPlan(subjects, lessons, { aulasPorDia: 1, dataInicio: '2026-08-13' });
+  const originalStudies = studyItems(plan);
+  originalStudies[0].done = true;
+  const originalFirstDate = originalStudies[0].data;
+  const originalNextDate = originalStudies[1].data;
+  const originalEnd = plan.dataFim;
+
+  const updated = advanceMacroPlanDay(plan, '2026-08-13');
+  const updatedStudies = studyItems(updated);
+
+  assert.equal(updatedStudies[0].data, originalFirstDate);
+  assert.equal(updatedStudies[0].done, true);
+  assert.equal(updatedStudies[1].data, '2026-08-13');
+  assert.equal(dateDiffDays(updatedStudies[1].data, originalNextDate), 1);
+  assert.equal(dateDiffDays(updated.dataFim, originalEnd), 1);
+  assert.deepEqual(updated.calendarAdvanceDates, ['2026-08-13']);
+  assert.equal(planNeedsRepair(updated, subjects, lessons), false);
+  assert.equal(plan.dataFim, originalEnd, 'não deve alterar o objeto original');
 });
