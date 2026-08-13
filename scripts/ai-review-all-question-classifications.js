@@ -12,7 +12,9 @@ const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 const BATCH_SIZE = Number(process.env.DEEPSEEK_AUDIT_BATCH_SIZE || 8);
 const CONCURRENCY = Number(process.env.DEEPSEEK_AUDIT_CONCURRENCY || 3);
 const MAX_ATTEMPTS = 5;
-const SOURCE = path.join(__dirname, '..', 'data', 'review', 'questions.csv');
+const SOURCE = process.env.QUESTION_AUDIT_SOURCE
+  ? path.resolve(process.env.QUESTION_AUDIT_SOURCE)
+  : path.join(__dirname, '..', 'data', 'review', 'questions.csv');
 const OUTPUT_DIR = path.join(__dirname, '..', 'artifacts');
 const CHECKPOINT = path.join(OUTPUT_DIR, 'deepseek-question-audit.checkpoint.json');
 const AUDIT_OUTPUT = path.join(OUTPUT_DIR, 'deepseek-question-audit.json');
@@ -21,6 +23,7 @@ const CORRECTIONS_OUTPUT = path.join(OUTPUT_DIR, 'deepseek-question-classificati
 const SYSTEM_PROMPT = `Você é o auditor acadêmico do banco de questões do CACD.
 Analise semanticamente CADA questão, sem usar a classificação atual como evidência.
 Identifique a habilidade efetivamente avaliada. Em questões de idioma, classifique pelo idioma e pela habilidade linguística, mesmo quando o texto-base tratar de história, direito ou economia.
+Classifique teoria geográfica do Estado, geografia política e autores como Friedrich Ratzel, Mackinder e Mahan em Geografia/Geopolítica; a mera relação com realismo ou relações internacionais não a transforma em Política Internacional.
 Escolha subject e topic EXATAMENTE da taxonomia fornecida. Não invente rótulos.
 Retorne uma decisão para cada ID, sem omitir, duplicar ou reordenar IDs.
 confidence deve estar entre 0 e 1. reason deve ser uma justificativa objetiva em até 240 caracteres.
@@ -31,8 +34,6 @@ function questionPayload(row) {
   try { options = row.opcoes ? JSON.parse(row.opcoes) : null; } catch { options = row.opcoes || null; }
   return {
     id: Number(row.id),
-    current_subject: row.subject,
-    current_topic: row.topic || null,
     statement: row.enunciado,
     options,
     explanation: row.explicacao || null,
@@ -132,7 +133,7 @@ function saveCheckpoint(sourceSha256, decisions) {
   fs.writeFileSync(CHECKPOINT, `${JSON.stringify({ source_sha256: sourceSha256, model: MODEL, decisions: ordered }, null, 2)}\n`);
 }
 
-function buildOutputs(csvText, rows, decisions) {
+function buildOutputs(csvText, rows, decisions, source = 'data/review/questions.csv') {
   const ordered = rows.map(row => decisions.get(Number(row.id)));
   if (ordered.some(item => !item)) throw new Error('Auditoria incompleta: existem questões sem decisão da IA.');
   const sourceSha256 = crypto.createHash('sha256').update(csvText).digest('hex');
@@ -142,7 +143,7 @@ function buildOutputs(csvText, rows, decisions) {
     const reviewed = { subject: decision.subject, topic: decision.topic };
     return expected.subject === reviewed.subject && expected.topic === reviewed.topic ? [] : [{ id: decision.id, expected, reviewed }];
   });
-  const metadata = { schema_version: 2, source: 'data/review/questions.csv', source_sha256: sourceSha256, reviewed_at: new Date().toISOString(), reviewed_count: ordered.length, model: MODEL, method: 'Revisão semântica individual por DeepSeek V4' };
+  const metadata = { schema_version: 2, source, source_sha256: sourceSha256, reviewed_at: new Date().toISOString(), reviewed_count: ordered.length, model: MODEL, method: 'Revisão semântica individual por DeepSeek V4, sem exposição dos rótulos atuais ao modelo' };
   return {
     audit: { ...metadata, decisions: ordered },
     corrections: { ...metadata, schema_version: 1, correction_count: corrections.length, corrections },
@@ -169,7 +170,7 @@ async function runAudit({ csvText, apiKey, fetchImpl = fetch }) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, batches.length) }, worker));
-  return buildOutputs(csvText, rows, decisions);
+  return buildOutputs(csvText, rows, decisions, path.relative(path.join(__dirname, '..'), SOURCE));
 }
 
 async function main() {
