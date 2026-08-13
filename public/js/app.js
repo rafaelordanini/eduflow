@@ -1007,6 +1007,18 @@ function atualizarDatasMacroPlan() {
     });
 }
 
+function avancarPlanoParaProximoDia() {
+    var btn = document.getElementById('advance-study-day-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Avançando…'; }
+    API.request('PUT', '/api/generate-macro-plan', { action: 'advance_day' }).then(function() {
+        showToast('Próximo dia antecipado. O Plano de Hoje e o Plano Mestre foram atualizados.', 'success');
+        renderStudentPlanner();
+    }).catch(function(err) {
+        showToast(err.message || 'Erro ao avançar o plano', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-forward-step"></i> Passar para o próximo dia'; }
+    });
+}
+
 function renderMasterWeekPanel(macro) {
     var panel = document.getElementById('master-week-panel');
     if (!panel) return;
@@ -1038,6 +1050,9 @@ function renderMasterWeekPanel(macro) {
     var pendingStudy = materias.filter(function(m) { return m.tipo === 'estudo' && !m.done; });
     var pendingReview = materias.filter(function(m) { return m.tipo === 'revisao' && !m.done; });
     var doneCount = materias.filter(function(m) { return m.done; }).length;
+    var hasFutureItems = semanas.some(function(week) {
+        return (week.materias || []).some(function(item) { return item.data && item.data > today; });
+    });
 
     var itemsHtml = materias.map(function(m) {
         var isRev = m.tipo === 'revisao';
@@ -1090,7 +1105,10 @@ function renderMasterWeekPanel(macro) {
           '<div style="padding:18px 10px;font-size:.9rem;color:var(--text-secondary)">' +
             '<i class="fas fa-magic" style="color:var(--accent);margin-right:5px"></i>' +
             (isSequentialCatchUp ? 'Há estudo pendente em data anterior; o Plano de Hoje seguirá esta etapa antes de avançar.' : (isRestToday ? 'O Plano Mestre reservou hoje para descanso.' : (noTasksToday ? 'O Plano Mestre não possui tarefas para esta data.' : 'O plano de hoje será gerado levando em conta os itens pendentes desta data.'))) +
-          '</div>';
+          '</div>' +
+          (showingToday && pendingStudy.length === 0 && pendingReview.length === 0 && hasFutureItems
+            ? '<div style="display:flex;justify-content:flex-end;padding:0 10px 8px"><button id="advance-study-day-btn" class="btn btn-primary" onclick="avancarPlanoParaProximoDia()"><i class="fas fa-forward-step"></i> Passar para o próximo dia</button></div>'
+            : '');
 }
 
 function renderPlansHistory(plans) {
