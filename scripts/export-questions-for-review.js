@@ -3,6 +3,7 @@ require('dotenv').config();
 const fs = require('node:fs');
 const path = require('node:path');
 const { createClient } = require('@supabase/supabase-js');
+const { stringifyCsv } = require('./question-review-csv');
 
 async function fetchAllQuestions(supabase) {
   const questions = [];
@@ -33,6 +34,10 @@ async function main() {
   fs.writeFileSync(
     path.join(outputDirectory, 'questions-for-review.json'),
     `${JSON.stringify({ exportedAt: new Date().toISOString(), count: questions.length, questions }, null, 2)}\n`
+  );
+  fs.writeFileSync(
+    path.join(outputDirectory, 'questions-for-review.csv'),
+    stringifyCsv(questions)
   );
   console.log(`${questions.length} questões exportadas para análise.`);
 }

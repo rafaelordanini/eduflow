@@ -109,7 +109,9 @@ async function main() {
   const fileArgument = process.argv.find(argument => argument.startsWith('--file='));
   const reviewPath = fileArgument ? path.resolve(fileArgument.slice('--file='.length)) : DEFAULT_REVIEW;
   const review = validateReview(JSON.parse(fs.readFileSync(reviewPath, 'utf8')));
-  if (review.source === 'data/review/questions.csv') assertSourceIntegrity(review, fs.readFileSync(DEFAULT_SOURCE, 'utf8'));
+  const sourceArgument = process.argv.find(argument => argument.startsWith('--source='));
+  const sourcePath = sourceArgument ? path.resolve(sourceArgument.slice('--source='.length)) : DEFAULT_SOURCE;
+  if (review.source_sha256) assertSourceIntegrity(review, fs.readFileSync(sourcePath, 'utf8'));
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
   if (!process.env.SUPABASE_URL || !serviceKey) throw new Error('Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.');
   if (apply && process.env.CONFIRM_QUESTION_REVIEW !== 'APPLY') {

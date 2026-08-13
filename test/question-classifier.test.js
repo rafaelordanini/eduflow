@@ -2,6 +2,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { classifyQuestion } = require('../lib/question-classifier');
 
+test('classifies Ratzel political geography as Geografia / Geopolítica', () => {
+  const result = classifyQuestion({ subject: 'Economia', topic: 'Economia', enunciado: 'A obra de Friedrich Ratzel, teorizando geograficamente o Estado, fundamenta a geopolítica. As leis do crescimento espacial dos Estados retificam o realismo político.' });
+  assert.equal(result.subject, 'Geografia');
+  assert.equal(result.topic, 'Geopolítica');
+});
+
 test('moves Brazilian constitutional questions out of Português', () => {
   const result = classifyQuestion({ subject: 'Português', topic: 'Interpretação de texto', enunciado: 'A Constituição de 1988 atribui ao município a educação infantil e o ensino fundamental na federação brasileira.' });
   assert.equal(result.subject, 'Direito Interno');

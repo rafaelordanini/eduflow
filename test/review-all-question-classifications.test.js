@@ -21,4 +21,9 @@ test('global artifact covers every exported question and fixes the reported bloc
     assert.equal(correction.reviewed.subject, 'História do Brasil');
     assert.equal(correction.reviewed.topic, 'República de 1946 e regime militar');
   }
+  for (const id of [14434, 14435, 14436]) {
+    const correction = checkedIn.corrections.find(item => item.id === id);
+    assert.equal(correction.reviewed.subject, 'Geografia');
+    assert.equal(correction.reviewed.topic, 'Geopolítica');
+  }
 });

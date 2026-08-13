@@ -25,6 +25,8 @@ test('AI prompt sends the complete question and closed taxonomy', () => {
   assert.deepEqual(prompt.taxonomy, QUESTION_TAXONOMY);
   assert.equal(prompt.questions[0].statement, rows[0].enunciado);
   assert.deepEqual(prompt.questions[0].options, { a: 'Certo', b: 'Errado' });
+  assert.equal(prompt.questions[0].current_subject, undefined);
+  assert.equal(prompt.questions[0].current_topic, undefined);
 });
 
 test('rejects missing, reordered and out-of-taxonomy AI decisions', () => {
@@ -75,6 +77,8 @@ test('builds a full decision ledger and an applicable correction artifact', () =
 test('GitHub Action maps the eduflow secret only to the DeepSeek API key', () => {
   const workflow = require('node:fs').readFileSync('.github/workflows/deepseek-question-audit.yml', 'utf8');
   assert.match(workflow, /DEEPSEEK_API_KEY:\s*\$\{\{ secrets\.eduflow \}\}/);
+  assert.match(workflow, /npm run questions:export/);
   assert.match(workflow, /npm run questions:audit-all/);
+  assert.match(workflow, /--apply/);
   assert.doesNotMatch(workflow, /echo.*secrets\.eduflow/);
 });
