@@ -4,6 +4,14 @@ const { cors, requireAuth } = require('../../lib/middleware');
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 const DEEPSEEK_MAX_TOKENS = 4096;
 
+const reviewSystemPrompt = `Você é revisor de questões do CACD. Verifique rigorosamente se cada item:
+- trata diretamente da matéria e do tópico informados;
+- contém uma única afirmação autônoma e inequívoca que possa ser julgada como Certo ou Errado;
+- não contém texto-base desconectado, comandos como "julgue os itens", alternativas ausentes ou fragmentos de outra questão;
+- tem gabarito e explicação coerentes com a afirmação.
+
+Não aprove uma questão apenas porque parte do texto menciona o tópico. Responda SOMENTE com JSON válido, sem markdown.`;
+
 const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Seu papel é gerar itens de julgamento Certo ou Errado no estilo atual da prova TPS do CACD.
 
 ESTILO DAS QUESTÕES CACD:
@@ -45,10 +53,26 @@ Requisitos obrigatórios:
 ${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas anteriormente sobre este tópico` : ''}
 6. Retorne SOMENTE o JSON, sem markdown`;
 
-  const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
-  if (!deepseekApiKey) {
-    throw new Error('DEEPSEEK_API_KEY não configurada.');
+  const result = await requestAIJson([
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt }
+  ], 0.8);
+
+  const questoes = normalizeTrueFalseQuestions(result.questoes);
+  if (questoes.length !== count) {
+    throw new Error('O modelo não retornou todos os itens no formato Certo ou Errado.');
   }
+
+  const reviewed = await reviewGeneratedQuestions(subjectName, lessonTitle, questoes);
+  if (reviewed.length !== count) {
+    throw new Error('A revisão de qualidade não retornou todos os itens solicitados.');
+  }
+  return reviewed;
+}
+
+async function requestAIJson(messages, temperature = 0.1) {
+  const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
+  if (!deepseekApiKey) throw new Error('DEEPSEEK_API_KEY não configurada.');
 
   const response = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
@@ -58,13 +82,10 @@ ${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas
     },
     body: JSON.stringify({
       model: DEEPSEEK_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
+      messages,
       response_format: { type: 'json_object' },
       thinking: { type: 'disabled' },
-      temperature: 0.8,
+      temperature,
       max_tokens: DEEPSEEK_MAX_TOKENS
     })
   });
@@ -91,11 +112,33 @@ ${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas
     }
   }
 
-  const questoes = normalizeTrueFalseQuestions(result.questoes);
-  if (questoes.length !== count) {
-    throw new Error('O modelo não retornou todos os itens no formato Certo ou Errado.');
-  }
-  return questoes;
+  return result;
+}
+
+async function reviewGeneratedQuestions(subjectName, lessonTitle, questions) {
+  const prompt = `Revise as questões abaixo sobre "${lessonTitle}" (matéria: ${subjectName}). Reescreva qualquer item defeituoso por completo. Preserve a quantidade e retorne todas no formato:
+{"questoes":[{"enunciado":"uma única afirmação julgável","opcoes":{"a":"Certo","b":"Errado"},"gabarito":"a ou b","explicacao":"explicação coerente","fonte":"fonte"}]}
+
+QUESTÕES:\n${JSON.stringify(questions)}`;
+  const result = await requestAIJson([
+    { role: 'system', content: reviewSystemPrompt },
+    { role: 'user', content: prompt }
+  ]);
+  return normalizeTrueFalseQuestions(result.questoes).filter(hasValidJudgmentStatement);
+}
+
+async function selectReviewedBankQuestions(subjectName, lessonTitle, questions) {
+  if (!questions.length) return [];
+  const prompt = `Analise estas questões candidatas para "${lessonTitle}" (matéria: ${subjectName}). Não reescreva. Retorne somente os índices das questões integralmente válidas e pertinentes, no formato {"indices_aprovados":[0,2]}.\n\nQUESTÕES:\n${JSON.stringify(questions.map(q => ({ enunciado: q.enunciado, opcoes: q.opcoes, gabarito: q.gabarito, explicacao: q.explicacao })))}`;
+  const result = await requestAIJson([
+    { role: 'system', content: reviewSystemPrompt },
+    { role: 'user', content: prompt }
+  ]);
+  const indices = Array.isArray(result.indices_aprovados) ? result.indices_aprovados : [];
+  return indices
+    .filter((index, position) => Number.isInteger(index) && index >= 0 && index < questions.length && indices.indexOf(index) === position)
+    .map(index => questions[index])
+    .filter(hasValidJudgmentStatement);
 }
 
 function normalizeTrueFalseQuestions(questions) {
@@ -119,6 +162,13 @@ function isTrueFalseQuestion(question) {
   return keys.length === 2 && keys[0] === 'a' && keys[1] === 'b' &&
     String(question.opcoes.a).trim().toLowerCase() === 'certo' &&
     String(question.opcoes.b).trim().toLowerCase() === 'errado';
+}
+
+function hasValidJudgmentStatement(question) {
+  if (!isTrueFalseQuestion(question) || typeof question.enunciado !== 'string') return false;
+  const text = question.enunciado.trim();
+  if (text.length < 20) return false;
+  return !/(julgue|avalie|analise)\s+(os\s+)?(itens|afirmações)\s+(a\s+seguir|seguintes)|assinale\s+(a\s+)?(alternativa|opção)|concerning the text/i.test(text);
 }
 
 module.exports = async function handler(req, res) {
@@ -178,7 +228,7 @@ module.exports = async function handler(req, res) {
       .from('questions')
       .select('*')
       .ilike('subject', `%${subjectName}%`)
-      .limit(count);
+      .limit(count * 3);
 
     if (keywords.length > 0) {
       // Search by topic or enunciado keywords
@@ -187,11 +237,12 @@ module.exports = async function handler(req, res) {
         .select('*')
         .ilike('subject', `%${subjectName}%`)
         .or(`topic.ilike.%${lessonTitle}%,enunciado.ilike.%${keywords[0]}%`)
-        .limit(count);
+        .limit(count * 3);
     }
 
     const { data: bankData } = await bankQuery;
-    const bankQuestions = (bankData || []).filter(isTrueFalseQuestion);
+    const bankCandidates = (bankData || []).filter(hasValidJudgmentStatement);
+    const bankQuestions = (await selectReviewedBankQuestions(subjectName, lessonTitle, bankCandidates)).slice(0, count);
 
     if (bankQuestions && bankQuestions.length >= count) {
       // Enough real/cached questions found
@@ -214,8 +265,9 @@ module.exports = async function handler(req, res) {
         .eq('lesson_id', lessonId)
         .single();
 
-      const cachedQuestions = cached && Array.isArray(cached.questoes)
-        ? cached.questoes.filter(isTrueFalseQuestion) : [];
+      const cachedCandidates = cached && Array.isArray(cached.questoes)
+        ? cached.questoes.filter(hasValidJudgmentStatement) : [];
+      const cachedQuestions = (await selectReviewedBankQuestions(subjectName, lessonTitle, cachedCandidates)).slice(0, count);
       if (cachedQuestions.length >= count) {
         return res.status(200).json({ questoes: cachedQuestions.slice(0, count), cached: true, source: 'lesson_cache' });
       }
@@ -265,3 +317,6 @@ module.exports = async function handler(req, res) {
 
 module.exports.normalizeTrueFalseQuestions = normalizeTrueFalseQuestions;
 module.exports.isTrueFalseQuestion = isTrueFalseQuestion;
+module.exports.hasValidJudgmentStatement = hasValidJudgmentStatement;
+module.exports.reviewGeneratedQuestions = reviewGeneratedQuestions;
+module.exports.selectReviewedBankQuestions = selectReviewedBankQuestions;
