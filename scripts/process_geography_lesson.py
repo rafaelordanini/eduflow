@@ -89,6 +89,12 @@ def download_video(drive_id, destination):
             f"https://drive.usercontent.google.com/download?id={drive_id}&export=download&confirm=t",
         ],
         [
+            sys.executable, "-m", "yt_dlp", "--no-playlist", "--retries", "10",
+            "--fragment-retries", "10", "--concurrent-fragments", "4",
+            "--format", "best", "--output", str(destination),
+            f"https://drive.google.com/file/d/{drive_id}/view",
+        ],
+        [
             sys.executable, "-m", "gdown", "--no-cookies", "--fuzzy",
             f"https://drive.google.com/uc?id={drive_id}", "-O", str(destination),
         ],
@@ -108,7 +114,7 @@ def download_video(drive_id, destination):
             return
         errors.append(f"tentativa {index}: código {result.returncode}")
     raise RuntimeError(
-        "Não foi possível baixar um vídeo válido do Google Drive após três métodos ("
+        "Não foi possível baixar um vídeo válido do Google Drive após quatro métodos ("
         + "; ".join(errors) + "). Confirme que o arquivo permite acesso sem login."
     )
 

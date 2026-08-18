@@ -39,6 +39,11 @@ class GeographyProcessorTests(unittest.TestCase):
             with mock.patch.object(MODULE.subprocess, "run", return_value=probe):
                 self.assertTrue(MODULE.is_media_file(path))
 
+    def test_download_includes_google_drive_preview_stream_fallback(self):
+        source = pathlib.Path(MODULE.__file__).read_text(encoding="utf-8")
+        self.assertIn('"-m", "yt_dlp"', source)
+        self.assertIn('"--fragment-retries", "10"', source)
+
 
 if __name__ == "__main__":
     unittest.main()

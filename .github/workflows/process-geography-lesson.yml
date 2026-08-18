@@ -57,7 +57,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
-          python -m pip install faster-whisper==1.2.1 gdown==5.2.0
+          python -m pip install faster-whisper==1.2.1 gdown==5.2.0 yt-dlp
 
       - name: Validar o processador
         run: |

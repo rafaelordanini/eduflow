@@ -542,4 +542,4 @@ O workflow usa diretamente os secrets existentes `SUPABASE_URL`, `SUPABASE_SERVI
 
 Ao final, a Action publica a transcrição como artefato por 30 dias e grava a análise em `data/lesson-content/geography-lesson-1.json`, fazendo o commit automaticamente. A geração de questões e o plano diário passam a usar esse conteúdo depois do deploy disparado pelo commit.
 
-O download tenta, em sequência, o endpoint direto do Google Drive e duas estratégias do `gdown`, validando o resultado com `ffprobe` para não confundir uma página de login com o vídeo. O arquivo precisa permitir acesso sem login; restrições da conta Google não podem ser contornadas pela Action.
+O download tenta, em sequência, o arquivo direto, o stream de visualização com `yt-dlp` e duas estratégias do `gdown`, validando o resultado com `ffprobe` para não confundir uma página de login com o vídeo. O stream de visualização permite processar aulas que podem ser assistidas no player, mesmo quando o Google bloqueia o download direto.
