@@ -531,3 +531,22 @@ abra um pull request.
 | Quero mudar alguma variável de ambiente | Na Vercel: Settings → Environment Variables → edite o valor → depois clique em "Deployments" → nos 3 pontinhos "..." do último deploy → "Redeploy" |
 | Upload de arquivos no GitHub falhou | Tente arrastar menos arquivos por vez (primeiro as pastas api, lib, public, sql, scripts; depois os arquivos soltos) |
 | Repositório no GitHub ficou vazio | Certifique-se de que marcou "Add a README file" ao criar. Se não marcou, delete o repo e crie novamente marcando essa opção |
+
+---
+
+## Piloto de conteúdo — Aula 1 de Geografia
+
+O piloto usa a transcrição da primeira aula de Geografia como fonte canônica para o título, as questões e o plano diário. Antes de testar:
+
+1. Execute `sql/lesson_contents_pilot.sql` no Supabase.
+2. Obtenha a transcrição da aula `Historia geografia` (Google Drive ID `16ikDG560clJixXEeKl-615otamtefwkI`). A transcrição é uma etapa separada; o DeepSeek analisa o texto, mas não recebe o vídeo neste piloto.
+3. Envie a transcrição com um token de administrador:
+
+```bash
+curl -X POST https://SEU_DOMINIO/api/analyze-lesson \
+  -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
+  -H "Content-Type: application/json" \
+  -d '{"lessonId": ID_DA_AULA, "transcript": "TRANSCRICAO_COMPLETA"}'
+```
+
+O endpoint recusa qualquer aula que não seja a de `order_index = 1` da matéria Geografia. Depois que o registro ficar com `processing_status = ready`, a geração de questões passa a validar a aderência usando resumo e tópicos, e o plano diário recebe o mesmo contexto quando incluir Geografia. O título original não é alterado automaticamente; o título analisado permanece em `lesson_contents.suggested_title` durante o piloto.

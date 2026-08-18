@@ -1,6 +1,7 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
 const { getSequentialStudyDate } = require('../../lib/macro-plan');
+const { formatLessonContext } = require('../../lib/lesson-content');
 
 // ──────────────────────────────────────────────────────────
 //  DADOS DO CACD extraídos do Google Drive (IRBr_Planner)
@@ -241,6 +242,18 @@ module.exports = async function handler(req, res) {
       .from('subjects')
       .select('id, name');
 
+    let pilotLessonContext = '';
+    const geography = (subjectsData || []).find(subject => subject.name === 'Geografia');
+    const geographyLessonOne = geography && (lessonsData || []).find(lesson =>
+      lesson.subject_id === geography.id && Number(lesson.order_index) === 1);
+    if (geographyLessonOne) {
+      const { data: pilotContent } = await supabase.from('lesson_contents').select('*')
+        .eq('lesson_id', geographyLessonOne.id).eq('processing_status', 'ready').maybeSingle();
+      if (pilotContent) {
+        pilotLessonContext = `\n\n## Conteúdo verificado — Aula 1 de Geografia (ID ${geographyLessonOne.id}):\n${formatLessonContext(pilotContent)}\nUse esta aula e suas leituras somente quando o plano incluir Geografia.`;
+      }
+    }
+
     // Mapear progresso por matéria
     const progressBySubject = {};
     if (subjectsData && lessonsData && progressData) {
@@ -343,7 +356,7 @@ ${observacoes ? `**Observações do estudante:** ${observacoes}` : ''}
 ${progressoTexto}${macroPlanContext}
 
 ## Estrutura completa do CACD (${CACD_DATA.totalTopicos} tópicos no total):
-${materiasTexto}
+${materiasTexto}${pilotLessonContext}
 
 ## Instruções para gerar o plano:
 1. Distribua as ${horasDisponiveis}h priorizando as matérias em foco: ${focoStr}
