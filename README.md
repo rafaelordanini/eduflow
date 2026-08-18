@@ -531,3 +531,13 @@ abra um pull request.
 | Quero mudar alguma variável de ambiente | Na Vercel: Settings → Environment Variables → edite o valor → depois clique em "Deployments" → nos 3 pontinhos "..." do último deploy → "Redeploy" |
 | Upload de arquivos no GitHub falhou | Tente arrastar menos arquivos por vez (primeiro as pastas api, lib, public, sql, scripts; depois os arquivos soltos) |
 | Repositório no GitHub ficou vazio | Certifique-se de que marcou "Add a README file" ao criar. Se não marcou, delete o repo e crie novamente marcando essa opção |
+
+---
+
+## Piloto de conteúdo — Aula 1 de Geografia
+
+O piloto é executado integralmente pela GitHub Action **Processar Aula 1 de Geografia**. Ela baixa o vídeo do Google Drive, extrai o áudio, faz a transcrição local em português com faster-whisper, analisa o texto em partes com o DeepSeek, prepara a tabela, salva o resultado no Supabase e, opcionalmente, renomeia a aula.
+
+Configure uma única vez os secrets `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_DB_URL` (connection string do banco) e `DEEPSEEK_API_KEY` em **Settings → Secrets and variables → Actions**. Depois, abra **Actions → Processar Aula 1 de Geografia → Run workflow**, escolha o modelo `small` (mais rápido) ou `medium` (mais preciso) e confirme se deseja renomear a aula.
+
+Ao final, a Action publica a transcrição e a análise como artefatos por 30 dias. O registro `lesson_contents` fica com `processing_status = ready`; a geração de questões passa a validar a aderência usando resumo e tópicos, e o plano diário recebe o mesmo contexto quando incluir Geografia.
