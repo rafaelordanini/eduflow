@@ -1,0 +1,89 @@
+name: Processar Aula 1 de Geografia
+
+on:
+  workflow_dispatch:
+    inputs:
+      whisper_model:
+        description: Modelo local de transcrição
+        required: true
+        default: small
+        type: choice
+        options:
+          - small
+          - medium
+      rename_lesson:
+        description: Renomear a aula automaticamente com o título sugerido
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geography-lesson-one-pilot
+  cancel-in-progress: false
+
+jobs:
+  process:
+    name: Baixar, transcrever, analisar e salvar
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-v4-flash' }}
+      WHISPER_MODEL: ${{ inputs.whisper_model }}
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Validar secrets
+        shell: bash
+        run: |
+          missing=0
+          for secret in SUPABASE_URL SUPABASE_SERVICE_KEY SUPABASE_DB_URL DEEPSEEK_API_KEY; do
+            if [ -z "${!secret}" ]; then
+              echo "::error::Configure o secret $secret em Settings > Secrets and variables > Actions."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Preparar banco de dados
+        run: psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --file sql/lesson_contents_pilot.sql
+
+      - name: Instalar FFmpeg e dependências Python
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install faster-whisper==1.2.1 gdown==5.2.0
+
+      - name: Validar o processador
+        run: |
+          python test/process_geography_lesson_test.py
+          python -m py_compile scripts/process_geography_lesson.py
+
+      - name: Processar a aula
+        shell: bash
+        run: |
+          args=(--whisper-model "$WHISPER_MODEL")
+          if [ "${{ inputs.rename_lesson }}" = "true" ]; then
+            args+=(--rename-lesson)
+          fi
+          python scripts/process_geography_lesson.py "${args[@]}"
+
+      - name: Publicar transcrição e análise para auditoria
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geografia-aula-1-${{ github.run_id }}
+          path: |
+            lesson-analysis.json
+            lesson-transcript.txt
+          if-no-files-found: warn
+          retention-days: 30

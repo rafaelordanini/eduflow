@@ -536,17 +536,8 @@ abra um pull request.
 
 ## Piloto de conteúdo — Aula 1 de Geografia
 
-O piloto usa a transcrição da primeira aula de Geografia como fonte canônica para o título, as questões e o plano diário. Antes de testar:
+O piloto é executado integralmente pela GitHub Action **Processar Aula 1 de Geografia**. Ela baixa o vídeo do Google Drive, extrai o áudio, faz a transcrição local em português com faster-whisper, analisa o texto em partes com o DeepSeek, prepara a tabela, salva o resultado no Supabase e, opcionalmente, renomeia a aula.
 
-1. Execute `sql/lesson_contents_pilot.sql` no Supabase.
-2. Obtenha a transcrição da aula `Historia geografia` (Google Drive ID `16ikDG560clJixXEeKl-615otamtefwkI`). A transcrição é uma etapa separada; o DeepSeek analisa o texto, mas não recebe o vídeo neste piloto.
-3. Envie a transcrição com um token de administrador:
+Configure uma única vez os secrets `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_DB_URL` (connection string do banco) e `DEEPSEEK_API_KEY` em **Settings → Secrets and variables → Actions**. Depois, abra **Actions → Processar Aula 1 de Geografia → Run workflow**, escolha o modelo `small` (mais rápido) ou `medium` (mais preciso) e confirme se deseja renomear a aula.
 
-```bash
-curl -X POST https://SEU_DOMINIO/api/analyze-lesson \
-  -H "Authorization: Bearer SEU_TOKEN_ADMIN" \
-  -H "Content-Type: application/json" \
-  -d '{"lessonId": ID_DA_AULA, "transcript": "TRANSCRICAO_COMPLETA"}'
-```
-
-O endpoint recusa qualquer aula que não seja a de `order_index = 1` da matéria Geografia. Depois que o registro ficar com `processing_status = ready`, a geração de questões passa a validar a aderência usando resumo e tópicos, e o plano diário recebe o mesmo contexto quando incluir Geografia. O título original não é alterado automaticamente; o título analisado permanece em `lesson_contents.suggested_title` durante o piloto.
+Ao final, a Action publica a transcrição e a análise como artefatos por 30 dias. O registro `lesson_contents` fica com `processing_status = ready`; a geração de questões passa a validar a aderência usando resumo e tópicos, e o plano diário recebe o mesmo contexto quando incluir Geografia.
