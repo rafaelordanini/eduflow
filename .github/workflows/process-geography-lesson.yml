@@ -1,0 +1,97 @@
+name: Processar Aula 1 de Geografia
+
+on:
+  workflow_dispatch:
+    inputs:
+      whisper_model:
+        description: Modelo local de transcrição
+        required: true
+        default: small
+        type: choice
+        options:
+          - small
+          - medium
+      rename_lesson:
+        description: Renomear a aula automaticamente com o título sugerido
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: geography-lesson-one-pilot
+  cancel-in-progress: false
+
+jobs:
+  process:
+    name: Baixar, transcrever, analisar e salvar
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SERVICE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.EDUFLOW || secrets.DEEPSEEK_API_KEY }}
+      DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-v4-flash' }}
+      WHISPER_MODEL: ${{ inputs.whisper_model }}
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Validar secrets
+        shell: bash
+        run: |
+          missing=0
+          for secret in SUPABASE_URL SUPABASE_SERVICE_KEY DEEPSEEK_API_KEY; do
+            if [ -z "${!secret}" ]; then
+              echo "::error::Configure o secret $secret em Settings > Secrets and variables > Actions."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Instalar FFmpeg e dependências Python
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          python -m pip install faster-whisper==1.2.1 gdown==5.2.0
+
+      - name: Validar o processador
+        run: |
+          python test/process_geography_lesson_test.py
+          python -m py_compile scripts/process_geography_lesson.py
+
+      - name: Processar a aula
+        shell: bash
+        run: |
+          args=(--whisper-model "$WHISPER_MODEL")
+          if [ "${{ inputs.rename_lesson }}" = "true" ]; then
+            args+=(--rename-lesson)
+          fi
+          python scripts/process_geography_lesson.py "${args[@]}"
+
+      - name: Salvar análise no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/lesson-content/geography-lesson-1.json
+          if git diff --cached --quiet; then
+            echo "A análise não mudou."
+          else
+            git commit -m "Update Geography lesson 1 analysis"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+      - name: Publicar transcrição e análise para auditoria
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geografia-aula-1-${{ github.run_id }}
+          path: |
+            lesson-analysis.json
+            lesson-transcript.txt
+          if-no-files-found: warn
+          retention-days: 30
