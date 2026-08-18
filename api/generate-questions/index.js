@@ -1,5 +1,6 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
+const { formatLessonContext } = require('../../lib/lesson-content');
 
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 const DEEPSEEK_MAX_TOKENS = 4096;
@@ -41,7 +42,7 @@ Responda SOMENTE com JSON válido (sem markdown):
   ]
 }`;
 
-async function generateAIQuestions(subjectName, lessonTitle, count, offset = 0) {
+async function generateAIQuestions(subjectName, lessonTitle, count, offset = 0, lessonContext = '') {
   const userPrompt = `Gere ${count} questões de múltipla escolha no estilo exato das provas TPS do CACD (2003-2025) sobre o seguinte tópico: "${lessonTitle}" (matéria: ${subjectName}).
 
 Requisitos obrigatórios:
@@ -51,7 +52,8 @@ Requisitos obrigatórios:
 4. A explicação deve citar as fontes bibliográficas do CACD relevantes (ex: Fausto HB, Cervo HPEB, Rezek DI)
 5. Escreva em português do Brasil, com linguagem acadêmica
 ${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas anteriormente sobre este tópico` : ''}
-6. Retorne SOMENTE o JSON, sem markdown`;
+6. Retorne SOMENTE o JSON, sem markdown
+${lessonContext ? `\nCONTEÚDO CANÔNICO DA AULA — cobre somente o que consta abaixo:\n${lessonContext}` : ''}`;
 
   const result = await requestAIJson([
     { role: 'system', content: systemPrompt },
@@ -63,7 +65,7 @@ ${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas
     throw new Error('O modelo não retornou todos os itens no formato Certo ou Errado.');
   }
 
-  const reviewed = await reviewGeneratedQuestions(subjectName, lessonTitle, questoes);
+  const reviewed = await reviewGeneratedQuestions(subjectName, lessonTitle, questoes, lessonContext);
   if (reviewed.length !== count) {
     throw new Error('A revisão de qualidade não retornou todos os itens solicitados.');
   }
@@ -115,11 +117,11 @@ async function requestAIJson(messages, temperature = 0.1) {
   return result;
 }
 
-async function reviewGeneratedQuestions(subjectName, lessonTitle, questions) {
+async function reviewGeneratedQuestions(subjectName, lessonTitle, questions, lessonContext = '') {
   const prompt = `Revise as questões abaixo sobre "${lessonTitle}" (matéria: ${subjectName}). Reescreva qualquer item defeituoso por completo. Preserve a quantidade e retorne todas no formato:
 {"questoes":[{"enunciado":"uma única afirmação julgável","opcoes":{"a":"Certo","b":"Errado"},"gabarito":"a ou b","explicacao":"explicação coerente","fonte":"fonte"}]}
 
-QUESTÕES:\n${JSON.stringify(questions)}`;
+${lessonContext ? `CONTEÚDO CANÔNICO DA AULA:\n${lessonContext}\n\n` : ''}QUESTÕES:\n${JSON.stringify(questions)}`;
   const result = await requestAIJson([
     { role: 'system', content: reviewSystemPrompt },
     { role: 'user', content: prompt }
@@ -127,9 +129,9 @@ QUESTÕES:\n${JSON.stringify(questions)}`;
   return normalizeTrueFalseQuestions(result.questoes).filter(hasValidJudgmentStatement);
 }
 
-async function selectReviewedBankQuestions(subjectName, lessonTitle, questions) {
+async function selectReviewedBankQuestions(subjectName, lessonTitle, questions, lessonContext = '') {
   if (!questions.length) return [];
-  const prompt = `Analise estas questões candidatas para "${lessonTitle}" (matéria: ${subjectName}). Não reescreva. Retorne somente os índices das questões integralmente válidas e pertinentes, no formato {"indices_aprovados":[0,2]}.\n\nQUESTÕES:\n${JSON.stringify(questions.map(q => ({ enunciado: q.enunciado, opcoes: q.opcoes, gabarito: q.gabarito, explicacao: q.explicacao })))}`;
+  const prompt = `Analise estas questões candidatas para "${lessonTitle}" (matéria: ${subjectName}). Não reescreva. Aprove somente questões cujo conteúdo esteja efetivamente coberto pela aula. Retorne somente os índices das questões integralmente válidas e pertinentes, no formato {"indices_aprovados":[0,2]}.\n\n${lessonContext ? `CONTEÚDO CANÔNICO DA AULA:\n${lessonContext}\n\n` : ''}QUESTÕES:\n${JSON.stringify(questions.map(q => ({ enunciado: q.enunciado, opcoes: q.opcoes, gabarito: q.gabarito, explicacao: q.explicacao })))}`;
   const result = await requestAIJson([
     { role: 'system', content: reviewSystemPrompt },
     { role: 'user', content: prompt }
@@ -179,16 +181,22 @@ module.exports = async function handler(req, res) {
     const user = requireAuth(req, res);
     if (!user) return;
 
-    const { lessonId, subjectName, lessonTitle, count = 5, offset = 0, forceNew = false } = req.body || {};
+    const { lessonId, count = 5, offset = 0, forceNew = false } = req.body || {};
 
     if (!lessonId) return res.status(400).json({ error: 'Informe o lessonId.' });
-    if (!subjectName || !lessonTitle) return res.status(400).json({ error: 'Informe subjectName e lessonTitle.' });
-
     const supabase = getSupabase();
+    const { data: lesson, error: lessonError } = await supabase
+      .from('lessons').select('id, title, subjects(name)').eq('id', lessonId).single();
+    if (lessonError || !lesson) return res.status(404).json({ error: 'Aula não encontrada.' });
+    const subjectName = lesson.subjects && lesson.subjects.name;
+    const { data: lessonContent } = await supabase.from('lesson_contents').select('*')
+      .eq('lesson_id', lessonId).eq('processing_status', 'ready').maybeSingle();
+    const lessonContext = formatLessonContext(lessonContent);
+    const lessonTitle = lessonContent && lessonContent.suggested_title || lesson.title;
 
     // If forceNew, skip cache and generate fresh AI questions
     if (forceNew) {
-      const newQuestoes = await generateAIQuestions(subjectName, lessonTitle, count, offset);
+      const newQuestoes = await generateAIQuestions(subjectName, lessonTitle, count, offset, lessonContext);
 
       // Save new AI questions to global questions bank
       const questionsToInsert = newQuestoes.map(q => ({
@@ -242,7 +250,7 @@ module.exports = async function handler(req, res) {
 
     const { data: bankData } = await bankQuery;
     const bankCandidates = (bankData || []).filter(hasValidJudgmentStatement);
-    const bankQuestions = (await selectReviewedBankQuestions(subjectName, lessonTitle, bankCandidates)).slice(0, count);
+    const bankQuestions = (await selectReviewedBankQuestions(subjectName, lessonTitle, bankCandidates, lessonContext)).slice(0, count);
 
     if (bankQuestions && bankQuestions.length >= count) {
       // Enough real/cached questions found
@@ -267,7 +275,7 @@ module.exports = async function handler(req, res) {
 
       const cachedCandidates = cached && Array.isArray(cached.questoes)
         ? cached.questoes.filter(hasValidJudgmentStatement) : [];
-      const cachedQuestions = (await selectReviewedBankQuestions(subjectName, lessonTitle, cachedCandidates)).slice(0, count);
+      const cachedQuestions = (await selectReviewedBankQuestions(subjectName, lessonTitle, cachedCandidates, lessonContext)).slice(0, count);
       if (cachedQuestions.length >= count) {
         return res.status(200).json({ questoes: cachedQuestions.slice(0, count), cached: true, source: 'lesson_cache' });
       }
@@ -276,7 +284,7 @@ module.exports = async function handler(req, res) {
     // Generate missing questions via AI
     const alreadyHave = bankQuestions ? bankQuestions.length : 0;
     const needed = count - alreadyHave;
-    const newQuestoes = await generateAIQuestions(subjectName, lessonTitle, needed, alreadyHave);
+    const newQuestoes = await generateAIQuestions(subjectName, lessonTitle, needed, alreadyHave, lessonContext);
 
     // Save new AI questions to global questions bank
     const questionsToInsert = newQuestoes.map(q => ({
