@@ -81,14 +81,52 @@ class SupabaseRest:
 
 def download_video(drive_id, destination):
     print("::group::Baixando vídeo do Google Drive", flush=True)
-    subprocess.run([
-        sys.executable, "-m", "gdown", "--fuzzy",
-        f"https://drive.google.com/file/d/{drive_id}/view", "-O", str(destination),
-    ], check=True)
-    if not destination.exists() or destination.stat().st_size < 1024:
-        raise RuntimeError("O download do vídeo não produziu um arquivo válido.")
-    print(f"Vídeo baixado: {destination.stat().st_size / 1024 / 1024:.1f} MB")
-    print("::endgroup::", flush=True)
+    attempts = [
+        [
+            "curl", "--fail", "--location", "--retry", "5", "--retry-all-errors",
+            "--connect-timeout", "30", "--max-time", "7200",
+            "--user-agent", "Mozilla/5.0", "--output", str(destination),
+            f"https://drive.usercontent.google.com/download?id={drive_id}&export=download&confirm=t",
+        ],
+        [
+            sys.executable, "-m", "gdown", "--no-cookies", "--fuzzy",
+            f"https://drive.google.com/uc?id={drive_id}", "-O", str(destination),
+        ],
+        [
+            sys.executable, "-m", "gdown", "--fuzzy",
+            f"https://drive.google.com/file/d/{drive_id}/view", "-O", str(destination),
+        ],
+    ]
+    errors = []
+    for index, command in enumerate(attempts, 1):
+        destination.unlink(missing_ok=True)
+        print(f"Tentativa de download {index}/{len(attempts)}", flush=True)
+        result = subprocess.run(command, check=False)
+        if result.returncode == 0 and is_media_file(destination):
+            print(f"Vídeo baixado: {destination.stat().st_size / 1024 / 1024:.1f} MB")
+            print("::endgroup::", flush=True)
+            return
+        errors.append(f"tentativa {index}: código {result.returncode}")
+    raise RuntimeError(
+        "Não foi possível baixar um vídeo válido do Google Drive após três métodos ("
+        + "; ".join(errors) + "). Confirme que o arquivo permite acesso sem login."
+    )
+
+
+def is_media_file(path):
+    if not path.exists() or path.stat().st_size < 1024 * 1024:
+        return False
+    result = subprocess.run([
+        "ffprobe", "-v", "error", "-show_entries", "format=format_name,duration",
+        "-of", "json", str(path),
+    ], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        return False
+    try:
+        metadata = json.loads(result.stdout).get("format", {})
+        return bool(metadata.get("format_name")) and float(metadata.get("duration", 0)) > 1
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return False
 
 
 def extract_audio(video, audio):

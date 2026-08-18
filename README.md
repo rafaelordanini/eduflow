@@ -541,3 +541,5 @@ O piloto é executado integralmente pela GitHub Action **Processar Aula 1 de Geo
 O workflow usa diretamente os secrets existentes `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `EDUFLOW` — este último como chave da API DeepSeek. Também aceita, por compatibilidade, `SUPABASE_SERVICE_KEY` e `DEEPSEEK_API_KEY`. Depois, abra **Actions → Processar Aula 1 de Geografia → Run workflow**, escolha o modelo `small` (mais rápido) ou `medium` (mais preciso) e confirme se deseja renomear a aula.
 
 Ao final, a Action publica a transcrição como artefato por 30 dias e grava a análise em `data/lesson-content/geography-lesson-1.json`, fazendo o commit automaticamente. A geração de questões e o plano diário passam a usar esse conteúdo depois do deploy disparado pelo commit.
+
+O download tenta, em sequência, o endpoint direto do Google Drive e duas estratégias do `gdown`, validando o resultado com `ffprobe` para não confundir uma página de login com o vídeo. O arquivo precisa permitir acesso sem login; restrições da conta Google não podem ser contornadas pela Action.

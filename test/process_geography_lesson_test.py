@@ -1,7 +1,9 @@
 import importlib.util
 import json
 import pathlib
+import tempfile
 import unittest
+from unittest import mock
 
 
 MODULE_PATH = pathlib.Path(__file__).parents[1] / "scripts" / "process_geography_lesson.py"
@@ -26,6 +28,16 @@ class GeographyProcessorTests(unittest.TestCase):
         self.assertEqual(MODULE.PILOT_SUBJECT, "Geografia")
         self.assertEqual(MODULE.PILOT_ORDER, 1)
         self.assertEqual(MODULE.DEFAULT_DRIVE_ID, "16ikDG560clJixXEeKl-615otamtefwkI")
+
+    def test_media_validation_rejects_html_and_accepts_ffprobe_media(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "download"
+            path.write_bytes(b"<html>login</html>" * 100)
+            self.assertFalse(MODULE.is_media_file(path))
+            path.write_bytes(b"0" * (1024 * 1024 + 1))
+            probe = mock.Mock(returncode=0, stdout='{"format":{"format_name":"mov,mp4","duration":"60"}}')
+            with mock.patch.object(MODULE.subprocess, "run", return_value=probe):
+                self.assertTrue(MODULE.is_media_file(path))
 
 
 if __name__ == "__main__":
