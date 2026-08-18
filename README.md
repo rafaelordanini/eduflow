@@ -536,8 +536,8 @@ abra um pull request.
 
 ## Piloto de conteúdo — Aula 1 de Geografia
 
-O piloto é executado integralmente pela GitHub Action **Processar Aula 1 de Geografia**. Ela baixa o vídeo do Google Drive, extrai o áudio, faz a transcrição local em português com faster-whisper, analisa o texto em partes com o DeepSeek, prepara a tabela, salva o resultado no Supabase e, opcionalmente, renomeia a aula.
+O piloto é executado integralmente pela GitHub Action **Processar Aula 1 de Geografia**. Ela baixa o vídeo do Google Drive, extrai o áudio, faz a transcrição local em português com faster-whisper, analisa o texto em partes com o DeepSeek, salva a análise no repositório e, opcionalmente, renomeia a aula no Supabase.
 
-Configure uma única vez os secrets `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_DB_URL` (connection string do banco) e `DEEPSEEK_API_KEY` em **Settings → Secrets and variables → Actions**. Depois, abra **Actions → Processar Aula 1 de Geografia → Run workflow**, escolha o modelo `small` (mais rápido) ou `medium` (mais preciso) e confirme se deseja renomear a aula.
+O workflow usa diretamente os secrets existentes `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` e `EDUFLOW` — este último como chave da API DeepSeek. Também aceita, por compatibilidade, `SUPABASE_SERVICE_KEY` e `DEEPSEEK_API_KEY`. Depois, abra **Actions → Processar Aula 1 de Geografia → Run workflow**, escolha o modelo `small` (mais rápido) ou `medium` (mais preciso) e confirme se deseja renomear a aula.
 
-Ao final, a Action publica a transcrição e a análise como artefatos por 30 dias. O registro `lesson_contents` fica com `processing_status = ready`; a geração de questões passa a validar a aderência usando resumo e tópicos, e o plano diário recebe o mesmo contexto quando incluir Geografia.
+Ao final, a Action publica a transcrição como artefato por 30 dias e grava a análise em `data/lesson-content/geography-lesson-1.json`, fazendo o commit automaticamente. A geração de questões e o plano diário passam a usar esse conteúdo depois do deploy disparado pelo commit.

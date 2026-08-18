@@ -205,46 +205,36 @@ def main():
     lesson = database.pilot_lesson()
     original_title = lesson["title"]
     print(f"Processando aula {lesson['id']}: {original_title}", flush=True)
-    database.upsert("lesson_contents", {
-        "lesson_id": lesson["id"], "transcript": "", "processing_status": "pending",
-        "original_title": original_title, "error_message": None,
-    }, "lesson_id")
+    with tempfile.TemporaryDirectory(prefix="eduflow-geography-") as directory:
+        directory = Path(directory)
+        video, audio = directory / "lesson-video", directory / "lesson-audio.mp3"
+        download_video(args.drive_id, video)
+        extract_audio(video, audio)
+        transcript = transcribe(audio, args.whisper_model)
+        analysis = analyze_transcript(transcript)
 
-    try:
-        with tempfile.TemporaryDirectory(prefix="eduflow-geography-") as directory:
-            directory = Path(directory)
-            video, audio = directory / "lesson-video", directory / "lesson-audio.mp3"
-            download_video(args.drive_id, video)
-            extract_audio(video, audio)
-            database.update("lesson_contents", {"processing_status": "analyzing"}, f"lesson_id=eq.{lesson['id']}")
-            transcript = transcribe(audio, args.whisper_model)
-            analysis = analyze_transcript(transcript)
+    model = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+    record = {
+        "lesson_id": lesson["id"],
+        "summary": str(analysis["summary"]).strip(),
+        "suggested_title": str(analysis["suggested_title"]).strip()[:255],
+        "topics": analysis["topics"][:30], "keywords": analysis["keywords"][:60],
+        "references": analysis["references"][:30], "processing_status": "ready",
+        "model": model, "transcription_model": f"faster-whisper/{args.whisper_model}",
+        "prompt_version": PROMPT_VERSION, "content_hash": hashlib.sha256(transcript.encode()).hexdigest(),
+        "original_title": original_title,
+        "processed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    }
+    if args.rename_lesson:
+        database.update("lessons", {"title": record["suggested_title"]}, f"id=eq.{lesson['id']}")
+        print(f"Aula renomeada para: {record['suggested_title']}")
 
-        model = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
-        record = {
-            "lesson_id": lesson["id"], "transcript": transcript,
-            "summary": str(analysis["summary"]).strip(),
-            "suggested_title": str(analysis["suggested_title"]).strip()[:255],
-            "topics": analysis["topics"][:30], "keywords": analysis["keywords"][:60],
-            "references": analysis["references"][:30], "processing_status": "ready",
-            "model": model, "transcription_model": f"faster-whisper/{args.whisper_model}",
-            "prompt_version": PROMPT_VERSION, "content_hash": hashlib.sha256(transcript.encode()).hexdigest(),
-            "original_title": original_title, "error_message": None,
-            "processed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        }
-        database.upsert("lesson_contents", record, "lesson_id")
-        if args.rename_lesson:
-            database.update("lessons", {"title": record["suggested_title"]}, f"id=eq.{lesson['id']}")
-            print(f"Aula renomeada para: {record['suggested_title']}")
-
-        Path("lesson-analysis.json").write_text(json.dumps({**record, "transcript": "[omitida do artefato]"}, ensure_ascii=False, indent=2))
-        Path("lesson-transcript.txt").write_text(transcript, encoding="utf-8")
-        print("Processamento concluído e salvo no Supabase.", flush=True)
-    except Exception as error:
-        database.update("lesson_contents", {
-            "processing_status": "failed", "error_message": str(error)[:2000],
-        }, f"lesson_id=eq.{lesson['id']}")
-        raise
+    output = Path("data/lesson-content/geography-lesson-1.json")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    Path("lesson-analysis.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+    Path("lesson-transcript.txt").write_text(transcript, encoding="utf-8")
+    print("Processamento concluído; análise pronta para ser versionada.", flush=True)
 
 
 if __name__ == "__main__":

@@ -3,13 +3,18 @@ const assert = require('node:assert/strict');
 const {
   isPilotLesson,
   normalizeAnalysis,
-  formatLessonContext
+  formatLessonContext,
+  loadStaticPilotContent
 } = require('../lib/lesson-content');
 
 test('restricts the pilot to Geography lesson one', () => {
   assert.equal(isPilotLesson({ order_index: 1 }, { name: 'Geografia' }), true);
   assert.equal(isPilotLesson({ order_index: 2 }, { name: 'Geografia' }), false);
   assert.equal(isPilotLesson({ order_index: 1 }, { name: 'Economia' }), false);
+});
+
+test('returns no static pilot content before the workflow publishes it', () => {
+  assert.equal(loadStaticPilotContent(999999), null);
 });
 
 test('normalizes a valid DeepSeek analysis', () => {

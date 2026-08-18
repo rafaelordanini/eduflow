@@ -1,7 +1,7 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
 const { getSequentialStudyDate } = require('../../lib/macro-plan');
-const { formatLessonContext } = require('../../lib/lesson-content');
+const { formatLessonContext, loadStaticPilotContent } = require('../../lib/lesson-content');
 
 // ──────────────────────────────────────────────────────────
 //  DADOS DO CACD extraídos do Google Drive (IRBr_Planner)
@@ -249,8 +249,9 @@ module.exports = async function handler(req, res) {
     if (geographyLessonOne) {
       const { data: pilotContent } = await supabase.from('lesson_contents').select('*')
         .eq('lesson_id', geographyLessonOne.id).eq('processing_status', 'ready').maybeSingle();
-      if (pilotContent) {
-        pilotLessonContext = `\n\n## Conteúdo verificado — Aula 1 de Geografia (ID ${geographyLessonOne.id}):\n${formatLessonContext(pilotContent)}\nUse esta aula e suas leituras somente quando o plano incluir Geografia.`;
+      const canonicalContent = pilotContent || loadStaticPilotContent(geographyLessonOne.id);
+      if (canonicalContent) {
+        pilotLessonContext = `\n\n## Conteúdo verificado — Aula 1 de Geografia (ID ${geographyLessonOne.id}):\n${formatLessonContext(canonicalContent)}\nUse esta aula e suas leituras somente quando o plano incluir Geografia.`;
       }
     }
 

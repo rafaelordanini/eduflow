@@ -1,6 +1,6 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
-const { formatLessonContext } = require('../../lib/lesson-content');
+const { formatLessonContext, loadStaticPilotContent } = require('../../lib/lesson-content');
 
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 const DEEPSEEK_MAX_TOKENS = 4096;
@@ -191,8 +191,9 @@ module.exports = async function handler(req, res) {
     const subjectName = lesson.subjects && lesson.subjects.name;
     const { data: lessonContent } = await supabase.from('lesson_contents').select('*')
       .eq('lesson_id', lessonId).eq('processing_status', 'ready').maybeSingle();
-    const lessonContext = formatLessonContext(lessonContent);
-    const lessonTitle = lessonContent && lessonContent.suggested_title || lesson.title;
+    const canonicalContent = lessonContent || loadStaticPilotContent(lessonId);
+    const lessonContext = formatLessonContext(canonicalContent);
+    const lessonTitle = canonicalContent && canonicalContent.suggested_title || lesson.title;
 
     // If forceNew, skip cache and generate fresh AI questions
     if (forceNew) {

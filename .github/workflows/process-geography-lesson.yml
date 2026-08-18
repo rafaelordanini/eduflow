@@ -18,7 +18,7 @@ on:
         type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: geography-lesson-one-pilot
@@ -31,9 +31,8 @@ jobs:
     timeout-minutes: 330
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SERVICE_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.EDUFLOW || secrets.DEEPSEEK_API_KEY }}
       DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-v4-flash' }}
       WHISPER_MODEL: ${{ inputs.whisper_model }}
 
@@ -45,16 +44,13 @@ jobs:
         shell: bash
         run: |
           missing=0
-          for secret in SUPABASE_URL SUPABASE_SERVICE_KEY SUPABASE_DB_URL DEEPSEEK_API_KEY; do
+          for secret in SUPABASE_URL SUPABASE_SERVICE_KEY DEEPSEEK_API_KEY; do
             if [ -z "${!secret}" ]; then
               echo "::error::Configure o secret $secret em Settings > Secrets and variables > Actions."
               missing=1
             fi
           done
           exit "$missing"
-
-      - name: Preparar banco de dados
-        run: psql "$SUPABASE_DB_URL" --set ON_ERROR_STOP=1 --file sql/lesson_contents_pilot.sql
 
       - name: Instalar FFmpeg e dependências Python
         run: |
@@ -76,6 +72,18 @@ jobs:
             args+=(--rename-lesson)
           fi
           python scripts/process_geography_lesson.py "${args[@]}"
+
+      - name: Salvar análise no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/lesson-content/geography-lesson-1.json
+          if git diff --cached --quiet; then
+            echo "A análise não mudou."
+          else
+            git commit -m "Update Geography lesson 1 analysis"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
 
       - name: Publicar transcrição e análise para auditoria
         if: always()
