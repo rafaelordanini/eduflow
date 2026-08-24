@@ -3,7 +3,7 @@ const { cors, requireAuth } = require('../../lib/middleware');
 const { formatLessonContext, loadStaticPilotContent } = require('../../lib/lesson-content');
 
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
-const DEEPSEEK_MAX_TOKENS = 4096;
+const DEEPSEEK_MAX_TOKENS = 8192;
 
 const reviewSystemPrompt = `Você é revisor de questões do CACD. Verifique rigorosamente se cada item:
 - trata diretamente da matéria e do tópico informados;
@@ -17,6 +17,7 @@ const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à
 
 ESTILO DAS QUESTÕES CACD:
 - Cada questão deve conter uma única afirmação autônoma a ser julgada
+- Nunca interrompa o enunciado no meio de uma palavra ou frase; conclua integralmente cada afirmação
 - As únicas respostas permitidas são "Certo" e "Errado"
 - Afirmações analíticas que testam nuances (datas precisas, nomes de tratados, detalhes de política externa)
 - PRIORIZE tópicos e abordagens que JÁ FORAM cobrados em provas anteriores do CACD
@@ -51,8 +52,9 @@ Requisitos obrigatórios:
 3. Cada questão deve ser uma afirmação independente com exatamente duas opções: {"a":"Certo","b":"Errado"}; o gabarito deve ser somente "a" ou "b"
 4. A explicação deve citar as fontes bibliográficas do CACD relevantes (ex: Fausto HB, Cervo HPEB, Rezek DI)
 5. Escreva em português do Brasil, com linguagem acadêmica
-${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas anteriormente sobre este tópico` : ''}
-6. Retorne SOMENTE o JSON, sem markdown
+6. Termine cada enunciado com uma frase completa e pontuação final; nunca abrevie ou corte o texto para caber na resposta
+${offset > 0 ? `7. Gere questões DIFERENTES das ${offset} questões já geradas anteriormente sobre este tópico` : ''}
+8. Retorne SOMENTE o JSON, sem markdown
 ${lessonContext ? `\nCONTEÚDO CANÔNICO DA AULA — cobre somente o que consta abaixo:\n${lessonContext}` : ''}`;
 
   const result = await requestAIJson([
@@ -170,6 +172,9 @@ function hasValidJudgmentStatement(question) {
   if (!isTrueFalseQuestion(question) || typeof question.enunciado !== 'string') return false;
   const text = question.enunciado.trim();
   if (text.length < 20) return false;
+  // Legacy exam imports were limited with substring(), sometimes in the middle
+  // of a word. A judgment item must end as a complete, punctuated sentence.
+  if (!/[.!?][\])}'”’"]*$/.test(text)) return false;
   return !/(julgue|avalie|analise)\s+(os\s+)?(itens|afirmações)\s+(a\s+seguir|seguintes)|assinale\s+(a\s+)?(alternativa|opção)|concerning the text/i.test(text);
 }
 
@@ -237,6 +242,7 @@ module.exports = async function handler(req, res) {
       .from('questions')
       .select('*')
       .ilike('subject', `%${subjectName}%`)
+      .neq('source', 'exam_quarantined')
       .limit(count * 3);
 
     if (keywords.length > 0) {
@@ -245,6 +251,7 @@ module.exports = async function handler(req, res) {
         .from('questions')
         .select('*')
         .ilike('subject', `%${subjectName}%`)
+        .neq('source', 'exam_quarantined')
         .or(`topic.ilike.%${lessonTitle}%,enunciado.ilike.%${keywords[0]}%`)
         .limit(count * 3);
     }

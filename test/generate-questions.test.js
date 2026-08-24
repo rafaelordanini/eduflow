@@ -41,6 +41,14 @@ test('rejects commands and disconnected source fragments instead of judgment ite
     enunciado: 'A nacionalidade brasileira nata pode decorrer dos critérios territorial e sanguíneo previstos na Constituição.',
     opcoes: options
   }), true);
+  assert.equal(hasValidJudgmentStatement({
+    enunciado: 'Em 1990, a expressão aplicava-se a questões que não eram novas, mas vinham recebe',
+    opcoes: options
+  }), false);
+  assert.equal(hasValidJudgmentStatement({
+    enunciado: 'Segundo a Carta das Nações Unidas, a medida é admitida (art. 51).',
+    opcoes: options
+  }), true);
 });
 
 test('uses AI review to rewrite generated questions and select only relevant bank items', async t => {
