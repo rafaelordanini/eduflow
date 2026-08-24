@@ -3,7 +3,7 @@ const { cors, requireAuth } = require('../../lib/middleware');
 const { formatLessonContext, loadStaticPilotContent } = require('../../lib/lesson-content');
 
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
-const DEEPSEEK_MAX_TOKENS = 4096;
+const DEEPSEEK_MAX_TOKENS = 8192;
 
 const reviewSystemPrompt = `Você é revisor de questões do CACD. Verifique rigorosamente se cada item:
 - trata diretamente da matéria e do tópico informados;
@@ -17,6 +17,7 @@ const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à
 
 ESTILO DAS QUESTÕES CACD:
 - Cada questão deve conter uma única afirmação autônoma a ser julgada
+- Nunca interrompa o enunciado no meio de uma palavra ou frase; conclua integralmente cada afirmação
 - As únicas respostas permitidas são "Certo" e "Errado"
 - Afirmações analíticas que testam nuances (datas precisas, nomes de tratados, detalhes de política externa)
 - PRIORIZE tópicos e abordagens que JÁ FORAM cobrados em provas anteriores do CACD
@@ -43,6 +44,7 @@ Responda SOMENTE com JSON válido (sem markdown):
 }`;
 
 async function generateAIQuestions(subjectName, lessonTitle, count, offset = 0, lessonContext = '') {
+  const currentDate = new Date().toISOString().slice(0, 10);
   const userPrompt = `Gere ${count} questões de múltipla escolha no estilo exato das provas TPS do CACD (2003-2025) sobre o seguinte tópico: "${lessonTitle}" (matéria: ${subjectName}).
 
 Requisitos obrigatórios:
@@ -51,8 +53,10 @@ Requisitos obrigatórios:
 3. Cada questão deve ser uma afirmação independente com exatamente duas opções: {"a":"Certo","b":"Errado"}; o gabarito deve ser somente "a" ou "b"
 4. A explicação deve citar as fontes bibliográficas do CACD relevantes (ex: Fausto HB, Cervo HPEB, Rezek DI)
 5. Escreva em português do Brasil, com linguagem acadêmica
-${offset > 0 ? `6. Gere questões DIFERENTES das ${offset} questões já geradas anteriormente sobre este tópico` : ''}
-6. Retorne SOMENTE o JSON, sem markdown
+6. Termine cada enunciado com uma frase completa e pontuação final; nunca abrevie ou corte o texto para caber na resposta
+${isInternationalPolitics(subjectName) ? `7. Verifique as informações de atualidade em ${currentDate}; não repita como presente uma situação que era verdadeira apenas no ano de um TPS antigo` : ''}
+${offset > 0 ? `8. Gere questões DIFERENTES das ${offset} questões já geradas anteriormente sobre este tópico` : ''}
+9. Retorne SOMENTE o JSON, sem markdown
 ${lessonContext ? `\nCONTEÚDO CANÔNICO DA AULA — cobre somente o que consta abaixo:\n${lessonContext}` : ''}`;
 
   const result = await requestAIJson([
@@ -143,6 +147,84 @@ async function selectReviewedBankQuestions(subjectName, lessonTitle, questions, 
     .filter(hasValidJudgmentStatement);
 }
 
+function isInternationalPolitics(subjectName) {
+  return String(subjectName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'politica internacional';
+}
+
+async function reviewInternationalPoliticsQuestions(lessonTitle, questions, lessonContext = '', currentDate = new Date().toISOString().slice(0, 10)) {
+  if (!questions.length) return { questions: [], updates: [], excludedIds: [] };
+  const candidates = questions.map((question, index) => ({
+    indice: index,
+    ano: question.year,
+    enunciado: question.enunciado,
+    gabarito: question.gabarito,
+    explicacao: question.explicacao
+  }));
+  const prompt = `Revise as questões de Política Internacional abaixo para uso em ${currentDate}. Além da pertinência à aula "${lessonTitle}", verifique se toda afirmação que pode mudar com o tempo (participação em missões, cargos, membros, tratados em vigor, relações diplomáticas e dados atuais) ainda é verdadeira hoje.
+
+Para CADA índice, retorne uma decisão:
+- "manter": pertinente e gabarito/explicação continuam corretos segundo fonte oficial atual;
+- "atualizar": pertinente, mas houve mudança factual; informe o gabarito atual ("a" para Certo ou "b" para Errado) e uma explicação atualizada que diga o que mudou, quando e qual fonte oficial sustenta a correção;
+- "excluir": alheia à aula, incompleta, ambígua ou sem informação atual confiável para verificar.
+
+Não trate o gabarito histórico do TPS como prova de atualidade. Na dúvida, exclua. Retorne somente {"decisoes":[{"indice":0,"acao":"manter|atualizar|excluir","gabarito":"a|b","explicacao":"..."}]} e inclua exatamente uma decisão por índice.
+
+${lessonContext ? `CONTEÚDO CANÔNICO DA AULA:\n${lessonContext}\n\n` : ''}QUESTÕES:\n${JSON.stringify(candidates)}`;
+  const result = await requestAIJson([
+    { role: 'system', content: reviewSystemPrompt },
+    { role: 'user', content: prompt }
+  ]);
+  const decisions = Array.isArray(result.decisoes) ? result.decisoes : [];
+  if (decisions.length !== questions.length || decisions.some((decision, index) => decision.indice !== index)) {
+    throw new Error('A revisão de atualidade de Política Internacional está incompleta.');
+  }
+
+  const approved = [];
+  const updates = [];
+  const excludedIds = [];
+  decisions.forEach((decision, index) => {
+    const question = questions[index];
+    if (decision.acao === 'excluir') {
+      if (question.id != null) excludedIds.push(question.id);
+      return;
+    }
+    if (decision.acao === 'manter') {
+      if (hasValidJudgmentStatement(question)) approved.push(question);
+      return;
+    }
+    if (decision.acao === 'atualizar' && ['a', 'b'].includes(decision.gabarito) && typeof decision.explicacao === 'string' && decision.explicacao.trim()) {
+      const updated = { ...question, gabarito: decision.gabarito, explicacao: decision.explicacao.trim() };
+      if (hasValidJudgmentStatement(updated)) {
+        approved.push(updated);
+        if (question.id != null) updates.push({ id: question.id, gabarito: updated.gabarito, explicacao: updated.explicacao });
+      }
+      return;
+    }
+    if (question.id != null) excludedIds.push(question.id);
+  });
+  return { questions: approved, updates, excludedIds };
+}
+
+async function reviewBankCandidates(subjectName, lessonTitle, questions, lessonContext = '') {
+  if (isInternationalPolitics(subjectName)) {
+    return reviewInternationalPoliticsQuestions(lessonTitle, questions, lessonContext);
+  }
+  return { questions: await selectReviewedBankQuestions(subjectName, lessonTitle, questions, lessonContext), updates: [], excludedIds: [] };
+}
+
+async function persistInternationalPoliticsReview(supabase, review) {
+  const results = await Promise.all(review.updates.map(update => supabase.from('questions').update({
+    gabarito: update.gabarito,
+    explicacao: update.explicacao
+  }).eq('id', update.id)));
+  const updateError = results.find(result => result && result.error)?.error;
+  if (updateError) throw new Error('Não foi possível salvar a revisão de atualidade: ' + updateError.message);
+  if (review.excludedIds.length) {
+    const { error } = await supabase.from('questions').update({ source: 'exam_quarantined' }).in('id', review.excludedIds);
+    if (error) throw new Error('Não foi possível retirar a questão desatualizada do banco: ' + error.message);
+  }
+}
+
 function normalizeTrueFalseQuestions(questions) {
   return (Array.isArray(questions) ? questions : []).flatMap(question => {
     if (!question || !question.enunciado) return [];
@@ -170,6 +252,9 @@ function hasValidJudgmentStatement(question) {
   if (!isTrueFalseQuestion(question) || typeof question.enunciado !== 'string') return false;
   const text = question.enunciado.trim();
   if (text.length < 20) return false;
+  // Legacy exam imports were limited with substring(), sometimes in the middle
+  // of a word. A judgment item must end as a complete, punctuated sentence.
+  if (!/[.!?][\])}'”’"]*$/.test(text)) return false;
   return !/(julgue|avalie|analise)\s+(os\s+)?(itens|afirmações)\s+(a\s+seguir|seguintes)|assinale\s+(a\s+)?(alternativa|opção)|concerning the text/i.test(text);
 }
 
@@ -237,6 +322,7 @@ module.exports = async function handler(req, res) {
       .from('questions')
       .select('*')
       .ilike('subject', `%${subjectName}%`)
+      .neq('source', 'exam_quarantined')
       .limit(count * 3);
 
     if (keywords.length > 0) {
@@ -245,13 +331,16 @@ module.exports = async function handler(req, res) {
         .from('questions')
         .select('*')
         .ilike('subject', `%${subjectName}%`)
+        .neq('source', 'exam_quarantined')
         .or(`topic.ilike.%${lessonTitle}%,enunciado.ilike.%${keywords[0]}%`)
         .limit(count * 3);
     }
 
     const { data: bankData } = await bankQuery;
     const bankCandidates = (bankData || []).filter(hasValidJudgmentStatement);
-    const bankQuestions = (await selectReviewedBankQuestions(subjectName, lessonTitle, bankCandidates, lessonContext)).slice(0, count);
+    const bankReview = await reviewBankCandidates(subjectName, lessonTitle, bankCandidates, lessonContext);
+    await persistInternationalPoliticsReview(supabase, bankReview);
+    const bankQuestions = bankReview.questions.slice(0, count);
 
     if (bankQuestions && bankQuestions.length >= count) {
       // Enough real/cached questions found
@@ -276,7 +365,8 @@ module.exports = async function handler(req, res) {
 
       const cachedCandidates = cached && Array.isArray(cached.questoes)
         ? cached.questoes.filter(hasValidJudgmentStatement) : [];
-      const cachedQuestions = (await selectReviewedBankQuestions(subjectName, lessonTitle, cachedCandidates, lessonContext)).slice(0, count);
+      const cachedReview = await reviewBankCandidates(subjectName, lessonTitle, cachedCandidates, lessonContext);
+      const cachedQuestions = cachedReview.questions.slice(0, count);
       if (cachedQuestions.length >= count) {
         return res.status(200).json({ questoes: cachedQuestions.slice(0, count), cached: true, source: 'lesson_cache' });
       }
@@ -329,3 +419,5 @@ module.exports.isTrueFalseQuestion = isTrueFalseQuestion;
 module.exports.hasValidJudgmentStatement = hasValidJudgmentStatement;
 module.exports.reviewGeneratedQuestions = reviewGeneratedQuestions;
 module.exports.selectReviewedBankQuestions = selectReviewedBankQuestions;
+module.exports.isInternationalPolitics = isInternationalPolitics;
+module.exports.reviewInternationalPoliticsQuestions = reviewInternationalPoliticsQuestions;

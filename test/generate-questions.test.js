@@ -6,7 +6,9 @@ const {
   isTrueFalseQuestion,
   hasValidJudgmentStatement,
   reviewGeneratedQuestions,
-  selectReviewedBankQuestions
+  selectReviewedBankQuestions,
+  isInternationalPolitics,
+  reviewInternationalPoliticsQuestions
 } = require('../api/generate-questions');
 
 test('normalizes every generated item to Certo or Errado', () => {
@@ -20,6 +22,41 @@ test('normalizes every generated item to Certo or Errado', () => {
     { a: 'Certo', b: 'Errado' }
   ]);
   assert.deepEqual(questions.map(question => question.gabarito), ['a', 'b']);
+});
+
+test('updates stale international-politics answers and excludes unverifiable items', async t => {
+  const previousKey = process.env.DEEPSEEK_API_KEY;
+  const previousFetch = global.fetch;
+  process.env.DEEPSEEK_API_KEY = 'test-key';
+  t.after(() => {
+    if (previousKey === undefined) delete process.env.DEEPSEEK_API_KEY;
+    else process.env.DEEPSEEK_API_KEY = previousKey;
+    global.fetch = previousFetch;
+  });
+  global.fetch = async (_url, options) => {
+    const request = JSON.parse(options.body);
+    assert.match(request.messages[1].content, /uso em 2026-08-24/);
+    assert.match(request.messages[1].content, /gabarito histórico do TPS/);
+    return {
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify({ decisoes: [
+        { indice: 0, acao: 'atualizar', gabarito: 'b', explicacao: 'O Brasil encerrou sua participação na UNIFIL em 2020.' },
+        { indice: 1, acao: 'excluir' }
+      ] }) } }] })
+    };
+  };
+  const options = { a: 'Certo', b: 'Errado' };
+  const review = await reviewInternationalPoliticsQuestions('Operações de paz', [
+    { id: 17, year: 2017, enunciado: 'O Brasil participa da Força Interina das Nações Unidas no Líbano.', opcoes: options, gabarito: 'a', explicacao: 'O Brasil integra a UNIFIL.' },
+    { id: 18, year: 2009, enunciado: 'Um Estado ocupa atualmente uma função internacional não especificada.', opcoes: options, gabarito: 'a' }
+  ], '', '2026-08-24');
+
+  assert.equal(isInternationalPolitics('Política Internacional'), true);
+  assert.equal(isInternationalPolitics('Politica Internacional'), true);
+  assert.deepEqual(review.questions.map(question => question.gabarito), ['b']);
+  assert.match(review.questions[0].explicacao, /2020/);
+  assert.deepEqual(review.updates, [{ id: 17, gabarito: 'b', explicacao: 'O Brasil encerrou sua participação na UNIFIL em 2020.' }]);
+  assert.deepEqual(review.excludedIds, [18]);
 });
 
 test('rejects cached multiple-choice questions from current reviews', () => {
@@ -39,6 +76,14 @@ test('rejects commands and disconnected source fragments instead of judgment ite
   }), false);
   assert.equal(hasValidJudgmentStatement({
     enunciado: 'A nacionalidade brasileira nata pode decorrer dos critérios territorial e sanguíneo previstos na Constituição.',
+    opcoes: options
+  }), true);
+  assert.equal(hasValidJudgmentStatement({
+    enunciado: 'Em 1990, a expressão aplicava-se a questões que não eram novas, mas vinham recebe',
+    opcoes: options
+  }), false);
+  assert.equal(hasValidJudgmentStatement({
+    enunciado: 'Segundo a Carta das Nações Unidas, a medida é admitida (art. 51).',
     opcoes: options
   }), true);
 });
