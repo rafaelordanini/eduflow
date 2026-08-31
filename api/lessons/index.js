@@ -1,5 +1,6 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth, requireAdmin } = require('../../lib/middleware');
+const { deduplicateLessons } = require('../../lib/lesson-deduplication');
 
 function convertDriveUrl(url) {
     if (!url || !url.trim()) return '';
@@ -34,7 +35,7 @@ module.exports = async function handler(req, res) {
                 .eq('subject_id', subjectId)
                 .order('order_index');
             if (error) return res.status(500).json({ error: error.message });
-            return res.status(200).json(data);
+            return res.status(200).json(deduplicateLessons(data));
         }
 
         // ── POST: criar aula (admin) ──
