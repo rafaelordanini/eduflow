@@ -498,12 +498,22 @@ async function main() {
       duration_minutes: null,
     }));
 
-    // Inserir em lotes de 50
-    for (let i = 0; i < rows.length; i += 50) {
-      const batch = rows.slice(i, i + 50);
+    const { data: existingLessons, error: existingErr } = await supabase
+      .from('lessons')
+      .select('drive_url')
+      .eq('subject_id', subjectId);
+    if (existingErr) throw existingErr;
+    const existingUrls = new Set((existingLessons || []).map((lesson) => lesson.drive_url));
+    const missingRows = rows.filter((row) => !existingUrls.has(row.drive_url));
+    totalSkipped += rows.length - missingRows.length;
+
+    // Inserir em lotes de 50. A verificação explícita torna o importador
+    // idempotente mesmo em bancos antigos que ainda não têm constraint única.
+    for (let i = 0; i < missingRows.length; i += 50) {
+      const batch = missingRows.slice(i, i + 50);
       const { data, error } = await supabase
         .from('lessons')
-        .upsert(batch, { onConflict: 'subject_id,drive_url', ignoreDuplicates: true })
+        .insert(batch)
         .select('id');
       if (error) {
         console.error(`Erro ao inserir aulas de "${entry.subject}":`, error.message);
@@ -514,7 +524,7 @@ async function main() {
     console.log(`✅  ${entry.subject}: ${rows.length} aulas processadas`);
   }
 
-  console.log(`\n🎉 Concluído! ${totalInserted} aulas inseridas.`);
+  console.log(`\n🎉 Concluído! ${totalInserted} aulas inseridas; ${totalSkipped} já existentes.`);
 }
 
 main().catch((err) => {
