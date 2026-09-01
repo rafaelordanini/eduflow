@@ -23,6 +23,8 @@ const { google } = require('googleapis');
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
 const path = require('path');
+const { extractGabarito, extractGabaritoTabela } = require('./parse-tps');
+const { applyOfficialAnswerKey } = require('../lib/official-answer-key');
 
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 
@@ -145,7 +147,9 @@ async function processYear(year, authClient) {
   process.stdout.write(`${fullText.length} chars | `);
 
   process.stdout.write('Chamando IA... ');
-  const questoes = await extractQuestionsFromText(fullText, year);
+  const extracted = await extractQuestionsFromText(fullText, year);
+  const officialAnswers = extractGabaritoTabela(fullText) || extractGabarito(fullText);
+  const questoes = applyOfficialAnswerKey(extracted, officialAnswers);
   console.log(`${questoes.length} itens extraídos ✓`);
 
   return questoes;

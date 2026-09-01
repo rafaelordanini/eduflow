@@ -1,6 +1,9 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth, requireAdmin } = require('../../lib/middleware');
 const { classifyQuestion } = require('../../lib/question-classifier');
+const { applyOfficialAnswerCorrections } = require('../../lib/official-answer-corrections');
+const { applyOfficialAnswerKey } = require('../../lib/official-answer-key');
+const { extractGabarito, extractGabaritoTabela } = require('../../scripts/parse-tps');
 
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 const DEEPSEEK_MAX_TOKENS = 16000;
@@ -108,7 +111,8 @@ module.exports = async function handler(req, res) {
       const { data, error } = await query;
       if (error) throw error;
 
-      return res.status(200).json({ questions: data || [] });
+      const questions = (data || []).map(applyOfficialAnswerCorrections);
+      return res.status(200).json({ questions });
     }
 
     if (req.method === 'POST') {
@@ -159,7 +163,9 @@ module.exports = async function handler(req, res) {
           .eq('source', 'exam')
           .eq('year', Number(year));
 
-        const questoes = await extractQuestionsFromExam(examText, gabaritoText, year, turno);
+        const extractedQuestions = await extractQuestionsFromExam(examText, gabaritoText, year, turno);
+        const officialAnswers = extractGabaritoTabela(gabaritoText) || extractGabarito(gabaritoText);
+        const questoes = applyOfficialAnswerKey(extractedQuestions, officialAnswers);
 
         if (!questoes || questoes.length === 0) {
           return res.status(422).json({ error: 'Nenhuma questão extraída. Verifique o texto.' });
