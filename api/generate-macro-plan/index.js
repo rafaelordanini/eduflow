@@ -1,5 +1,6 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
+const { deduplicateCurriculumLessons } = require('../../lib/lesson-deduplication');
 const {
   buildCompleteMacroPlan,
   advanceMacroPlanDay,
@@ -17,7 +18,10 @@ async function loadCurriculum(supabase) {
   ]);
   if (subjectResult.error) throw subjectResult.error;
   if (lessonResult.error) throw lessonResult.error;
-  return { subjects: subjectResult.data || [], lessons: lessonResult.data || [] };
+  return {
+    subjects: subjectResult.data || [],
+    lessons: deduplicateCurriculumLessons(lessonResult.data || []),
+  };
 }
 
 async function loadCompletedLessons(supabase, userId) {

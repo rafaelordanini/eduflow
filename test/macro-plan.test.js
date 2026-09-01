@@ -52,6 +52,21 @@ test('inclui 100% das aulas cadastradas exatamente uma vez', function() {
   assert.equal(lessonIds.length, lessons.length);
 });
 
+test('ignora cópias antigas ao montar o planejamento e mantém a aula com título iniciado por M', function() {
+  const duplicatedLessons = lessons.concat([
+    { id: 999, subject_id: 7, title: 'Panorama geral periodo colonial', order_index: 1, duration_minutes: 0 },
+  ]);
+  const plan = buildCompleteMacroPlan(subjects, duplicatedLessons, { aulasPorDia: 2, dataInicio: '2026-07-16' });
+  const historyLessonOne = studyItems(plan).filter(function(item) {
+    return item.subject_id === 7 && Number(item.lesson_order) === 1;
+  });
+
+  assert.equal(plan.totalAulas, lessons.length);
+  assert.equal(historyLessonOne.length, 1);
+  assert.equal(historyLessonOne[0].lesson_id, 101);
+  assert.match(historyLessonOne[0].lesson_title, /^M/);
+});
+
 test('calcula os dias necessários para as aulas e respeita o limite diário', function() {
   const plan = buildCompleteMacroPlan(subjects, lessons, { aulasPorDia: 2, dataInicio: '2026-07-16' });
   const countsByDate = new Map();

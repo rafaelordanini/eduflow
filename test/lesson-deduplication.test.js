@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { deduplicateLessons, driveFileId } = require('../lib/lesson-deduplication');
+const { deduplicateCurriculumLessons, deduplicateLessons, driveFileId } = require('../lib/lesson-deduplication');
 
 test('extracts the same Drive id from view and preview URLs', () => {
     assert.equal(driveFileId({ drive_url: 'https://drive.google.com/file/d/video_123/view' }), 'video_123');
@@ -32,4 +32,14 @@ test('does not merge lessons without a recognizable Drive file id', () => {
         { id: 2, drive_url: '', order_index: 2 },
     ];
     assert.equal(deduplicateLessons(lessons).length, 2);
+});
+
+test('deduplicates each subject independently', () => {
+    const lessons = [
+        { id: 1, subject_id: 10, title: 'M1A1', order_index: 1 },
+        { id: 2, subject_id: 10, title: 'Old lesson', order_index: 1 },
+        { id: 3, subject_id: 20, title: 'M1A1', order_index: 1 },
+    ];
+
+    assert.deepEqual(deduplicateCurriculumLessons(lessons).map((lesson) => lesson.id), [1, 3]);
 });

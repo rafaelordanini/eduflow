@@ -1,4 +1,5 @@
 const { getSupabase } = require('../../lib/supabase');
+const { deduplicateCurriculumLessons } = require('../../lib/lesson-deduplication');
 const { cors, requireAuth } = require('../../lib/middleware');
 const { getSequentialStudyDate } = require('../../lib/macro-plan');
 const { formatLessonContext, loadStaticPilotContent } = require('../../lib/lesson-content');
@@ -233,10 +234,11 @@ module.exports = async function handler(req, res) {
       .select('lesson_id, completed, current_time_seconds')
       .eq('user_id', user.id);
 
-    const { data: lessonsData } = await supabase
+    const { data: rawLessonsData } = await supabase
       .from('lessons')
       .select('id, title, subject_id, order_index')
       .order('order_index');
+    const lessonsData = deduplicateCurriculumLessons(rawLessonsData || []);
 
     const { data: subjectsData } = await supabase
       .from('subjects')
