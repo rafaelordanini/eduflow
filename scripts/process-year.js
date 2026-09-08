@@ -85,7 +85,7 @@ async function main() {
   lines.push(`DELETE FROM questions WHERE source = 'exam' AND year = ${year};`);
   lines.push(`INSERT INTO questions (source, year, subject, topic, enunciado, opcoes, gabarito, explicacao) VALUES`);
   lines.push(questoes.map(q => {
-    const enunciado = `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''} | ${q.item_text || ''}`.substring(0, 1000);
+    const enunciado = `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''} | ${q.item_text || ''}`;
     const gabarito = q.gabarito === 'C' ? 'a' : 'b';
     return `  ('exam', ${year}, ${sqlStr(q.subject)}, ${sqlStr(q.topic || null)}, ${sqlStr(enunciado)}, '{"a":"Certo","b":"Errado"}'::jsonb, '${gabarito}', NULL)`;
   }).join(',\n'));

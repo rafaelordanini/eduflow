@@ -274,7 +274,7 @@ function parseTPS(text, year) {
     if (!answer) continue;
 
     const enunciado = item
-      ? `Item ${idx + 1} (TPS ${year}): ${item.context ? item.context + ' | ' : ''}${item.text}`.substring(0, 1000)
+      ? `Item ${idx + 1} (TPS ${year}): ${item.context ? item.context + ' | ' : ''}${item.text}`
       : `Item ${idx + 1} (TPS ${year}) — consulte o caderno original`;
 
     // Try to infer subject from position when item not found

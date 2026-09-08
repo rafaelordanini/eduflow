@@ -221,7 +221,7 @@ async function processYear(year, authClient) {
     year: Number(year),
     subject: q.subject,
     topic: q.topic || null,
-    enunciado: `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''} | ${q.item_text || ''}`.substring(0, 1000),
+    enunciado: `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''} | ${q.item_text || ''}`,
     opcoes: { a: 'Certo', b: 'Errado' },
     gabarito: q.gabarito === 'C' ? 'a' : 'b',
     explicacao: null,
