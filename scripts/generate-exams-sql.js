@@ -63,7 +63,7 @@ function sqlStr(s) {
 }
 
 function rowToSql(year, q) {
-  const enunciado = `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''} | ${q.item_text || ''}`.substring(0, 1000);
+  const enunciado = `Q${q.questao_num} Item ${q.item_num} (TPS ${year}): ${q.enunciado || ''} | ${q.item_text || ''}`;
   const gabarito = q.gabarito === 'C' ? 'a' : 'b';
   return (
     `  ('exam', ${year}, ${sqlStr(q.subject)}, ${sqlStr(q.topic || null)}, ` +

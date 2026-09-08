@@ -188,8 +188,14 @@ var state = { view: 'login', user: null, selectedSubjectId: null, selectedLesson
 function escapeHtml(t) { var d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
 
 // Renders enunciado separating context text (before |) from item text (after |)
-function renderEnunciado(enunciado) {
+function renderEnunciado(question) {
+    var enunciado = typeof question === 'object' ? question.enunciado : question;
     if (!enunciado) return '';
+    if (typeof question === 'object' && (question.texto_apoio || question.comando)) {
+        var longText = question.texto_apoio ? '<blockquote style="margin:0 0 10px 0;padding:10px 14px;background:var(--surface-hover);border-left:3px solid var(--primary);border-radius:0 var(--radius-sm) var(--radius-sm) 0;font-size:.85rem;line-height:1.6;color:var(--text-secondary);font-style:italic">' + escapeHtml(question.texto_apoio) + '</blockquote>' : '';
+        var command = question.comando ? '<p style="font-size:.85rem;line-height:1.6;margin:0 0 8px;color:var(--text-secondary)">' + escapeHtml(question.comando) + '</p>' : '';
+        return longText + command + '<p style="font-size:.9rem;line-height:1.6;margin:0">' + escapeHtml(enunciado) + '</p>';
+    }
     var parts = enunciado.split(' | ');
     if (parts.length === 1) return '<p style="font-size:.9rem;line-height:1.6;margin:0">' + escapeHtml(enunciado) + '</p>';
     var context = parts.slice(0, parts.length - 1).join(' | ');
@@ -1508,7 +1514,7 @@ function gerarMaisQuestoes(lessonId, subjectName, lessonTitle, currentCount) {
             }).join('');
             return '<div class="questao-card" id="qcard-' + idx + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
                 buildTopicBadge(q.id, q.subject, q.topic) +
-                '<div class="questao-enunciado"><strong>Questão ' + (idx+1) + '.</strong></div>' + renderEnunciado(q.enunciado) +
+                '<div class="questao-enunciado"><strong>Questão ' + (idx+1) + '.</strong></div>' + renderEnunciado(q) +
                 opcoesHtml +
                 '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + idx + ')">' +
                   '<i class="fas fa-check"></i> Conferir Resposta' +
@@ -1552,7 +1558,7 @@ function renderQuestoes(questoes, container) {
         var fonte = q.fonte ? '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(q.fonte) + '</div>' : '';
         return '<div class="questao-card" id="qcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
             buildTopicBadge(q.id, q.subject, q.topic) +
-            '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q.enunciado) +
+            '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q) +
             fonte + opcoesHtml +
             '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ')">' +
               '<i class="fas fa-check"></i> Conferir Resposta' +
@@ -1896,7 +1902,7 @@ function renderSimuladoAtivo(simuladoId, questoes) {
         }).join('');
         return '<div class="questao-card" id="sqcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '" style="border-left:3px solid var(--border)">' +
             buildTopicBadge(q.id, q.subject, q.topic) +
-            '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q.enunciado) +
+            '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q) +
             opcoesHtml +
         '</div>';
     }).join('');
@@ -2101,7 +2107,7 @@ function renderSimuladoResult(data) {
         return '<div class="questao-card" data-qid="' + escapeHtml(String(qid)) + '" style="border-left:3px solid ' + borderColor + '">' +
             buildTopicBadge(qid, q.subject, q.topic) +
             '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px">' + escapeHtml(q.subject || '') + ' • ' + (correct ? '<span style="color:var(--success)">Correta</span>' : q.user_answer ? '<span style="color:var(--danger)">Errada</span>' : '<span style="color:var(--text-muted)">Não respondida</span>') + '</div>' +
-            '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q.enunciado) +
+            '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q) +
             opcoesHtml + expHtml +
         '</div>';
     }).join('');
@@ -2482,7 +2488,7 @@ function praticaTopico(subject, topic) {
             }).join('');
             return '<div style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--border)">' +
                 '<div style="font-size:.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">' + escapeHtml(q.subject || '') + (q.topic ? ' · ' + escapeHtml(q.topic) : '') + '</div>' +
-                renderEnunciado(q.enunciado) +
+                renderEnunciado(q) +
                 optsHtml +
                 '<div id="pratica-exp-' + q.id + '" style="display:none;margin-top:8px;padding:8px 12px;background:var(--primary-light);border-radius:8px;font-size:.82rem"></div>' +
             '</div>';
@@ -2585,7 +2591,7 @@ function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
             var qId = 'rev-q-' + qi;
             html += '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
                 '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
-                renderEnunciado(q.enunciado) +
+                renderEnunciado(q) +
                 '<div class="review-options">' + Object.keys(q.opcoes || {}).sort().map(function(key) {
                     return '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-' + escapeHtml(key) + '" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || q.question_id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-topic="' + escapeHtml(preciseTopic || '') + '" data-answer="' + escapeHtml(key) + '">' + escapeHtml((q.opcoes || {})[key]) + '</button>';
                 }).join('') + '</div>' +

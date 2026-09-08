@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS questions (
   year INTEGER, -- exam year (null if AI-generated)
   subject VARCHAR(100) NOT NULL,
   topic VARCHAR(200),
+  texto_apoio TEXT, -- texto longo compartilhado pelos itens da questao
+  comando TEXT, -- instrucao curta (ex.: "julgue os itens a seguir")
   enunciado TEXT NOT NULL,
   opcoes JSONB NOT NULL, -- {"a":"...","b":"...","c":"...","d":"...","e":"..."}
   gabarito VARCHAR(1) NOT NULL, -- 'a','b','c','d','e'
