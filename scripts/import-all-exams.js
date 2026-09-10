@@ -24,7 +24,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const DEEPSEEK_MODEL = 'deepseek-v4.1-flash';
 const BATCH_SIZE = 50;
 
 const ARGS = process.argv.slice(2);

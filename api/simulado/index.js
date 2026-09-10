@@ -1,7 +1,7 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
 
-const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const DEEPSEEK_MODEL = 'deepseek-v4.1-flash';
 const DEEPSEEK_MAX_TOKENS = 4096;
 
 // CACD distribution: total 65 questions

@@ -3,11 +3,6 @@ name: Repair all question classifications
 on:
   workflow_dispatch:
     inputs:
-      model:
-        description: 'Modelo DeepSeek V4 disponibilizado para a conta'
-        required: true
-        default: 'deepseek-v4-flash'
-        type: string
       batch_size:
         description: 'Questões analisadas por chamada'
         required: true
@@ -32,7 +27,7 @@ jobs:
     timeout-minutes: 360
     env:
       DEEPSEEK_API_KEY: ${{ secrets.eduflow }}
-      DEEPSEEK_MODEL: ${{ inputs.model }}
+      DEEPSEEK_MODEL: deepseek-v4.1-flash
       DEEPSEEK_AUDIT_BATCH_SIZE: ${{ inputs.batch_size }}
       DEEPSEEK_AUDIT_CONCURRENCY: ${{ inputs.concurrency }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -52,7 +47,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: artifacts/deepseek-question-audit.checkpoint.json
-          key: deepseek-question-audit-${{ github.run_id }}-${{ inputs.model }}
+          key: deepseek-question-audit-${{ github.run_id }}-deepseek-v4.1-flash
           restore-keys: |
             deepseek-question-audit-
       - name: Analyze every question with DeepSeek V4
@@ -62,7 +57,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: artifacts/deepseek-question-audit.checkpoint.json
-          key: deepseek-question-audit-${{ hashFiles('data/review/questions.csv') }}-${{ inputs.model }}-${{ github.run_id }}
+          key: deepseek-question-audit-${{ hashFiles('data/review/questions.csv') }}-deepseek-v4.1-flash-${{ github.run_id }}
       - name: Upload complete AI audit and applicable corrections
         uses: actions/upload-artifact@v4
         with:

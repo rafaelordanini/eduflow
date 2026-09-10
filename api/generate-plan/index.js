@@ -174,7 +174,7 @@ const CACD_DATA = {
   }
 };
 
-const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const DEEPSEEK_MODEL = 'deepseek-v4.1-flash';
 
 // Find which Plano Mestre day should be studied next. If previous study days
 // have pending study items, the daily plan remains anchored to the earliest

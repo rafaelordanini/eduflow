@@ -141,6 +141,12 @@ function enableVisualPreview() {
     API.getMe = function() { return delayed({ user:previewUser }); };
     API.getSubjects = function() { return delayed(subjects); };
     API.getLessons = function(subjectId) { return delayed(lessonsBySubject[subjectId] || []); };
+    API.deleteLesson = function(id) {
+        Object.keys(lessonsBySubject).forEach(function(subjectId) {
+            lessonsBySubject[subjectId] = lessonsBySubject[subjectId].filter(function(lesson) { return lesson.id !== id; });
+        });
+        return delayed({ success: true });
+    };
     API.getProgress = function(lessonId) {
         if (!lessonId) return delayed(progress);
         return delayed(progress.filter(function(p) { return p.lesson_id === lessonId; }));
@@ -1312,7 +1318,7 @@ function renderStudentSubject() {
             var sc = p&&p.completed?'complete':(p&&p.current_time_seconds>0?'in-progress':'pending');
             var si = p&&p.completed?'fa-check-circle':(p&&p.current_time_seconds>0?'fa-clock':'fa-circle');
             var sl = p&&p.completed?'Concluída':(p&&p.current_time_seconds>0?formatTime(p.current_time_seconds):'Não iniciada');
-            return '<div class="lesson-item clickable" onclick="navigate(\'student-lesson\',{lessonId:'+l.id+'})" style="cursor:pointer"><div class="order-num">'+l.order_index+'</div><div class="lesson-info"><div class="lesson-title">'+escapeHtml(l.title)+'</div><div class="lesson-meta">'+l.duration_minutes+' min &middot; '+sl+'</div></div><div class="status-icon '+sc+'"><i class="fas '+si+'"></i></div></div>';
+            return '<div class="lesson-item clickable" onclick="navigate(\'student-lesson\',{lessonId:'+l.id+'})" style="cursor:pointer"><div class="order-num">'+l.order_index+'</div><div class="lesson-info"><div class="lesson-title">'+escapeHtml(l.title)+'</div><div class="lesson-meta">'+l.duration_minutes+' min &middot; '+sl+'</div></div><div class="status-icon '+sc+'"><i class="fas '+si+'"></i></div><div class="lesson-actions"><button type="button" class="danger" title="Excluir aula permanentemente" aria-label="Excluir aula '+escapeHtml(l.title)+' permanentemente" onclick="event.stopPropagation();handleDeleteLessonApi('+l.id+',\''+escapeHtml(l.title).replace(/'/g,"\\'")+'\')"><i class="fas fa-trash"></i></button></div></div>';
         }).join('') + '</div>' : '<div class="empty-state" style="padding:40px"><i class="fas fa-video"></i><h3>Nenhuma aula disponível</h3></div>';
         app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="breadcrumb"><a onclick="navigate(\'student-dashboard\')">Matérias</a><span class="sep"><i class="fas fa-chevron-right"></i></span><span>'+escapeHtml(subject.name)+'</span></div><div class="page-header"><h1>'+escapeHtml(subject.name)+'</h1></div>'+lh+'</div></div>';
     }).catch(function(err) { showToast(err.message,'error'); });
@@ -2815,7 +2821,7 @@ function handleEditLessonApi(id) {
     });
 }
 function handleDeleteLessonApi(id, title) {
-    showConfirmModal('Excluir Aula','Excluir "'+title+'"?','Excluir','btn-danger',function() {
+    showConfirmModal('Excluir Aula','Excluir "'+title+'" permanentemente da lista de aulas? Esta ação não pode ser desfeita.','Excluir permanentemente','btn-danger',function() {
         API.deleteLesson(id).then(function(){showToast('Aula excluída');render();}).catch(function(e){showToast(e.message,'error');});
     });
 }

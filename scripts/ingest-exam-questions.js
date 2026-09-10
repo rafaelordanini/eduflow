@@ -15,7 +15,7 @@ const supabase = createClient(
 );
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const MODEL = 'deepseek-v4.1-flash';
 
 const SUBJECT_MAP = {
   'LÍNGUA PORTUGUESA': 'Português',

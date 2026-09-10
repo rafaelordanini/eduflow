@@ -49,7 +49,7 @@ Responda APENAS com JSON válido sem markdown:
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
+      model: 'deepseek-v4.1-flash',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
       thinking: { type: 'disabled' },

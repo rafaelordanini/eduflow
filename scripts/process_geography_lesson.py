@@ -177,7 +177,7 @@ def parse_model_json(content):
 
 def deepseek_json(system, user):
     api_key = require_env("DEEPSEEK_API_KEY")
-    model = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+    model = "deepseek-v4.1-flash"
     result = http_json(DEEPSEEK_URL, "POST", {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -257,7 +257,7 @@ def main():
         transcript = transcribe(audio, args.whisper_model)
         analysis = analyze_transcript(transcript)
 
-    model = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+    model = "deepseek-v4.1-flash"
     record = {
         "lesson_id": lesson["id"],
         "summary": str(analysis["summary"]).strip(),
