@@ -117,7 +117,7 @@ Responda sempre em português, de forma concisa e prática. Máximo 3 parágrafo
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
+                model: 'deepseek-v4.1-flash',
                 messages: messages,
                 thinking: { type: 'disabled' },
                 max_tokens: 600

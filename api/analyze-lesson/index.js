@@ -2,7 +2,7 @@ const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAdmin } = require('../../lib/middleware');
 const { isPilotLesson, normalizeAnalysis } = require('../../lib/lesson-content');
 
-const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const DEEPSEEK_MODEL = 'deepseek-v4.1-flash';
 
 async function analyzeTranscript(transcript) {
   const response = await fetch('https://api.deepseek.com/chat/completions', {

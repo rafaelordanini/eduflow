@@ -15,7 +15,7 @@
  *
  * Env vars necessárias (.env):
  *   DEEPSEEK_API_KEY
- *   DEEPSEEK_MODEL=deepseek-v4-flash  # opcional
+ *   O modelo de IA é fixado em deepseek-v4.1-flash.
  */
 
 require('dotenv').config();
@@ -24,7 +24,7 @@ const pdfParse = require('pdf-parse');
 const fs = require('fs');
 const path = require('path');
 
-const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const DEEPSEEK_MODEL = 'deepseek-v4.1-flash';
 
 const ARGS = process.argv.slice(2);
 const YEAR_ARG = (ARGS.find(a => a.startsWith('--year=')) || '').replace('--year=', '');

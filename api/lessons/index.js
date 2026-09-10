@@ -1,6 +1,5 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth, requireAdmin } = require('../../lib/middleware');
-const { deduplicateLessons } = require('../../lib/lesson-deduplication');
 
 function convertDriveUrl(url) {
     if (!url || !url.trim()) return '';
@@ -35,7 +34,9 @@ module.exports = async function handler(req, res) {
                 .eq('subject_id', subjectId)
                 .order('order_index');
             if (error) return res.status(500).json({ error: error.message });
-            return res.status(200).json(deduplicateLessons(data));
+            // Return every stored row so duplicate imports remain visible and can
+            // be removed explicitly by the user.
+            return res.status(200).json(data || []);
         }
 
         // ── POST: criar aula (admin) ──
@@ -103,9 +104,9 @@ module.exports = async function handler(req, res) {
             return res.status(200).json(data);
         }
 
-        // ── DELETE: excluir aula e reordenar restantes (admin, id via query param) ──
+        // ── DELETE: excluir aula e reordenar restantes (usuário autenticado) ──
         if (req.method === 'DELETE') {
-            const user = requireAdmin(req, res);
+            const user = requireAuth(req, res);
             if (!user) return;
             const id = parseInt(req.query.id, 10);
             if (!id) return res.status(400).json({ error: 'ID inválido.' });

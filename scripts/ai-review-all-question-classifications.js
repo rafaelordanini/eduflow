@@ -8,7 +8,7 @@ const { QUESTION_TAXONOMY } = require('../lib/question-taxonomy');
 const { parseCsv } = require('./review-all-question-classifications');
 
 const API_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/chat/completions';
-const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const MODEL = 'deepseek-v4.1-flash';
 const BATCH_SIZE = Number(process.env.DEEPSEEK_AUDIT_BATCH_SIZE || 8);
 const CONCURRENCY = Number(process.env.DEEPSEEK_AUDIT_CONCURRENCY || 3);
 const MAX_ATTEMPTS = 5;

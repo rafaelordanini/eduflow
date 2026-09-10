@@ -2,7 +2,7 @@ const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth, requireAdmin } = require('../../lib/middleware');
 const { classifyQuestion } = require('../../lib/question-classifier');
 
-const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+const DEEPSEEK_MODEL = 'deepseek-v4.1-flash';
 const DEEPSEEK_MAX_TOKENS = 16000;
 
 async function extractQuestionsFromExam(examText, gabaritoText, year, turno) {
