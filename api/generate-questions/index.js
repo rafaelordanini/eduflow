@@ -1,423 +1,232 @@
+const fs = require('node:fs');
+const path = require('node:path');
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
-const { formatLessonContext, loadStaticPilotContent } = require('../../lib/lesson-content');
+const { loadStaticPilotContent } = require('../../lib/lesson-content');
 
-const DEEPSEEK_MODEL = 'deepseek-v4.1-flash';
-const DEEPSEEK_MAX_TOKENS = 8192;
+const TARGET_COUNT = 4;
+const SUMMARY_LIMIT = 2500;
+const DEEPSEEK_MODEL = 'deepseek-chat';
 
-const reviewSystemPrompt = `Você é revisor de questões do CACD. Verifique rigorosamente se cada item:
-- trata diretamente da matéria e do tópico informados;
-- contém uma única afirmação autônoma e inequívoca que possa ser julgada como Certo ou Errado;
-- não contém texto-base desconectado, comandos como "julgue os itens", alternativas ausentes ou fragmentos de outra questão;
-- tem gabarito e explicação coerentes com a afirmação.
-
-Não aprove uma questão apenas porque parte do texto menciona o tópico. Responda SOMENTE com JSON válido, sem markdown.`;
-
-const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Seu papel é gerar itens de julgamento Certo ou Errado no estilo atual da prova TPS do CACD.
-
-ESTILO DAS QUESTÕES CACD:
-- Cada questão deve conter uma única afirmação autônoma a ser julgada
-- Nunca interrompa o enunciado no meio de uma palavra ou frase; conclua integralmente cada afirmação
-- As únicas respostas permitidas são "Certo" e "Errado"
-- Afirmações analíticas que testam nuances (datas precisas, nomes de tratados, detalhes de política externa)
-- PRIORIZE tópicos e abordagens que JÁ FORAM cobrados em provas anteriores do CACD
-- As questões de história têm forte ênfase em relações internacionais do Brasil e política externa
-- As questões de economia focam em política econômica brasileira e teoria econômica aplicada
-- As questões de direito internacional focam em tratados, costumes e jurisprudência do CIJ
-
-Exemplos de questões reais CACD 2024 (TPS):
-- "Acerca do colonialismo, do imperialismo e das políticas de dominação nos séculos XIX e XX..."
-- "A respeito do Plano de Metas, implementado no governo de Juscelino Kubitschek..."
-- "Considerando conceitos relacionados ao balanço de pagamentos bem como a sua estrutura..."
-
-Responda SOMENTE com JSON válido (sem markdown):
-{
-  "questoes": [
-    {
-      "enunciado": "texto da questão",
-      "opcoes": { "a": "Certo", "b": "Errado" },
-      "gabarito": "a ou b",
-      "explicacao": "explicação detalhada de por que a afirmação está certa ou errada, com base em fatos históricos e fontes bibliográficas do CACD",
-      "fonte": "Baseado em temas cobrados no CACD [ano(s)]"
-    }
-  ]
-}`;
-
-async function generateAIQuestions(subjectName, lessonTitle, count, offset = 0, lessonContext = '') {
-  const currentDate = new Date().toISOString().slice(0, 10);
-  const userPrompt = `Gere ${count} questões de múltipla escolha no estilo exato das provas TPS do CACD (2003-2025) sobre o seguinte tópico: "${lessonTitle}" (matéria: ${subjectName}).
-
-Requisitos obrigatórios:
-1. PRIORIZE subtópicos e abordagens que já foram cobrados nas provas do CACD — mencione o ano na propriedade "fonte"
-2. Questões desafiadoras que testam profundidade de conhecimento, não memorização superficial
-3. Cada questão deve ser uma afirmação independente com exatamente duas opções: {"a":"Certo","b":"Errado"}; o gabarito deve ser somente "a" ou "b"
-4. A explicação deve citar as fontes bibliográficas do CACD relevantes (ex: Fausto HB, Cervo HPEB, Rezek DI)
-5. Escreva em português do Brasil, com linguagem acadêmica
-6. Termine cada enunciado com uma frase completa e pontuação final; nunca abrevie ou corte o texto para caber na resposta
-${isInternationalPolitics(subjectName) ? `7. Verifique as informações de atualidade em ${currentDate}; não repita como presente uma situação que era verdadeira apenas no ano de um TPS antigo` : ''}
-${offset > 0 ? `8. Gere questões DIFERENTES das ${offset} questões já geradas anteriormente sobre este tópico` : ''}
-9. Retorne SOMENTE o JSON, sem markdown
-${lessonContext ? `\nCONTEÚDO CANÔNICO DA AULA — cobre somente o que consta abaixo:\n${lessonContext}` : ''}`;
-
-  const result = await requestAIJson([
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt }
-  ], 0.8);
-
-  const questoes = normalizeTrueFalseQuestions(result.questoes);
-  if (questoes.length !== count) {
-    throw new Error('O modelo não retornou todos os itens no formato Certo ou Errado.');
-  }
-
-  const reviewed = await reviewGeneratedQuestions(subjectName, lessonTitle, questoes, lessonContext);
-  if (reviewed.length !== count) {
-    throw new Error('A revisão de qualidade não retornou todos os itens solicitados.');
-  }
-  return reviewed;
-}
-
-async function requestAIJson(messages, temperature = 0.1) {
-  const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
-  if (!deepseekApiKey) throw new Error('DEEPSEEK_API_KEY não configurada.');
-
-  const response = await fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${deepseekApiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: DEEPSEEK_MODEL,
-      messages,
-      response_format: { type: 'json_object' },
-      thinking: { type: 'disabled' },
-      temperature,
-      max_tokens: DEEPSEEK_MAX_TOKENS
-    })
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error('Erro ao chamar o modelo DeepSeek: ' + errText.substring(0, 200));
-  }
-
-  const aiResponse = await response.json();
-  const content = aiResponse.choices?.[0]?.message?.content;
-
-  if (!content) throw new Error('Resposta vazia do modelo de IA.');
-
-  let result;
-  try {
-    result = JSON.parse(content);
-  } catch (e) {
-    const match = content.match(/```json\n?([\s\S]+?)\n?```/) || content.match(/({[\s\S]+})/);
-    if (match) {
-      result = JSON.parse(match[1]);
-    } else {
-      throw new Error('Resposta do modelo não está em formato válido.');
-    }
-  }
-
-  return result;
-}
-
-async function reviewGeneratedQuestions(subjectName, lessonTitle, questions, lessonContext = '') {
-  const prompt = `Revise as questões abaixo sobre "${lessonTitle}" (matéria: ${subjectName}). Reescreva qualquer item defeituoso por completo. Preserve a quantidade e retorne todas no formato:
-{"questoes":[{"enunciado":"uma única afirmação julgável","opcoes":{"a":"Certo","b":"Errado"},"gabarito":"a ou b","explicacao":"explicação coerente","fonte":"fonte"}]}
-
-${lessonContext ? `CONTEÚDO CANÔNICO DA AULA:\n${lessonContext}\n\n` : ''}QUESTÕES:\n${JSON.stringify(questions)}`;
-  const result = await requestAIJson([
-    { role: 'system', content: reviewSystemPrompt },
-    { role: 'user', content: prompt }
-  ]);
-  return normalizeTrueFalseQuestions(result.questoes).filter(hasValidJudgmentStatement);
-}
-
-async function selectReviewedBankQuestions(subjectName, lessonTitle, questions, lessonContext = '') {
-  if (!questions.length) return [];
-  const prompt = `Analise estas questões candidatas para "${lessonTitle}" (matéria: ${subjectName}). Não reescreva. Aprove somente questões cujo conteúdo esteja efetivamente coberto pela aula. Retorne somente os índices das questões integralmente válidas e pertinentes, no formato {"indices_aprovados":[0,2]}.\n\n${lessonContext ? `CONTEÚDO CANÔNICO DA AULA:\n${lessonContext}\n\n` : ''}QUESTÕES:\n${JSON.stringify(questions.map(q => ({ enunciado: q.enunciado, opcoes: q.opcoes, gabarito: q.gabarito, explicacao: q.explicacao })))}`;
-  const result = await requestAIJson([
-    { role: 'system', content: reviewSystemPrompt },
-    { role: 'user', content: prompt }
-  ]);
-  const indices = Array.isArray(result.indices_aprovados) ? result.indices_aprovados : [];
-  return indices
-    .filter((index, position) => Number.isInteger(index) && index >= 0 && index < questions.length && indices.indexOf(index) === position)
-    .map(index => questions[index])
-    .filter(hasValidJudgmentStatement);
-}
-
-function isInternationalPolitics(subjectName) {
-  return String(subjectName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === 'politica internacional';
-}
-
-async function reviewInternationalPoliticsQuestions(lessonTitle, questions, lessonContext = '', currentDate = new Date().toISOString().slice(0, 10)) {
-  if (!questions.length) return { questions: [], updates: [], excludedIds: [] };
-  const candidates = questions.map((question, index) => ({
-    indice: index,
-    ano: question.year,
-    enunciado: question.enunciado,
-    gabarito: question.gabarito,
-    explicacao: question.explicacao
-  }));
-  const prompt = `Revise as questões de Política Internacional abaixo para uso em ${currentDate}. Além da pertinência à aula "${lessonTitle}", verifique se toda afirmação que pode mudar com o tempo (participação em missões, cargos, membros, tratados em vigor, relações diplomáticas e dados atuais) ainda é verdadeira hoje.
-
-Para CADA índice, retorne uma decisão:
-- "manter": pertinente e gabarito/explicação continuam corretos segundo fonte oficial atual;
-- "atualizar": pertinente, mas houve mudança factual; informe o gabarito atual ("a" para Certo ou "b" para Errado) e uma explicação atualizada que diga o que mudou, quando e qual fonte oficial sustenta a correção;
-- "excluir": alheia à aula, incompleta, ambígua ou sem informação atual confiável para verificar.
-
-Não trate o gabarito histórico do TPS como prova de atualidade. Na dúvida, exclua. Retorne somente {"decisoes":[{"indice":0,"acao":"manter|atualizar|excluir","gabarito":"a|b","explicacao":"..."}]} e inclua exatamente uma decisão por índice.
-
-${lessonContext ? `CONTEÚDO CANÔNICO DA AULA:\n${lessonContext}\n\n` : ''}QUESTÕES:\n${JSON.stringify(candidates)}`;
-  const result = await requestAIJson([
-    { role: 'system', content: reviewSystemPrompt },
-    { role: 'user', content: prompt }
-  ]);
-  const decisions = Array.isArray(result.decisoes) ? result.decisoes : [];
-  if (decisions.length !== questions.length || decisions.some((decision, index) => decision.indice !== index)) {
-    throw new Error('A revisão de atualidade de Política Internacional está incompleta.');
-  }
-
-  const approved = [];
-  const updates = [];
-  const excludedIds = [];
-  decisions.forEach((decision, index) => {
-    const question = questions[index];
-    if (decision.acao === 'excluir') {
-      if (question.id != null) excludedIds.push(question.id);
-      return;
-    }
-    if (decision.acao === 'manter') {
-      if (hasValidJudgmentStatement(question)) approved.push(question);
-      return;
-    }
-    if (decision.acao === 'atualizar' && ['a', 'b'].includes(decision.gabarito) && typeof decision.explicacao === 'string' && decision.explicacao.trim()) {
-      const updated = { ...question, gabarito: decision.gabarito, explicacao: decision.explicacao.trim() };
-      if (hasValidJudgmentStatement(updated)) {
-        approved.push(updated);
-        if (question.id != null) updates.push({ id: question.id, gabarito: updated.gabarito, explicacao: updated.explicacao });
-      }
-      return;
-    }
-    if (question.id != null) excludedIds.push(question.id);
-  });
-  return { questions: approved, updates, excludedIds };
-}
-
-async function reviewBankCandidates(subjectName, lessonTitle, questions, lessonContext = '') {
-  if (isInternationalPolitics(subjectName)) {
-    return reviewInternationalPoliticsQuestions(lessonTitle, questions, lessonContext);
-  }
-  return { questions: await selectReviewedBankQuestions(subjectName, lessonTitle, questions, lessonContext), updates: [], excludedIds: [] };
-}
-
-async function persistInternationalPoliticsReview(supabase, review) {
-  const results = await Promise.all(review.updates.map(update => supabase.from('questions').update({
-    gabarito: update.gabarito,
-    explicacao: update.explicacao
-  }).eq('id', update.id)));
-  const updateError = results.find(result => result && result.error)?.error;
-  if (updateError) throw new Error('Não foi possível salvar a revisão de atualidade: ' + updateError.message);
-  if (review.excludedIds.length) {
-    const { error } = await supabase.from('questions').update({ source: 'exam_quarantined' }).in('id', review.excludedIds);
-    if (error) throw new Error('Não foi possível retirar a questão desatualizada do banco: ' + error.message);
-  }
-}
+// Keep this prefix byte-for-byte stable: DeepSeek can reuse its prompt cache.
+const SYSTEM_PROMPT = `Você cria assertivas Cebraspe de Certo/Errado para o CACD.
+Cada item deve ser uma única afirmação autônoma, inequívoca e completa.
+Use nível CACD e, nos itens errados, distratores por inversão conceitual ou anacronismo.
+A justificativa deve citar uma tese, um autor ou uma obra de referência.
+As opções são sempre {"a":"Certo","b":"Errado"} e o gabarito é "a" ou "b".
+Responda SOMENTE com JSON válido, sem markdown.`;
 
 function normalizeTrueFalseQuestions(questions) {
   return (Array.isArray(questions) ? questions : []).flatMap(question => {
-    if (!question || !question.enunciado) return [];
+    if (!question || typeof question.enunciado !== 'string') return [];
     const answer = String(question.gabarito || '').trim().toLowerCase();
-    const normalizedAnswer = answer === 'c' || answer === 'certo' ? 'a'
+    const gabarito = answer === 'c' || answer === 'certo' ? 'a'
       : answer === 'e' || answer === 'errado' ? 'b' : answer;
-    if (normalizedAnswer !== 'a' && normalizedAnswer !== 'b') return [];
-    return [{
-      ...question,
-      opcoes: { a: 'Certo', b: 'Errado' },
-      gabarito: normalizedAnswer
-    }];
+    if (!['a', 'b'].includes(gabarito)) return [];
+    return [{ ...question, opcoes: { a: 'Certo', b: 'Errado' }, gabarito }];
   });
 }
 
 function isTrueFalseQuestion(question) {
-  if (!question || !question.opcoes) return false;
-  const keys = Object.keys(question.opcoes).sort();
-  return keys.length === 2 && keys[0] === 'a' && keys[1] === 'b' &&
-    String(question.opcoes.a).trim().toLowerCase() === 'certo' &&
-    String(question.opcoes.b).trim().toLowerCase() === 'errado';
+  const options = question && question.opcoes;
+  return Boolean(options && Object.keys(options).length === 2 &&
+    String(options.a).toLowerCase() === 'certo' && String(options.b).toLowerCase() === 'errado');
 }
 
 function hasValidJudgmentStatement(question) {
-  if (!isTrueFalseQuestion(question) || typeof question.enunciado !== 'string') return false;
-  const text = question.enunciado.trim();
-  if (text.length < 20) return false;
-  // Legacy exam imports were limited with substring(), sometimes in the middle
-  // of a word. A judgment item must end as a complete, punctuated sentence.
-  if (!/[.!?][\])}'”’"]*$/.test(text)) return false;
-  return !/(julgue|avalie|analise)\s+(os\s+)?(itens|afirmações)\s+(a\s+seguir|seguintes)|assinale\s+(a\s+)?(alternativa|opção)|concerning the text/i.test(text);
+  const text = String(question && question.enunciado || '').trim();
+  return isTrueFalseQuestion(question) && text.length >= 20 && /[.!?][\])}'”’"]*$/.test(text) &&
+    !/(julgue|avalie|analise)\s+(os\s+)?(itens|afirmações)|assinale\s+(a\s+)?(alternativa|opção)|concerning the text/i.test(text);
 }
 
-module.exports = async function handler(req, res) {
+function isOfficial(question) {
+  if (question && question.exam) return String(question.exam).toUpperCase() !== 'INÉDITA';
+  return question && question.source === 'exam';
+}
+
+function formatQuestion(question) {
+  return {
+    ...question,
+    id: question.id,
+    question_id: question.id,
+    exam: isOfficial(question) ? (question.exam || 'TPS') : 'INÉDITA',
+    fonte: isOfficial(question)
+      ? `[TPS ${question.year || '—'} - Oficial]`
+      : '[Inédita - Fixação]'
+  };
+}
+
+function rankAssociatedQuestions(questions, attempts, now = Date.now()) {
+  const latestByQuestion = new Map();
+  for (const attempt of attempts || []) {
+    if (!latestByQuestion.has(attempt.question_id)) latestByQuestion.set(attempt.question_id, attempt);
+  }
+  const cutoff = now - 45 * 24 * 60 * 60 * 1000;
+  return (questions || []).map((question, index) => {
+    const attempt = latestByQuestion.get(question.id);
+    let priority = 99;
+    if (isOfficial(question) && !attempt) priority = 0;
+    else if (isOfficial(question) && (attempt.is_correct === false || attempt.correct === false)) priority = 1;
+    else if (isOfficial(question) && new Date(attempt.attempted_at).getTime() < cutoff) priority = 2;
+    else if (!isOfficial(question)) priority = 3;
+    return { question, priority, index };
+  }).filter(item => item.priority < 99)
+    .sort((a, b) => a.priority - b.priority || a.index - b.index)
+    .map(item => item.question);
+}
+
+function safeTitle(title) {
+  return String(title || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 _-]/g, '').trim();
+}
+
+function readLessonSummary(lesson, lessonContent) {
+  const title = safeTitle(lesson.title);
+  const candidates = [
+    path.join(process.cwd(), `${title}_resumo.txt`),
+    path.join(process.cwd(), 'resumos', `${title}_resumo.txt`),
+    path.join(process.cwd(), 'public', 'resumos', `${title}_resumo.txt`)
+  ];
+  const summaryFile = candidates.find(file => fs.existsSync(file));
+  const summary = summaryFile ? fs.readFileSync(summaryFile, 'utf8')
+    : String(lessonContent && lessonContent.summary || '');
+  return summary.trim().slice(0, SUMMARY_LIMIT);
+}
+
+async function requestMissingQuestions({ subjectName, lessonTitle, summary, count }) {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) throw new Error('DEEPSEEK_API_KEY não configurada.');
+  const response = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: DEEPSEEK_MODEL,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: `Aula: ${lessonTitle}\nDisciplina: ${subjectName}\nExtraia de 3 a 6 conceitos-chave e gere exatamente ${count} assertivas somente sobre o resumo. Retorne {"subject":"...","keywords":["..."],"questoes":[{"enunciado":"...","opcoes":{"a":"Certo","b":"Errado"},"gabarito":"a|b","explicacao":"..."}]}.\nRESUMO (máximo de 2500 caracteres):\n${summary}` }
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+      max_tokens: 280 * count
+    })
+  });
+  if (!response.ok) throw new Error(`Erro ao chamar a DeepSeek: ${(await response.text()).slice(0, 200)}`);
+  const payload = await response.json();
+  const content = payload.choices && payload.choices[0] && payload.choices[0].message.content;
+  if (!content) throw new Error('Resposta vazia da DeepSeek.');
+  const result = JSON.parse(content);
+  const questions = normalizeTrueFalseQuestions(result.questoes).filter(hasValidJudgmentStatement);
+  if (questions.length !== count) throw new Error('A DeepSeek não retornou todas as assertivas solicitadas.');
+  return { ...result, questoes: questions };
+}
+
+async function getAssociatedQuestions(supabase, lessonId) {
+  const { data, error } = await supabase.from('lesson_questions')
+    .select('questoes').eq('lesson_id', lessonId).maybeSingle();
+  if (error) throw new Error(`Não foi possível consultar as questões da aula: ${error.message}`);
+  return data && Array.isArray(data.questoes) ? data.questoes : [];
+}
+
+async function associateQuestions(supabase, lessonId, questions) {
+  if (!questions.length) return;
+  const existing = await getAssociatedQuestions(supabase, lessonId);
+  const byId = new Map(existing.filter(question => question && question.id != null)
+    .map(question => [String(question.id), question]));
+  const withoutId = existing.filter(question => !question || question.id == null);
+  for (const question of questions) {
+    if (question && question.id != null) byId.set(String(question.id), question);
+    else withoutId.push(question);
+  }
+  const { error } = await supabase.from('lesson_questions').upsert(
+    { lesson_id: lessonId, questoes: Array.from(byId.values()).concat(withoutId) },
+    { onConflict: 'lesson_id' }
+  );
+  if (error) throw new Error(`Não foi possível associar as questões: ${error.message}`);
+}
+
+async function selectForUser(supabase, lessonId, userId) {
+  const associated = await getAssociatedQuestions(supabase, lessonId);
+  if (!associated.length) return [];
+  const ids = associated.map(question => question.id);
+  const { data, error } = await supabase.from('question_attempts')
+    .select('question_id, correct, attempted_at')
+    .eq('user_id', userId).in('question_id', ids)
+    .order('attempted_at', { ascending: false });
+  if (error) throw new Error(`Não foi possível consultar as tentativas: ${error.message}`);
+  return rankAssociatedQuestions(associated, data).slice(0, TARGET_COUNT);
+}
+
+async function findAndAssociateOfficialQuestions(supabase, lesson, subjectName, excludedIds) {
+  const keywords = safeTitle(lesson.title).split(/\s+/).filter(word => word.length > 3).slice(0, 4);
+  if (!keywords.length) return;
+  const filters = keywords.map(word => `enunciado.ilike.%${word}%,topic.ilike.%${word}%`).join(',');
+  let query = supabase.from('questions').select('*').eq('subject', subjectName)
+    .eq('source', 'exam').or(filters).limit(TARGET_COUNT * 3);
+  if (excludedIds.length) query = query.not('id', 'in', `(${excludedIds.join(',')})`);
+  const { data, error } = await query;
+  if (error) throw new Error(`Não foi possível buscar questões oficiais: ${error.message}`);
+  const official = (data || []).filter(hasValidJudgmentStatement).slice(0, TARGET_COUNT);
+  await associateQuestions(supabase, lesson.id, official);
+}
+
+async function handler(req, res) {
   try {
     if (cors(req, res)) return;
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
-
     const user = requireAuth(req, res);
     if (!user) return;
-
-    const { lessonId, count = 5, offset = 0, forceNew = false } = req.body || {};
-
+    const lessonId = req.body && req.body.lessonId;
     if (!lessonId) return res.status(400).json({ error: 'Informe o lessonId.' });
+
     const supabase = getSupabase();
-    const { data: lesson, error: lessonError } = await supabase
-      .from('lessons').select('id, title, subjects(name)').eq('id', lessonId).single();
+    const { data: lesson, error: lessonError } = await supabase.from('lessons')
+      .select('id, title, subject_id, subjects(name)').eq('id', lessonId).single();
     if (lessonError || !lesson) return res.status(404).json({ error: 'Aula não encontrada.' });
     const subjectName = lesson.subjects && lesson.subjects.name;
-    const { data: lessonContent } = await supabase.from('lesson_contents').select('*')
+
+    let selected = await selectForUser(supabase, lessonId, user.id);
+    if (selected.length === TARGET_COUNT) {
+      return res.status(200).json({ questoes: selected.map(formatQuestion), cached: true, source: 'bank' });
+    }
+
+    const associated = await getAssociatedQuestions(supabase, lessonId);
+    await findAndAssociateOfficialQuestions(supabase, lesson, subjectName, associated.map(q => q.id));
+    selected = await selectForUser(supabase, lessonId, user.id);
+    if (selected.length === TARGET_COUNT) {
+      return res.status(200).json({ questoes: selected.map(formatQuestion), cached: true, source: 'bank' });
+    }
+
+    const missing = TARGET_COUNT - selected.length;
+    const { data: lessonContent } = await supabase.from('lesson_contents').select('summary')
       .eq('lesson_id', lessonId).eq('processing_status', 'ready').maybeSingle();
-    const canonicalContent = lessonContent || loadStaticPilotContent(lessonId);
-    const lessonContext = formatLessonContext(canonicalContent);
-    const lessonTitle = canonicalContent && canonicalContent.suggested_title || lesson.title;
+    const content = lessonContent || loadStaticPilotContent(lessonId);
+    const summary = readLessonSummary(lesson, content);
+    if (!summary) throw new Error('Resumo da aula não encontrado.');
 
-    // If forceNew, skip cache and generate fresh AI questions
-    if (forceNew) {
-      const newQuestoes = await generateAIQuestions(subjectName, lessonTitle, count, offset, lessonContext);
-
-      // Save new AI questions to global questions bank
-      const questionsToInsert = newQuestoes.map(q => ({
-        source: 'ai',
-        subject: subjectName,
-        topic: lessonTitle,
-        enunciado: q.enunciado,
-        opcoes: q.opcoes,
-        gabarito: q.gabarito,
-        explicacao: q.explicacao
-      }));
-      const { data: savedQuestions } = await supabase
-        .from('questions')
-        .insert(questionsToInsert)
-        .select('id');
-
-      // Save to lesson_questions as well (append to existing)
-      const { data: existing } = await supabase
-        .from('lesson_questions')
-        .select('questoes')
-        .eq('lesson_id', lessonId)
-        .single();
-
-      const existingQuestoes = existing ? (existing.questoes || []) : [];
-      const combined = existingQuestoes.concat(newQuestoes);
-      await supabase.from('lesson_questions').upsert({
-        lesson_id: lessonId,
-        questoes: combined,
-      }, { onConflict: 'lesson_id' });
-
-      return res.status(200).json({ questoes: newQuestoes, cached: false, source: 'ai' });
-    }
-
-    // Search the questions bank first
-    const keywords = lessonTitle.split(' ').filter(w => w.length > 3).slice(0, 4);
-    let bankQuery = supabase
-      .from('questions')
-      .select('*')
-      .ilike('subject', `%${subjectName}%`)
-      .neq('source', 'exam_quarantined')
-      .limit(count * 3);
-
-    if (keywords.length > 0) {
-      // Search by topic or enunciado keywords
-      bankQuery = supabase
-        .from('questions')
-        .select('*')
-        .ilike('subject', `%${subjectName}%`)
-        .neq('source', 'exam_quarantined')
-        .or(`topic.ilike.%${lessonTitle}%,enunciado.ilike.%${keywords[0]}%`)
-        .limit(count * 3);
-    }
-
-    const { data: bankData } = await bankQuery;
-    const bankCandidates = (bankData || []).filter(hasValidJudgmentStatement);
-    const bankReview = await reviewBankCandidates(subjectName, lessonTitle, bankCandidates, lessonContext);
-    await persistInternationalPoliticsReview(supabase, bankReview);
-    const bankQuestions = bankReview.questions.slice(0, count);
-
-    if (bankQuestions && bankQuestions.length >= count) {
-      // Enough real/cached questions found
-      const questoes = bankQuestions.map(q => ({
-        enunciado: q.enunciado,
-        opcoes: q.opcoes,
-        gabarito: q.gabarito,
-        explicacao: q.explicacao,
-        fonte: q.source === 'exam' ? `Prova CACD ${q.year || ''}`.trim() : 'Gerado por IA',
-        question_id: q.id
-      }));
-      return res.status(200).json({ questoes, cached: true, source: 'bank' });
-    }
-
-    // Check lesson_questions cache (old-style JSONB cache)
-    if (!bankQuestions || bankQuestions.length === 0) {
-      const { data: cached } = await supabase
-        .from('lesson_questions')
-        .select('questoes')
-        .eq('lesson_id', lessonId)
-        .single();
-
-      const cachedCandidates = cached && Array.isArray(cached.questoes)
-        ? cached.questoes.filter(hasValidJudgmentStatement) : [];
-      const cachedReview = await reviewBankCandidates(subjectName, lessonTitle, cachedCandidates, lessonContext);
-      const cachedQuestions = cachedReview.questions.slice(0, count);
-      if (cachedQuestions.length >= count) {
-        return res.status(200).json({ questoes: cachedQuestions.slice(0, count), cached: true, source: 'lesson_cache' });
-      }
-    }
-
-    // Generate missing questions via AI
-    const alreadyHave = bankQuestions ? bankQuestions.length : 0;
-    const needed = count - alreadyHave;
-    const newQuestoes = await generateAIQuestions(subjectName, lessonTitle, needed, alreadyHave, lessonContext);
-
-    // Save new AI questions to global questions bank
-    const questionsToInsert = newQuestoes.map(q => ({
-      source: 'ai',
-      subject: subjectName,
-      topic: lessonTitle,
-      enunciado: q.enunciado,
-      opcoes: q.opcoes,
-      gabarito: q.gabarito,
-      explicacao: q.explicacao
+    const generated = await requestMissingQuestions({ subjectName, lessonTitle: lesson.title, summary, count: missing });
+    const rows = generated.questoes.map(question => ({
+      source: 'ai', year: null, subject: subjectName, topic: lesson.title,
+      enunciado: question.enunciado, opcoes: question.opcoes,
+      gabarito: question.gabarito, explicacao: question.explicacao
     }));
-    await supabase.from('questions').insert(questionsToInsert);
+    const { data: saved, error: saveError } = await supabase.from('questions').insert(rows).select('*');
+    if (saveError) throw new Error(`Não foi possível salvar as assertivas: ${saveError.message}`);
+    await associateQuestions(supabase, lessonId, saved);
 
-    // Combine bank questions + new AI questions
-    const bankFormatted = (bankQuestions || []).map(q => ({
-      enunciado: q.enunciado,
-      opcoes: q.opcoes,
-      gabarito: q.gabarito,
-      explicacao: q.explicacao,
-      fonte: q.source === 'exam' ? `Prova CACD ${q.year || ''}`.trim() : 'Gerado por IA',
-      question_id: q.id
-    }));
-    const combined = bankFormatted.concat(newQuestoes);
-
-    // Cache in lesson_questions
-    await supabase.from('lesson_questions').upsert({
-      lesson_id: lessonId,
-      questoes: combined,
-    }, { onConflict: 'lesson_id' });
-
-    return res.status(200).json({ questoes: combined, cached: false, source: 'mixed' });
-
-  } catch (err) {
-    console.error('Generate questions error:', err);
-    return res.status(500).json({ error: 'Erro interno: ' + (err.message || 'desconhecido') });
+    const combined = selected.concat(saved).slice(0, TARGET_COUNT).map(formatQuestion);
+    return res.status(200).json({ questoes: combined, cached: false, source: selected.length ? 'mixed' : 'ai' });
+  } catch (error) {
+    console.error('Generate questions error:', error);
+    return res.status(500).json({ error: `Erro interno: ${error.message || 'desconhecido'}` });
   }
-};
+}
 
+module.exports = handler;
 module.exports.normalizeTrueFalseQuestions = normalizeTrueFalseQuestions;
 module.exports.isTrueFalseQuestion = isTrueFalseQuestion;
 module.exports.hasValidJudgmentStatement = hasValidJudgmentStatement;
-module.exports.reviewGeneratedQuestions = reviewGeneratedQuestions;
-module.exports.selectReviewedBankQuestions = selectReviewedBankQuestions;
-module.exports.isInternationalPolitics = isInternationalPolitics;
-module.exports.reviewInternationalPoliticsQuestions = reviewInternationalPoliticsQuestions;
+module.exports.isOfficial = isOfficial;
+module.exports.rankAssociatedQuestions = rankAssociatedQuestions;
+module.exports.readLessonSummary = readLessonSummary;
+module.exports.requestMissingQuestions = requestMissingQuestions;
+module.exports.SYSTEM_PROMPT = SYSTEM_PROMPT;
