@@ -42,6 +42,9 @@ test('finds and downloads a summary in the same Google Drive folder', async t =>
   assert.match(requests[2], /summary-123.*alt=media/);
 });
 
-test('does not access Drive when no API key is configured', async () => {
-  assert.equal(await fetchDriveLessonSummary({ drive_url: 'https://drive.google.com/file/d/video/view' }, ''), '');
+test('requires Drive credentials instead of silently using another source', async () => {
+  await assert.rejects(
+    fetchDriveLessonSummary({ drive_url: 'https://drive.google.com/file/d/video/view' }, ''),
+    /GOOGLE_DRIVE_API_KEY não configurada/
+  );
 });

@@ -2,8 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
-const { loadStaticPilotContent } = require('../../lib/lesson-content');
-const { fetchDriveLessonSummary } = require('../../lib/drive-summary');
+const { fetchDriveLessonSummary, summaryFilenames } = require('../../lib/drive-summary');
 
 const TARGET_COUNT = 4;
 const SUMMARY_LIMIT = 2500;
@@ -88,18 +87,12 @@ function safeTitle(title) {
     .replace(/[^a-zA-Z0-9 _-]/g, '').trim();
 }
 
-async function readLessonSummary(lesson, lessonContent) {
-  const title = safeTitle(lesson.title);
-  const candidates = [
-    path.join(process.cwd(), `${title}_resumo.txt`),
-    path.join(process.cwd(), 'resumos', `${title}_resumo.txt`),
-    path.join(process.cwd(), 'public', 'resumos', `${title}_resumo.txt`)
-  ];
-  const summaryFile = candidates.find(file => fs.existsSync(file));
-  let summary = summaryFile ? fs.readFileSync(summaryFile, 'utf8')
-    : String(lessonContent && lessonContent.summary || '');
-  if (!summary.trim()) summary = await fetchDriveLessonSummary(lesson);
-  return summary.trim().slice(0, SUMMARY_LIMIT);
+async function readLessonSummary(lesson) {
+  const summary = await fetchDriveLessonSummary(lesson);
+  if (!summary) {
+    throw new Error(`Arquivo de resumo não encontrado na pasta do vídeo no Google Drive. Nomes procurados: ${summaryFilenames(lesson).join(', ')}.`);
+  }
+  return summary.slice(0, SUMMARY_LIMIT);
 }
 
 async function requestMissingQuestions({ subjectName, lessonTitle, summary, count }) {
@@ -209,11 +202,7 @@ async function handler(req, res) {
     }
 
     const missing = TARGET_COUNT - selected.length;
-    const { data: lessonContent } = await supabase.from('lesson_contents').select('summary')
-      .eq('lesson_id', lessonId).eq('processing_status', 'ready').maybeSingle();
-    const content = lessonContent || loadStaticPilotContent(lessonId);
-    const summary = await readLessonSummary(lesson, content);
-    if (!summary) throw new Error('Resumo da aula não encontrado no banco, no deploy ou na pasta da aula no Google Drive. Configure GOOGLE_DRIVE_API_KEY para permitir a busca no Drive.');
+    const summary = await readLessonSummary(lesson);
 
     const generated = await requestMissingQuestions({ subjectName, lessonTitle: lesson.title, summary, count: missing });
     const rows = generated.questoes.map(question => ({
