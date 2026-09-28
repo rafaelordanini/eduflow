@@ -6,7 +6,6 @@ const modelConsumers = [
   'api/analyze-lesson/index.js',
   'api/baron-chat/index.js',
   'api/generate-plan/index.js',
-  'api/generate-questions/index.js',
   'api/questions/index.js',
   'api/simulado/index.js',
   'scripts/ai-review-all-question-classifications.js',
@@ -25,6 +24,12 @@ test('every DeepSeek consumer is locked to V4.1 Flash', () => {
   }
 });
 
+test('question generation uses economical DeepSeek Chat without reasoning output', () => {
+  const source = fs.readFileSync('api/generate-questions/index.js', 'utf8');
+  assert.match(source, /DEEPSEEK_MODEL = 'deepseek-chat'/);
+  assert.doesNotMatch(source, /deepseek-reasoner|thinking/);
+});
+
 test('automation workflows cannot override V4.1 Flash', () => {
   for (const file of [
     '.github/workflows/deepseek-question-audit.yml',
@@ -35,4 +40,3 @@ test('automation workflows cannot override V4.1 Flash', () => {
     assert.doesNotMatch(source, /inputs\.model|vars\.DEEPSEEK_MODEL/, file);
   }
 });
-
