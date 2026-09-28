@@ -46,13 +46,13 @@ var API = {
     deleteLesson: function(id) { return this.request('DELETE', '/api/lessons?id=' + id); },
     reorderLesson: function(lessonId, direction) { return this.request('PUT', '/api/lessons', { lessonId: lessonId, direction: direction }); },
 
-    getProgress: function(lessonId) { return this.request('GET', '/api/progress' + (lessonId ? '?lessonId=' + lessonId : '')); },
-    saveProgress: function(data) { return this.request('POST', '/api/progress', data); },
+    getProgress: function(lessonId) { return this.request('GET', '/api/activity?resource=progress' + (lessonId ? '&lessonId=' + lessonId : '')); },
+    saveProgress: function(data) { return this.request('POST', '/api/activity?resource=progress', data); },
 
     resetPassword: function(token, username, newPassword) { return this.request('POST', '/api/auth', { action: 'reset', token: token, username: username, newPassword: newPassword }); },
 
-    generateMacroPlan: function(data) { return this.request('POST', '/api/generate-macro-plan', data); },
-    getPlansHistory: function() { return this.request('GET', '/api/generate-plan'); },
+    generateMacroPlan: function(data) { return this.request('POST', '/api/plans?kind=macro', data); },
+    getPlansHistory: function() { return this.request('GET', '/api/plans?kind=daily'); },
     generateQuestions: function(data) { return this.request('POST', '/api/generate-questions', data); },
     getQuestions: function(params) {
         var qs = Object.keys(params||{}).map(function(k){return k+'='+encodeURIComponent(params[k]);}).join('&');
@@ -161,12 +161,12 @@ function enableVisualPreview() {
     API.getActiveSimulado = function() { return delayed({ simulado: null }); };
     API.getOngoingSimulados = function() { return delayed({ simulados: [] }); };
     API.request = function(method, url, body) {
-        if (url.indexOf('/api/generate-macro-plan') === 0) return delayed({ created_at:'2026-06-06T12:00:00Z', data_prova:'2027-08-06', plan_json:macroPlan });
-        if (url.indexOf('/api/generate-plan') === 0 && method === 'GET') return delayed([todayPlan]);
-        if (url.indexOf('/api/generate-plan') === 0 && method === 'POST') return delayed(todayPlan.plan_json);
-        if (url.indexOf('/api/performance?action=macro') === 0) return delayed({ data_prova:'2026-06-07', plan_json:macroPlan });
-        if (url.indexOf('/api/performance?action=study') === 0) return delayed([{subject:'História do Brasil',duration_minutes:70,started_at:'2026-06-16T12:00:00Z'},{subject:'Português',duration_minutes:45,started_at:'2026-06-15T12:00:00Z'}]);
-        if (url.indexOf('/api/performance') === 0) return delayed(performance);
+        if (url.indexOf('/api/plans?kind=macro') === 0) return delayed({ created_at:'2026-06-06T12:00:00Z', data_prova:'2027-08-06', plan_json:macroPlan });
+        if (url.indexOf('/api/plans?kind=daily') === 0 && method === 'GET') return delayed([todayPlan]);
+        if (url.indexOf('/api/plans?kind=daily') === 0 && method === 'POST') return delayed(todayPlan.plan_json);
+        if (url.indexOf('/api/activity?resource=performance&action=macro') === 0) return delayed({ data_prova:'2026-06-07', plan_json:macroPlan });
+        if (url.indexOf('/api/activity?resource=performance&action=study') === 0) return delayed([{subject:'História do Brasil',duration_minutes:70,started_at:'2026-06-16T12:00:00Z'},{subject:'Português',duration_minutes:45,started_at:'2026-06-15T12:00:00Z'}]);
+        if (url.indexOf('/api/activity?resource=performance') === 0) return delayed(performance);
         if (url.indexOf('/api/baron-chat') === 0) return delayed({ reply:'Modo preview ativo. Navegue livremente para revisar o visual.' });
         return delayed({});
     };
@@ -619,7 +619,7 @@ function finishStudyTimer(completed) {
     updateStudyTimerUI();
     if (completed) playStudyTimerAlert();
 
-    API.request('POST', '/api/performance', {
+    API.request('POST', '/api/activity?resource=performance', {
         subject: finishedState.subject,
         durationMinutes: finishedState.durationMinutes,
         startedAt: finishedState.startedAt
@@ -984,7 +984,7 @@ function renderStudentPlanner() {
     btns.forEach(function(b) { if (b.textContent === '3h') b.classList.add('active'); });
     // Load Plano Mestre current week + plan history in parallel
     Promise.all([
-        API.request('GET', '/api/generate-macro-plan').catch(function(){ return null; }),
+        API.request('GET', '/api/plans?kind=macro').catch(function(){ return null; }),
         API.getPlansHistory().catch(function(){ return []; })
     ]).then(function(results) {
         renderMasterWeekPanel(results[0]);
@@ -1008,7 +1008,7 @@ function getSequentialMacroStudyDate(planJson, requestedDate) {
 function atualizarDatasMacroPlan() {
     var btn = document.getElementById('macro-reschedule-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Atualizando datas…'; }
-    API.request('PUT', '/api/generate-macro-plan', { action: 'reschedule_from_pending' }).then(function(resp) {
+    API.request('PUT', '/api/plans?kind=macro', { action: 'reschedule_from_pending' }).then(function(resp) {
         showToast('Datas do Plano Mestre atualizadas a partir de hoje.', 'success');
         var out = document.querySelector('#macro-main-area .macro-output') || document.getElementById('macro-output');
         if (resp && resp.plan_json && out) renderMacroPlan(resp.plan_json, out);
@@ -1022,7 +1022,7 @@ function atualizarDatasMacroPlan() {
 function avancarPlanoParaProximoDia() {
     var btn = document.getElementById('advance-study-day-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Avançando…'; }
-    API.request('PUT', '/api/generate-macro-plan', { action: 'advance_day' }).then(function() {
+    API.request('PUT', '/api/plans?kind=macro', { action: 'advance_day' }).then(function() {
         showToast('Próximo dia antecipado. O Plano de Hoje e o Plano Mestre foram atualizados.', 'success');
         renderStudentPlanner();
     }).catch(function(err) {
@@ -1199,7 +1199,7 @@ function gerarPlano() {
     out.style.display = 'block';
     out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.style.display=\'none\'"><p>O Barão está elaborando seu plano personalizado…</p></div>';
     baronFloatPose('reading', 8000);
-    API.request('POST', '/api/generate-plan', { horasDisponiveis: hours, observacoes: obs }).then(function(plan) {
+    API.request('POST', '/api/plans?kind=daily', { horasDisponiveis: hours, observacoes: obs }).then(function(plan) {
         renderPlano(plan);
         loadPlansHistory();
         if (plan._masterWeek) renderMasterWeekPanel({ plan_json: { semanas: [plan._masterWeek] } });
@@ -1685,14 +1685,14 @@ function findLessonAndRender(subjects, lid, prog, nav) {
                 showToast(checked?'Aula marcada como concluída!':'Aula desmarcada');
                 if (checked) {
                     // Find and check matching study item in active Plano Mestre week
-                    API.request('GET', '/api/generate-macro-plan').then(function(macro) {
+                    API.request('GET', '/api/plans?kind=macro').then(function(macro) {
                         if (!macro || !macro.plan_json) return;
                         var today = new Date().toISOString().split('T')[0];
                         var sem = (macro.plan_json.semanas || []).find(function(s) { return s.dataInicio && s.dataFim && today >= s.dataInicio && today <= s.dataFim; });
                         if (!sem) return;
                         var item = (sem.materias || []).find(function(m) { return m.tipo === 'estudo' && !m.done && String(m.lesson_id) === String(lid); });
                         if (item && item.id) {
-                            API.request('PUT', '/api/generate-macro-plan', { itemId: item.id, done: true }).catch(function() {});
+                            API.request('PUT', '/api/plans?kind=macro', { itemId: item.id, done: true }).catch(function() {});
                             showToast('Plano Mestre atualizado: ' + subjectNameForPlan + ' marcado como concluído!', 'success');
                         }
                     }).catch(function() {});
@@ -2146,7 +2146,7 @@ function renderStudentMacroPlan() {
         '<div class="loading-spinner" id="macro-main-area"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>' +
         '</div></div>';
 
-    API.request('GET', '/api/generate-macro-plan').then(function(macro) {
+    API.request('GET', '/api/plans?kind=macro').then(function(macro) {
         var area = document.getElementById('macro-main-area');
         if (!area) return;
 
@@ -2423,7 +2423,7 @@ function toggleMacraItem(itemId, done) {
         if (bar) bar.style.width = pct + '%';
     });
     // Save to server (fire and forget)
-    API.request('PUT', '/api/generate-macro-plan', { itemId: itemId, done: done }).catch(function() {});
+    API.request('PUT', '/api/plans?kind=macro', { itemId: itemId, done: done }).catch(function() {});
 }
 
 function abrirAulasPlano(subjectId, lessonId) {
@@ -2652,9 +2652,9 @@ function renderStudentPerformance() {
         '</div></div>';
 
     Promise.all([
-        API.request('GET', '/api/performance'),
-        API.request('GET', '/api/performance?action=macro'),
-        API.request('GET', '/api/performance?action=study')
+        API.request('GET', '/api/activity?resource=performance'),
+        API.request('GET', '/api/activity?resource=performance&action=macro'),
+        API.request('GET', '/api/activity?resource=performance&action=study')
     ]).then(function(results) {
         var data = results[0];
         var macro = results[1];

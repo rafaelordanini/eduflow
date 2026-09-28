@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const modelConsumers = [
   'api/analyze-lesson/index.js',
   'api/baron-chat/index.js',
-  'api/generate-plan/index.js',
+  'lib/endpoints/daily-plan.js',
   'api/questions/index.js',
   'api/simulado/index.js',
   'scripts/ai-review-all-question-classifications.js',
