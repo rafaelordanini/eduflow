@@ -4,6 +4,21 @@ Plataforma de e-learning com autenticação, gerenciamento de matérias/aulas (v
 
 **Stack:** Vercel (Serverless) + Supabase (PostgreSQL) + HTML/CSS/JS
 
+### Resumos das aulas no Google Drive
+
+Para o botão **Gerar Questões** localizar obrigatoriamente um arquivo como
+`aula2_resumo.txt` na mesma pasta de `aula2.mp4`, habilite a **Google Drive API** e
+configure na Vercel uma destas formas de autenticação:
+
+- `GOOGLE_DRIVE_API_KEY`: indicada quando a pasta e os arquivos estão públicos; ou
+- `GOOGLE_SERVICE_ACCOUNT_JSON`: JSON completo (ou Base64) de uma conta de serviço.
+  Nesse caso, compartilhe a pasta do Drive com o e-mail `client_email` da conta.
+
+A Drive API não aceita consultas anônimas, mesmo quando um arquivo pode ser aberto
+por link; por isso, a aplicação não tenta mais uma chamada sem credencial, que
+resultava em HTTP 401. A geração lê sempre o resumo diretamente do Drive e não usa
+o banco nem um contexto genérico como fallback.
+
 ---
 
 ## Estrutura do Projeto
