@@ -6,6 +6,7 @@ const {
   normalizeTrueFalseQuestions,
   hasValidJudgmentStatement,
   isOfficial,
+  getQuestionId,
   rankAssociatedQuestions,
   requestMissingQuestions,
   SYSTEM_PROMPT
@@ -22,6 +23,18 @@ test('uses the existing JSONB lesson cache instead of a missing PostgREST relati
   assert.match(source, /select\('questoes'\)/);
   assert.doesNotMatch(source, /questions\(\*\)|question_id, questions/);
   assert.match(source, /source: 'ai', year: null/);
+});
+
+test('handles legacy cached questions without sending undefined ids to PostgreSQL', () => {
+  assert.equal(getQuestionId({ id: 42 }), 42);
+  assert.equal(getQuestionId({ question_id: '43' }), 43);
+  assert.equal(getQuestionId({ enunciado: 'Legacy AI item without an id.' }), null);
+
+  const ranked = rankAssociatedQuestions([
+    { question_id: 43, source: 'exam' },
+    { source: 'ai' }
+  ], [{ question_id: 43, correct: false, attempted_at: '2026-09-28T00:00:00Z' }]);
+  assert.deepEqual(ranked.map(getQuestionId), [43, null]);
 });
 
 test('normalizes generated items to Certo or Errado', () => {

@@ -3,6 +3,7 @@ const path = require('node:path');
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
 const { loadStaticPilotContent } = require('../../lib/lesson-content');
+const { fetchDriveLessonSummary } = require('../../lib/drive-summary');
 
 const TARGET_COUNT = 4;
 const SUMMARY_LIMIT = 2500;
@@ -44,11 +45,18 @@ function isOfficial(question) {
   return question && question.source === 'exam';
 }
 
+function getQuestionId(question) {
+  const value = question && (question.id != null ? question.id : question.question_id);
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 function formatQuestion(question) {
+  const questionId = getQuestionId(question);
   return {
     ...question,
-    id: question.id,
-    question_id: question.id,
+    id: questionId,
+    question_id: questionId,
     exam: isOfficial(question) ? (question.exam || 'TPS') : 'INÉDITA',
     fonte: isOfficial(question)
       ? `[TPS ${question.year || '—'} - Oficial]`
@@ -63,7 +71,7 @@ function rankAssociatedQuestions(questions, attempts, now = Date.now()) {
   }
   const cutoff = now - 45 * 24 * 60 * 60 * 1000;
   return (questions || []).map((question, index) => {
-    const attempt = latestByQuestion.get(question.id);
+    const attempt = latestByQuestion.get(getQuestionId(question));
     let priority = 99;
     if (isOfficial(question) && !attempt) priority = 0;
     else if (isOfficial(question) && (attempt.is_correct === false || attempt.correct === false)) priority = 1;
@@ -80,7 +88,7 @@ function safeTitle(title) {
     .replace(/[^a-zA-Z0-9 _-]/g, '').trim();
 }
 
-function readLessonSummary(lesson, lessonContent) {
+async function readLessonSummary(lesson, lessonContent) {
   const title = safeTitle(lesson.title);
   const candidates = [
     path.join(process.cwd(), `${title}_resumo.txt`),
@@ -88,8 +96,9 @@ function readLessonSummary(lesson, lessonContent) {
     path.join(process.cwd(), 'public', 'resumos', `${title}_resumo.txt`)
   ];
   const summaryFile = candidates.find(file => fs.existsSync(file));
-  const summary = summaryFile ? fs.readFileSync(summaryFile, 'utf8')
+  let summary = summaryFile ? fs.readFileSync(summaryFile, 'utf8')
     : String(lessonContent && lessonContent.summary || '');
+  if (!summary.trim()) summary = await fetchDriveLessonSummary(lesson);
   return summary.trim().slice(0, SUMMARY_LIMIT);
 }
 
@@ -130,11 +139,12 @@ async function getAssociatedQuestions(supabase, lessonId) {
 async function associateQuestions(supabase, lessonId, questions) {
   if (!questions.length) return;
   const existing = await getAssociatedQuestions(supabase, lessonId);
-  const byId = new Map(existing.filter(question => question && question.id != null)
-    .map(question => [String(question.id), question]));
-  const withoutId = existing.filter(question => !question || question.id == null);
+  const byId = new Map(existing.filter(question => getQuestionId(question) != null)
+    .map(question => [getQuestionId(question), question]));
+  const withoutId = existing.filter(question => getQuestionId(question) == null);
   for (const question of questions) {
-    if (question && question.id != null) byId.set(String(question.id), question);
+    const questionId = getQuestionId(question);
+    if (questionId != null) byId.set(questionId, question);
     else withoutId.push(question);
   }
   const { error } = await supabase.from('lesson_questions').upsert(
@@ -147,7 +157,8 @@ async function associateQuestions(supabase, lessonId, questions) {
 async function selectForUser(supabase, lessonId, userId) {
   const associated = await getAssociatedQuestions(supabase, lessonId);
   if (!associated.length) return [];
-  const ids = associated.map(question => question.id);
+  const ids = [...new Set(associated.map(getQuestionId).filter(id => id != null))];
+  if (!ids.length) return rankAssociatedQuestions(associated, []).slice(0, TARGET_COUNT);
   const { data, error } = await supabase.from('question_attempts')
     .select('question_id, correct, attempted_at')
     .eq('user_id', userId).in('question_id', ids)
@@ -180,7 +191,7 @@ async function handler(req, res) {
 
     const supabase = getSupabase();
     const { data: lesson, error: lessonError } = await supabase.from('lessons')
-      .select('id, title, subject_id, subjects(name)').eq('id', lessonId).single();
+      .select('id, title, subject_id, order_index, drive_url, embed_url, subjects(name)').eq('id', lessonId).single();
     if (lessonError || !lesson) return res.status(404).json({ error: 'Aula não encontrada.' });
     const subjectName = lesson.subjects && lesson.subjects.name;
 
@@ -190,7 +201,8 @@ async function handler(req, res) {
     }
 
     const associated = await getAssociatedQuestions(supabase, lessonId);
-    await findAndAssociateOfficialQuestions(supabase, lesson, subjectName, associated.map(q => q.id));
+    await findAndAssociateOfficialQuestions(supabase, lesson, subjectName,
+      associated.map(getQuestionId).filter(id => id != null));
     selected = await selectForUser(supabase, lessonId, user.id);
     if (selected.length === TARGET_COUNT) {
       return res.status(200).json({ questoes: selected.map(formatQuestion), cached: true, source: 'bank' });
@@ -200,8 +212,8 @@ async function handler(req, res) {
     const { data: lessonContent } = await supabase.from('lesson_contents').select('summary')
       .eq('lesson_id', lessonId).eq('processing_status', 'ready').maybeSingle();
     const content = lessonContent || loadStaticPilotContent(lessonId);
-    const summary = readLessonSummary(lesson, content);
-    if (!summary) throw new Error('Resumo da aula não encontrado.');
+    const summary = await readLessonSummary(lesson, content);
+    if (!summary) throw new Error('Resumo da aula não encontrado no banco, no deploy ou na pasta da aula no Google Drive. Configure GOOGLE_DRIVE_API_KEY para permitir a busca no Drive.');
 
     const generated = await requestMissingQuestions({ subjectName, lessonTitle: lesson.title, summary, count: missing });
     const rows = generated.questoes.map(question => ({
@@ -226,6 +238,7 @@ module.exports.normalizeTrueFalseQuestions = normalizeTrueFalseQuestions;
 module.exports.isTrueFalseQuestion = isTrueFalseQuestion;
 module.exports.hasValidJudgmentStatement = hasValidJudgmentStatement;
 module.exports.isOfficial = isOfficial;
+module.exports.getQuestionId = getQuestionId;
 module.exports.rankAssociatedQuestions = rankAssociatedQuestions;
 module.exports.readLessonSummary = readLessonSummary;
 module.exports.requestMissingQuestions = requestMissingQuestions;
