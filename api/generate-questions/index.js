@@ -40,7 +40,8 @@ function hasValidJudgmentStatement(question) {
 }
 
 function isOfficial(question) {
-  return String(question && question.exam || '').toUpperCase() !== 'INÉDITA';
+  if (question && question.exam) return String(question.exam).toUpperCase() !== 'INÉDITA';
+  return question && question.source === 'exam';
 }
 
 function formatQuestion(question) {
@@ -48,7 +49,7 @@ function formatQuestion(question) {
     ...question,
     id: question.id,
     question_id: question.id,
-    exam: question.exam,
+    exam: isOfficial(question) ? (question.exam || 'TPS') : 'INÉDITA',
     fonte: isOfficial(question)
       ? `[TPS ${question.year || '—'} - Oficial]`
       : '[Inédita - Fixação]'
@@ -121,16 +122,24 @@ async function requestMissingQuestions({ subjectName, lessonTitle, summary, coun
 
 async function getAssociatedQuestions(supabase, lessonId) {
   const { data, error } = await supabase.from('lesson_questions')
-    .select('question_id, questions(*)').eq('lesson_id', lessonId);
+    .select('questoes').eq('lesson_id', lessonId).maybeSingle();
   if (error) throw new Error(`Não foi possível consultar as questões da aula: ${error.message}`);
-  return (data || []).map(row => row.questions).filter(Boolean);
+  return data && Array.isArray(data.questoes) ? data.questoes : [];
 }
 
-async function associateQuestions(supabase, lessonId, questionIds) {
-  if (!questionIds.length) return;
+async function associateQuestions(supabase, lessonId, questions) {
+  if (!questions.length) return;
+  const existing = await getAssociatedQuestions(supabase, lessonId);
+  const byId = new Map(existing.filter(question => question && question.id != null)
+    .map(question => [String(question.id), question]));
+  const withoutId = existing.filter(question => !question || question.id == null);
+  for (const question of questions) {
+    if (question && question.id != null) byId.set(String(question.id), question);
+    else withoutId.push(question);
+  }
   const { error } = await supabase.from('lesson_questions').upsert(
-    questionIds.map(questionId => ({ lesson_id: lessonId, question_id: questionId })),
-    { onConflict: 'lesson_id,question_id', ignoreDuplicates: true }
+    { lesson_id: lessonId, questoes: Array.from(byId.values()).concat(withoutId) },
+    { onConflict: 'lesson_id' }
   );
   if (error) throw new Error(`Não foi possível associar as questões: ${error.message}`);
 }
@@ -152,12 +161,12 @@ async function findAndAssociateOfficialQuestions(supabase, lesson, subjectName, 
   if (!keywords.length) return;
   const filters = keywords.map(word => `enunciado.ilike.%${word}%,topic.ilike.%${word}%`).join(',');
   let query = supabase.from('questions').select('*').eq('subject', subjectName)
-    .neq('exam', 'INÉDITA').or(filters).limit(TARGET_COUNT * 3);
+    .eq('source', 'exam').or(filters).limit(TARGET_COUNT * 3);
   if (excludedIds.length) query = query.not('id', 'in', `(${excludedIds.join(',')})`);
   const { data, error } = await query;
   if (error) throw new Error(`Não foi possível buscar questões oficiais: ${error.message}`);
   const official = (data || []).filter(hasValidJudgmentStatement).slice(0, TARGET_COUNT);
-  await associateQuestions(supabase, lesson.id, official.map(question => question.id));
+  await associateQuestions(supabase, lesson.id, official);
 }
 
 async function handler(req, res) {
@@ -196,13 +205,13 @@ async function handler(req, res) {
 
     const generated = await requestMissingQuestions({ subjectName, lessonTitle: lesson.title, summary, count: missing });
     const rows = generated.questoes.map(question => ({
-      exam: 'INÉDITA', year: null, subject: subjectName, topic: lesson.title,
+      source: 'ai', year: null, subject: subjectName, topic: lesson.title,
       enunciado: question.enunciado, opcoes: question.opcoes,
       gabarito: question.gabarito, explicacao: question.explicacao
     }));
     const { data: saved, error: saveError } = await supabase.from('questions').insert(rows).select('*');
     if (saveError) throw new Error(`Não foi possível salvar as assertivas: ${saveError.message}`);
-    await associateQuestions(supabase, lessonId, saved.map(question => question.id));
+    await associateQuestions(supabase, lessonId, saved);
 
     const combined = selected.concat(saved).slice(0, TARGET_COUNT).map(formatQuestion);
     return res.status(200).json({ questoes: combined, cached: false, source: selected.length ? 'mixed' : 'ai' });
@@ -216,6 +225,7 @@ module.exports = handler;
 module.exports.normalizeTrueFalseQuestions = normalizeTrueFalseQuestions;
 module.exports.isTrueFalseQuestion = isTrueFalseQuestion;
 module.exports.hasValidJudgmentStatement = hasValidJudgmentStatement;
+module.exports.isOfficial = isOfficial;
 module.exports.rankAssociatedQuestions = rankAssociatedQuestions;
 module.exports.readLessonSummary = readLessonSummary;
 module.exports.requestMissingQuestions = requestMissingQuestions;

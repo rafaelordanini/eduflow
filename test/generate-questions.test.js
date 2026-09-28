@@ -1,13 +1,28 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 
 const {
   normalizeTrueFalseQuestions,
   hasValidJudgmentStatement,
+  isOfficial,
   rankAssociatedQuestions,
   requestMissingQuestions,
   SYSTEM_PROMPT
 } = require('../api/generate-questions');
+
+test('recognizes the existing questions schema provenance', () => {
+  assert.equal(isOfficial({ source: 'exam' }), true);
+  assert.equal(isOfficial({ source: 'ai' }), false);
+  assert.equal(isOfficial({ exam: 'INÉDITA', source: 'exam' }), false);
+});
+
+test('uses the existing JSONB lesson cache instead of a missing PostgREST relationship', () => {
+  const source = fs.readFileSync('api/generate-questions/index.js', 'utf8');
+  assert.match(source, /select\('questoes'\)/);
+  assert.doesNotMatch(source, /questions\(\*\)|question_id, questions/);
+  assert.match(source, /source: 'ai', year: null/);
+});
 
 test('normalizes generated items to Certo or Errado', () => {
   const questions = normalizeTrueFalseQuestions([
