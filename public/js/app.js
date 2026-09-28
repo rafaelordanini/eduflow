@@ -1453,7 +1453,7 @@ function toggleReading(lessonId, idx, checked) {
 function renderQuestionsSection(lessonId, subjectName, lessonTitle) {
     return '<div class="questions-section">' +
         '<h3><i class="fas fa-question-circle"></i> Questões CACD</h3>' +
-        '<p style="font-size:.88rem;color:var(--text-muted);margin-bottom:16px">Questões no estilo das provas TPS do CACD geradas por IA para este tópico.</p>' +
+        '<p style="font-size:.88rem;color:var(--text-muted);margin-bottom:16px">Seleção inteligente de quatro assertivas no estilo TPS do CACD para este tópico.</p>' +
         '<button class="btn btn-accent" id="gen-questions-btn" onclick="gerarQuestoes(' + lessonId + ',\'' + escapeHtml(subjectName).replace(/'/g,"\\'") + '\',\'' + escapeHtml(lessonTitle).replace(/'/g,"\\'") + '\')">' +
           '<i class="fas fa-brain"></i> Gerar Questões' +
         '</button>' +
@@ -1474,12 +1474,11 @@ function gerarQuestoes(lessonId, subjectName, lessonTitle) {
     baronFloatPose('reading', 10000);
     out.innerHTML = '';
     _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0 };
-    API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 5 }).then(function(data) {
+    API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 4 }).then(function(data) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Regerar Questões'; }
         var questoes = data.questoes || [];
         _lessonQuestoesMeta.currentCount = questoes.length;
         renderQuestoes(questoes, out);
-        appendMaisQuestoesBtn(out, lessonId, subjectName, lessonTitle, questoes.length);
     }).catch(function(err) {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-brain"></i> Tentar Novamente'; }
         out.innerHTML = '<div style="color:var(--danger);font-size:.88rem"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
@@ -1561,7 +1560,10 @@ function renderQuestoes(questoes, container) {
                 '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
                 '</label>';
         }).join('');
-        var fonte = q.fonte ? '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(q.fonte) + '</div>' : '';
+        var procedencia = q.exam === 'INÉDITA'
+            ? '[Inédita - Fixação]'
+            : '[TPS ' + (q.year || '—') + ' - Oficial]';
+        var fonte = '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(procedencia) + '</div>';
         return '<div class="questao-card" id="qcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
             buildTopicBadge(q.id, q.subject, q.topic) +
             '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q) +
