@@ -1,3 +1,5 @@
+const fs = require('node:fs');
+const path = require('node:path');
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth } = require('../../lib/middleware');
 const { fetchDriveLessonSummary, summaryFilenames } = require('../../lib/drive-summary');
