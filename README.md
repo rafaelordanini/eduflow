@@ -14,6 +14,17 @@ configure na Vercel uma destas formas de autenticação:
 - `GOOGLE_SERVICE_ACCOUNT_JSON`: JSON completo (ou Base64) de uma conta de serviço.
   Nesse caso, compartilhe a pasta do Drive com o e-mail `client_email` da conta.
 
+Quando ambas as credenciais estão configuradas, a conta de serviço tem prioridade.
+Uma API key identifica o projeto, mas não concede acesso aos arquivos privados da
+sua conta Google. O acesso pelo navegador não comprova o acesso do backend: a
+pasta que contém o vídeo e o resumo precisa estar compartilhada com a conta de
+serviço, ou ser pública quando apenas a API key é utilizada.
+
+Se ocorrer uma falha, a mensagem informa a etapa e o status HTTP do Drive, com
+orientação para verificar compartilhamento, credenciais, ativação da API ou cota.
+HTTP 404 também pode significar falta de acesso, não apenas arquivo inexistente.
+Após alterar as variáveis de ambiente na Vercel, faça um novo deploy para aplicá-las.
+
 A Drive API não aceita consultas anônimas, mesmo quando um arquivo pode ser aberto
 por link; por isso, a aplicação não tenta mais uma chamada sem credencial, que
 resultava em HTTP 401. A geração lê sempre o resumo diretamente do Drive e não usa
