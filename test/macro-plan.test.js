@@ -13,6 +13,7 @@ const {
   repairMacroPlan,
   rescheduleMacroPlanFromPendingStudy,
   advanceMacroPlanDay,
+  todayIso,
 } = require('../lib/macro-plan');
 
 const subjects = [
@@ -42,6 +43,63 @@ function reviewItems(plan) {
 function dateDiffDays(from, to) {
   return Math.round((new Date(to + 'T00:00:00Z') - new Date(from + 'T00:00:00Z')) / 86400000);
 }
+
+test('continua hoje sem repetir aulas vistas, incluindo-as apenas nas revisões', () => {
+  const plan = buildCompleteMacroPlan(subjects, lessons, {
+    modoRecriacao: 'continuar', aulasPorDia: 1, diasDescansoPorSemana: 2,
+    dataInicio: '2026-09-30', doneByLessonId: new Map([['101', true], ['801', true]]),
+  });
+  assert.deepEqual(studyItems(plan).map(item => item.lesson_id), [102, 802, 205]);
+  assert.equal(studyItems(plan)[0].data, '2026-09-30');
+  assert.equal(plan.totalAulas, 3);
+  assert.equal(plan.totalAulasVistas, 2);
+  assert.equal(plan.totalRevisoes, lessons.length * 3);
+  assert.ok(studyItems(plan).every(item => !item.done));
+  const rest = new Set(plan.semanas.flatMap(week => week.datasDescanso));
+  assert.ok(allItems(plan).every(item => !rest.has(item.data)));
+  for (const id of [101, 801]) {
+    assert.deepEqual(reviewItems(plan).filter(item => item.lesson_id === id).map(item => item.review_interval_days), [1, 7, 30]);
+  }
+  assert.equal(planNeedsRepair(plan, subjects, lessons), false);
+  studyItems(plan)[0].done = true;
+  const repaired = repairMacroPlan(plan, subjects, lessons, { doneByLessonId: new Map([['102', true]]) });
+  assert.deepEqual(studyItems(repaired).map(item => item.lesson_id), [102, 802, 205]);
+  assert.equal(studyItems(repaired)[0].done, true);
+  assert.equal(planNeedsRepair(repaired, subjects, lessons), false);
+});
+
+test('calcula o ritmo da data da prova somente com as aulas ainda não vistas', () => {
+  const plan = buildCompleteMacroPlan(subjects, lessons, {
+    modoRecriacao: 'continuar', modoPlanejamento: PLAN_MODE_EXAM_DATE,
+    dataInicio: '2026-09-30', dataProva: '2026-10-01',
+    doneByLessonId: new Map([['101', true], ['801', true], ['102', true]]),
+  });
+  assert.equal(plan.aulasPorDia, 1);
+  assert.equal(plan.totalAulas, 2);
+  assert.equal(plan.dataFimAulas, '2026-10-01');
+  assert.equal(plan.totalRevisoes, 15);
+  assert.equal(planNeedsRepair(plan, subjects, lessons), false);
+});
+
+test('mantém um plano somente de revisões quando todas as aulas já foram vistas', () => {
+  const plan = buildCompleteMacroPlan(subjects, lessons, {
+    modoRecriacao: 'continuar', aulasPorDia: 2, dataInicio: '2026-09-30',
+    doneByLessonId: new Map(lessons.map(lesson => [String(lesson.id), true])),
+  });
+  assert.equal(studyItems(plan).length, 0);
+  assert.equal(reviewItems(plan).length, 15);
+  assert.equal(plan.totalAulasVistas, 5);
+  assert.match(plan.resumo, /somente revisões/);
+  assert.equal(planNeedsRepair(plan, subjects, lessons), false);
+});
+
+test('valida a opção de recriação e usa a data atual de São Paulo', () => {
+  const body = { modoPlanejamento: PLAN_MODE_LESSONS_PER_DAY, aulasPorDia: 2 };
+  assert.equal(normalizeMacroPlanRequest(body, '2026-09-30').value.modoRecriacao, 'continuar');
+  assert.equal(normalizeMacroPlanRequest({ ...body, modoRecriacao: 'do_zero' }, '2026-09-30').value.modoRecriacao, 'do_zero');
+  assert.match(normalizeMacroPlanRequest({ ...body, modoRecriacao: 'outro' }, '2026-09-30').error, /Escolha/);
+  assert.equal(todayIso(new Date('2026-10-01T01:30:00Z')), '2026-09-30');
+});
 
 test('inclui 100% das aulas cadastradas exatamente uma vez', function() {
   const plan = buildCompleteMacroPlan(subjects, lessons, { aulasPorDia: 2, dataInicio: '2026-07-16' });
