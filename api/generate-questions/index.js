@@ -10,9 +10,23 @@ const DEEPSEEK_MODEL = 'deepseek-chat';
 
 // Keep this prefix byte-for-byte stable: DeepSeek can reuse its prompt cache.
 const SYSTEM_PROMPT = `Você cria assertivas Cebraspe de Certo/Errado para o CACD.
-Cada item deve ser uma única afirmação autônoma, inequívoca e completa.
-Use nível CACD e, nos itens errados, distratores por inversão conceitual ou anacronismo.
-A justificativa deve citar uma tese, um autor ou uma obra de referência.
+Todas as questões, inclusive as de fixação, devem ter estilo TPS/CACD e dificuldade média ou alta.
+
+EXIGÊNCIA INTELECTUAL
+Cada item deve exigir aplicação, comparação ou inferência sustentada pelo resumo: relacionar conceitos, distinguir categorias próximas, avaliar uma relação causal ou verificar condições, limites e exceções. Adapte a operação à disciplina e ao conteúdo disponível.
+Evite definições isoladas, mera reprodução literal do resumo, fatos triviais e afirmações cujo julgamento dispense conhecer a matéria. A dificuldade deve vir da precisão conceitual, não de vocabulário rebuscado, extensão artificial ou ambiguidade.
+Em Português e idiomas, priorize aplicação das regras a um exemplo ou trecho autossuficiente, com análise de sentido, função ou efeito de uma alteração, quando o resumo permitir.
+
+CONSTRUÇÃO DOS ITENS
+Cada item deve ser uma única afirmação autônoma, inequívoca e completa, com uma relação central a julgar. Inclua no próprio enunciado qualquer exemplo ou contexto indispensável; não dependa de um texto ausente nem reúna afirmações independentes.
+Nos itens errados, introduza um erro decisivo e plausível: confusão entre conceitos próximos, inversão de causalidade, troca de agente ou período, condição necessária tratada como suficiente, ou ampliação indevida do alcance de uma regra. Use apenas mecanismos pertinentes à disciplina e verificáveis no resumo.
+Evite erros grosseiros, pistas óbvias, negações artificiais e uso sistemático de "sempre", "nunca" ou "apenas" para denunciar o gabarito. Os itens certos devem exigir o mesmo rigor de análise que os errados.
+Varie os conceitos e as operações cobradas. Quando houver dois ou mais itens, inclua certos e errados em ordem não previsível, sem sacrificar a correção para impor uma proporção.
+
+FUNDAMENTAÇÃO E REVISÃO
+Use somente informações e relações sustentadas pelo resumo. Não invente fatos, exceções, citações ou referências para aumentar a dificuldade. Exemplos construídos devem apenas aplicar uma regra presente no material.
+Em cada explicação, identifique o ponto decisivo do julgamento e fundamente-o no resumo; se o item for errado, indique o trecho incorreto e apresente a formulação correta. Cite autor ou obra somente quando essa referência estiver no resumo. Use de duas a quatro frases objetivas.
+Antes de responder, revise silenciosamente todos os itens: confira se o gabarito decorre do material, se há uma única interpretação defensável e se o item exige raciocínio além de uma lembrança trivial. Reescreva os itens superficiais, repetitivos ou ambíguos.
 As opções são sempre {"a":"Certo","b":"Errado"} e o gabarito é "a" ou "b".
 Responda SOMENTE com JSON válido, sem markdown.`;
 
@@ -105,11 +119,11 @@ async function requestMissingQuestions({ subjectName, lessonTitle, summary, coun
       model: DEEPSEEK_MODEL,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Aula: ${lessonTitle}\nDisciplina: ${subjectName}\nExtraia de 3 a 6 conceitos-chave e gere exatamente ${count} assertivas somente sobre o resumo. Retorne {"subject":"...","keywords":["..."],"questoes":[{"enunciado":"...","opcoes":{"a":"Certo","b":"Errado"},"gabarito":"a|b","explicacao":"..."}]}.\nRESUMO (máximo de 2500 caracteres):\n${summary}` }
+        { role: 'user', content: `Aula: ${lessonTitle}\nDisciplina: ${subjectName}\nExtraia de 3 a 6 conceitos-chave disponíveis e gere exatamente ${count} assertivas inéditas de fixação no estilo TPS/CACD, todas de dificuldade média ou alta, somente sobre o resumo. Cada assertiva deve cobrar aplicação, distinção conceitual ou análise de uma relação sustentada pelo material. Retorne {"subject":"...","keywords":["..."],"questoes":[{"enunciado":"...","opcoes":{"a":"Certo","b":"Errado"},"gabarito":"a|b","explicacao":"..."}]}.\nRESUMO (máximo de 2500 caracteres):\n${summary}` }
       ],
       temperature: 0.3,
       response_format: { type: 'json_object' },
-      max_tokens: 280 * count
+      max_tokens: 480 * count
     })
   });
   if (!response.ok) throw new Error(`Erro ao chamar a DeepSeek: ${(await response.text()).slice(0, 200)}`);
