@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 
 const {
   extractDriveFileId,
@@ -135,7 +136,8 @@ test('distinguishes folder, missing summary, and download failures', async t => 
   console.info = () => {};
 
   global.fetch = async () => ({ ok: false, status: 404 });
-  await assert.rejects(fetchDriveLessonSummary({ drive_url: 'https://drive.google.com/file/d/video/view' }, 'key'), /Pasta não encontrada/);
+  await assert.rejects(fetchDriveLessonSummary({ drive_url: 'https://drive.google.com/file/d/video/view' }, 'key'), error =>
+    error.code === 'DRIVE_REQUEST_FAILED' && /HTTP 404/.test(error.message) && /acesso público/.test(error.message));
 
   let call = 0;
   global.fetch = async () => ++call === 1
@@ -188,4 +190,99 @@ test('fails before calling Drive anonymously when credentials are absent', async
   await assert.rejects(fetchDriveLessonSummary({
     drive_url: 'https://drive.google.com/file/d/video-123/view'
   }, ''), /Credenciais do Google Drive ausentes/);
+});
+
+test('reports actionable Drive failures without leaking the raw error response', async t => {
+  const previousFetch = global.fetch;
+  t.after(() => { global.fetch = previousFetch; });
+  for (const [status, reason, expected] of [
+    [401, 'authError', /credenciais e as restrições/],
+    [403, 'accessNotConfigured', /Habilite a Google Drive API/],
+    [403, 'SERVICE_DISABLED', /Habilite a Google Drive API/],
+    [400, 'API_KEY_INVALID', /credenciais e as restrições/],
+    [403, 'API_KEY_HTTP_REFERRER_BLOCKED', /credenciais e as restrições/],
+    [403, 'insufficientFilePermissions', /acesso público/],
+    [403, 'rateLimitExceeded', /limite de requisições/],
+    [429, '', /limite de requisições/],
+    [404, 'notFound', /Confira o link/],
+    [500, '', /Tente novamente/]
+  ]) {
+    global.fetch = async () => ({ ok: false, status, json: async () => ({
+      error: { message: 'SECRET_RAW_RESPONSE', errors: [{ reason }], details: [{ reason }] }
+    }) });
+    await assert.rejects(fetchDriveLessonSummary({ drive_url: 'https://drive.google.com/file/d/video/view' }, 'key'), error => {
+      assert.equal(error.code, 'DRIVE_REQUEST_FAILED');
+      assert.match(error.message, new RegExp(`HTTP ${status}`));
+      assert.match(error.message, expected);
+      assert.doesNotMatch(error.message, /SECRET_RAW_RESPONSE|key=/);
+      assert.equal(error.cause.status, status);
+      return true;
+    });
+  }
+});
+
+test('reports a folder listing failure separately from a missing summary', async t => {
+  const previousFetch = global.fetch;
+  t.after(() => { global.fetch = previousFetch; });
+  let calls = 0;
+  global.fetch = async () => ++calls === 1
+    ? { ok: true, json: async () => ({ name: 'aula1.mp4', parents: ['folder'] }) }
+    : { ok: false, status: 403, json: async () => ({ error: { errors: [{ reason: 'insufficientFilePermissions' }] } }) };
+  await assert.rejects(fetchDriveLessonSummary({ drive_url: 'https://drive.google.com/file/d/video/view' }, 'key'), error =>
+    error.code === 'DRIVE_REQUEST_FAILED' && /listagem.*HTTP 403/.test(error.message));
+  assert.equal(calls, 2);
+});
+
+test('explains that a playable video may have an inaccessible parent folder', async t => {
+  const previousFetch = global.fetch;
+  t.after(() => { global.fetch = previousFetch; });
+  global.fetch = async () => ({ ok: true, json: async () => ({ name: 'aula1.mp4' }) });
+  await assert.rejects(fetchDriveLessonSummary({ drive_url: 'https://drive.google.com/file/d/video/view' }, 'key'), error =>
+    error.code === 'FOLDER_NOT_FOUND' && /vídeo está acessível/.test(error.message) && /Compartilhe a pasta/.test(error.message));
+});
+
+test('uses service account access even when an API key is also configured', async t => {
+  const names = ['GOOGLE_SERVICE_ACCOUNT_JSON', 'GOOGLE_SERVICE_ACCOUNT_BASE64',
+    'GOOGLE_SERVICE_ACCOUNT_EMAIL', 'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY', 'GOOGLE_DRIVE_API_KEY'];
+  const savedEnv = Object.fromEntries(names.map(name => [name, process.env[name]]));
+  const previousFetch = global.fetch;
+  const previousInfo = console.info;
+  t.after(() => {
+    global.fetch = previousFetch;
+    console.info = previousInfo;
+    for (const [name, value] of Object.entries(savedEnv)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+  const { privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  for (const name of names) delete process.env[name];
+  process.env.GOOGLE_SERVICE_ACCOUNT_JSON = JSON.stringify({
+    client_email: 'reader@example.iam.gserviceaccount.com',
+    private_key: privateKey.export({ type: 'pkcs8', format: 'pem' })
+  });
+  process.env.GOOGLE_DRIVE_API_KEY = 'public-key';
+  console.info = () => {};
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push(url);
+    assert.doesNotMatch(url, /key=public-key/);
+    if (url === 'https://oauth2.googleapis.com/token') {
+      assert.equal(options.method, 'POST');
+      return { ok: true, json: async () => ({ access_token: 'service-token' }) };
+    }
+    assert.equal(options.headers.Authorization, 'Bearer service-token');
+    if (requests.length === 2) return { ok: true, json: async () => ({ name: 'aula1.mp4', parents: ['private-folder'] }) };
+    if (requests.length === 3) return { ok: true, json: async () => ({ files: [{ id: 'summary', name: 'aula1_resumo.txt', mimeType: 'text/plain' }] }) };
+    return { ok: true, text: async () => 'Resumo privado.' };
+  };
+  const lesson = { drive_url: 'https://drive.google.com/file/d/video/view' };
+  assert.equal(await fetchDriveLessonSummary(lesson), 'Resumo privado.');
+  assert.equal(requests.length, 4);
+
+  // Missing access with a service account must explain which identity needs sharing.
+  global.fetch = async url => url === 'https://oauth2.googleapis.com/token'
+    ? { ok: true, json: async () => ({ access_token: 'service-token' }) }
+    : { ok: false, status: 404, json: async () => ({ error: { errors: [{ reason: 'notFound' }] } }) };
+  await assert.rejects(fetchDriveLessonSummary(lesson), /HTTP 404.*client_email/);
 });
