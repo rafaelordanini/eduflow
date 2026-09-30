@@ -2142,7 +2142,7 @@ function renderStudentMacroPlan() {
     var app = document.getElementById('app');
     var nav = renderNavbar(studentNav());
     app.innerHTML = nav + '<div class="container"><div class="page-content">' +
-        zenTitle('fa-map', 'Plano Mestre CACD', 'Escolha seu ritmo diário ou uma data-alvo; o Barão distribui 100% do conteúdo.') +
+        zenTitle('fa-map', 'Plano Mestre CACD', 'Organize suas aulas e revisões por ritmo diário ou data-alvo.') +
         '<div class="loading-spinner" id="macro-main-area"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>' +
         '</div></div>';
 
@@ -2151,7 +2151,7 @@ function renderStudentMacroPlan() {
         if (!area) return;
 
         var currentPlan = macro && macro.plan_json ? macro.plan_json : null;
-        var todayIso = new Date().toISOString().split('T')[0];
+        var todayIso = dataHojeMacroPlan();
         var suggestedExam = new Date(); suggestedExam.setMonth(suggestedExam.getMonth() + 4);
         var defaultMode = currentPlan && currentPlan.modoPlanejamento === 'data_prova' ? 'data_prova' : 'aulas_por_dia';
         var savedExamDate = currentPlan && currentPlan.dataProva;
@@ -2160,7 +2160,11 @@ function renderStudentMacroPlan() {
 
         var formHtml = '<div class="macro-form" id="macro-gen-form">' +
             '<h2><i class="fas fa-cog" style="color:var(--accent);margin-right:8px"></i>' + (existingDate ? 'Substituir Plano Mestre' : 'Configurar Plano Mestre') + '</h2>' +
-            (existingDate ? '<div style="background:rgba(232,163,23,.12);border:1px solid var(--warning);border-radius:var(--radius-md);padding:12px 16px;margin-bottom:16px;font-size:.88rem"><i class="fas fa-exclamation-triangle" style="color:var(--warning);margin-right:6px"></i>Você já tem um Plano Mestre criado em ' + existingDate + '. Gerar um novo irá <strong>redistribuir todas as aulas e revisões conforme o modo escolhido</strong>.</div>' : '') +
+            (existingDate ? '<fieldset style="border:0;padding:0;margin:0 0 20px"><legend style="font-weight:600;margin-bottom:12px">Como deseja recriar o plano?</legend>' +
+              '<div class="macro-mode-options">' +
+                '<label class="macro-mode-option"><input type="radio" name="macro-recriar" value="continuar" onchange="atualizarRecriacaoMacroPlan()"><span><strong>1. Continuar a partir de hoje</strong><small>Mantém as marcações de aulas vistas. Agenda apenas as aulas ainda não vistas e inclui as vistas em novos ciclos de revisão, sem repetir os vídeos.</small></span></label>' +
+                '<label class="macro-mode-option"><input type="radio" name="macro-recriar" value="do_zero" onchange="atualizarRecriacaoMacroPlan()"><span><strong>2. Recomeçar do zero</strong><small>Zera as marcações de aulas vistas e as posições salvas dos vídeos. Reinicia o plano e as revisões desde a primeira aula do primeiro módulo de cada matéria.</small></span></label>' +
+              '</div><p id="macro-recreation-note" role="status" style="font-size:.88rem;color:var(--text-secondary);margin-top:10px">Escolha uma opção e confira o ritmo abaixo. As alterações serão aplicadas ao gerar o novo plano.</p></fieldset>' : '') +
             '<div class="macro-mode-options">' +
               '<label class="macro-mode-option' + (defaultMode === 'aulas_por_dia' ? ' active' : '') + '">' +
                 '<input type="radio" name="macro-modo" value="aulas_por_dia"' + (defaultMode === 'aulas_por_dia' ? ' checked' : '') + ' onchange="atualizarModoMacroPlan()">' +
@@ -2175,14 +2179,14 @@ function renderStudentMacroPlan() {
             '</div>' +
             '<div id="macro-mode-aulas" style="display:' + (defaultMode === 'aulas_por_dia' ? 'block' : 'none') + '">' +
               '<div class="form-row">' +
-                '<div class="form-group"><label>Aulas por Dia</label><input type="number" id="macro-aulas-dia" min="1" max="20" value="' + (currentPlan && currentPlan.aulasPorDia ? currentPlan.aulasPorDia : 2) + '"' + (defaultMode === 'aulas_por_dia' ? '' : ' disabled') + '><small style="display:block;color:var(--text-muted);margin-top:5px">O plano incluirá 100% das aulas e calculará a duração total.</small></div>' +
+                '<div class="form-group"><label>Aulas por Dia</label><input type="number" id="macro-aulas-dia" min="1" max="20" value="' + (currentPlan && currentPlan.aulasPorDia ? currentPlan.aulasPorDia : 2) + '"' + (defaultMode === 'aulas_por_dia' ? '' : ' disabled') + '><small style="display:block;color:var(--text-muted);margin-top:5px">O plano calcula a duração das aulas a assistir conforme a opção escolhida.</small></div>' +
                 '<div class="form-group"><label>Dias de Descanso por Semana</label><input type="number" id="macro-dias-descanso" min="0" max="6" value="' + (currentPlan && currentPlan.diasDescansoPorSemana != null ? currentPlan.diasDescansoPorSemana : 1) + '"' + (defaultMode === 'aulas_por_dia' ? '' : ' disabled') + '><small style="display:block;color:var(--text-muted);margin-top:5px">De 0 a 6 dias sem aulas ou revisões, intercalados automaticamente.</small></div>' +
               '</div>' +
             '</div>' +
             '<div id="macro-mode-prova" style="display:' + (defaultMode === 'data_prova' ? 'block' : 'none') + '">' +
               '<div class="form-group"><label>Data da Prova</label><input type="date" id="macro-data-prova" min="' + todayIso + '" value="' + defaultDate + '"' + (defaultMode === 'data_prova' ? '' : ' disabled') + '><small style="display:block;color:var(--text-muted);margin-top:5px">As aulas serão equilibradas entre hoje e a prova; o teto diário será calculado automaticamente.</small></div>' +
             '</div>' +
-            '<button class="btn btn-primary" style="width:100%;justify-content:center;padding:14px" onclick="gerarMacroPlan()">' +
+            '<button class="btn btn-primary" style="width:100%;justify-content:center;padding:14px" onclick="gerarMacroPlan(this)">' +
               '<i class="fas fa-calendar-check"></i> ' + (existingDate ? 'Gerar Novo Plano Mestre' : 'Gerar Plano Mestre') +
             '</button>' +
           '</div>' +
@@ -2195,6 +2199,7 @@ function renderStudentMacroPlan() {
             var planModeDetails = isExamDateMode
                 ? (currentPlan.totalAulas || 0) + ' aulas · até ' + (currentPlan.aulasPorDia || 0) + ' por dia (calculado) · conteúdo concluído até ' + planExamLabel
                 : (currentPlan.totalAulas || 0) + ' aulas · ' + (currentPlan.aulasPorDia || 0) + ' por dia · ' + (currentPlan.diasDescansoPorSemana || 0) + ' descanso(s)/semana · aulas até ' + (currentPlan.dataFimAulas ? new Date(currentPlan.dataFimAulas + 'T12:00:00').toLocaleDateString('pt-BR') : '—');
+            if (currentPlan.totalAulasVistas) planModeDetails += ' · ' + currentPlan.totalAulasVistas + ' aulas vistas somente nas revisões';
             area.className = '';
             area.innerHTML = '<div class="zen-hero" style="min-height:134px;margin-bottom:22px">' +
                 '<img class="zen-hero-avatar" src="/baron-thinking-sm.png" alt="Barão" onerror="this.src=\'/baron-avatar.png\'">' +
@@ -2223,6 +2228,22 @@ function renderStudentMacroPlan() {
     });
 }
 
+function dataHojeMacroPlan() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone:'America/Sao_Paulo', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
+}
+
+function atualizarRecriacaoMacroPlan() {
+    var selected = document.querySelector('input[name="macro-recriar"]:checked');
+    if (!selected) return;
+    document.querySelectorAll('input[name="macro-recriar"]').forEach(function(radio) {
+        radio.closest('.macro-mode-option').classList.toggle('active', radio.checked);
+    });
+    var note = document.getElementById('macro-recreation-note');
+    if (note) note.textContent = selected.value === 'do_zero'
+        ? 'Ao gerar, suas marcações de aulas vistas e posições dos vídeos serão zeradas. O novo plano começará hoje, com todas as aulas e revisões pendentes.'
+        : 'O novo plano começará hoje. As aulas vistas serão mantidas e incluídas somente nas revisões; as demais seguirão a sequência de cada matéria.';
+}
+
 function atualizarModoMacroPlan() {
     var selected = document.querySelector('input[name="macro-modo"]:checked');
     if (!selected) return;
@@ -2244,10 +2265,14 @@ function atualizarModoMacroPlan() {
     });
 }
 
-function gerarMacroPlan() {
+function gerarMacroPlan(button) {
     var selectedMode = document.querySelector('input[name="macro-modo"]:checked');
     var mode = selectedMode ? selectedMode.value : null;
     var payload = { modoPlanejamento: mode };
+    var recreationOptions = document.querySelectorAll('input[name="macro-recriar"]');
+    var recreation = document.querySelector('input[name="macro-recriar"]:checked');
+    if (recreationOptions.length && !recreation) { showToast('Escolha continuar a partir de hoje ou recomeçar do zero', 'error'); return; }
+    payload.modoRecriacao = recreation ? recreation.value : 'continuar';
 
     if (mode === 'aulas_por_dia') {
         var aulasPorDia = parseInt(document.getElementById('macro-aulas-dia').value, 10);
@@ -2258,7 +2283,7 @@ function gerarMacroPlan() {
         payload.diasDescansoPorSemana = diasDescansoPorSemana;
     } else if (mode === 'data_prova') {
         var dataProva = document.getElementById('macro-data-prova').value;
-        var hoje = new Date().toISOString().split('T')[0];
+        var hoje = dataHojeMacroPlan();
         if (!dataProva) { showToast('Informe a data da prova', 'error'); return; }
         if (dataProva < hoje) { showToast('A data da prova não pode estar no passado', 'error'); return; }
         payload.dataProva = dataProva;
@@ -2267,13 +2292,17 @@ function gerarMacroPlan() {
         return;
     }
     var out = document.getElementById('macro-output');
+    if (button && button.disabled) return;
+    if (button) button.disabled = true;
     out.style.display = 'block';
-    out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.style.display=\'none\'"><p>Organizando 100% das aulas, os descansos e as revisões espaçadas…</p></div>';
+    out.innerHTML = '<div class="plan-loading"><img src="/baron-reading-sm.png" style="width:56px;height:56px;border-radius:50%;animation:pulse 1.5s ease-in-out infinite" onerror="this.style.display=\'none\'"><p>Organizando as aulas, os descansos e as revisões espaçadas…</p></div>';
     baronFloatPose('reading', 15000);
     API.generateMacroPlan(payload).then(function(plano) {
-        renderMacroPlan(plano, out);
+        showToast(payload.modoRecriacao === 'do_zero' ? 'Plano recriado do zero. Marcações de aulas vistas zeradas.' : 'Plano criado a partir de hoje, preservando as aulas vistas.', 'success');
+        renderStudentMacroPlan();
     }).catch(function(err) {
         out.innerHTML = '<div style="color:var(--danger);padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
+        if (button) button.disabled = false;
     });
 }
 
@@ -2369,7 +2398,7 @@ function renderMacroPlan(plano, container) {
             '<p style="color:var(--text);max-width:760px">' + escapeHtml(plano.resumo || '') + '</p>' +
             '<div class="macro-metrics">' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-stopwatch" style="color:var(--primary);margin-right:6px"></i>Aulas concluídas em</span><strong>' + (plano.totalDiasAulas || 0) + ' dias corridos</strong></div>' +
-              '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-film" style="color:var(--primary);margin-right:6px"></i>Cobertura</span><strong>' + (plano.totalAulas || totalItems) + ' aulas</strong></div>' +
+              '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-film" style="color:var(--primary);margin-right:6px"></i>Aulas a assistir</span><strong>' + (plano.totalAulas != null ? plano.totalAulas : totalItems) + ' aulas</strong></div>' +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-gauge-high" style="color:var(--primary);margin-right:6px"></i>Ritmo</span><strong>' + (isExamMode ? 'até ' : '') + (plano.aulasPorDia || 0) + ' por dia' + (isExamMode ? ' (calculado)' : '') + '</strong></div>' +
               fourthMetric +
               '<div class="macro-metric"><span style="color:var(--text-secondary);font-size:.86rem"><i class="fas fa-rotate-left" style="color:var(--primary);margin-right:6px"></i>Revisões</span><strong>' + (plano.totalRevisoes || 0) + ' em D+1, D+7 e D+30</strong></div>' +
@@ -2379,8 +2408,8 @@ function renderMacroPlan(plano, container) {
           '</div>' +
         '</div>' +
         '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:18px 0 16px">' +
-          '<span class="macro-badge estudo" style="padding:12px 22px"><i class="fas fa-play-circle"></i> Aulas <small style="font-weight:500;color:var(--text-secondary);margin-left:6px">100% do catálogo em ordem pedagógica</small></span>' +
-          '<span class="macro-badge revisao" style="padding:12px 22px"><i class="fas fa-rotate-left"></i> Revisões espaçadas <small style="font-weight:500;color:var(--text-secondary);margin-left:6px">D+1, D+7 e D+30 após cada aula</small></span>' +
+          '<span class="macro-badge estudo" style="padding:12px 22px"><i class="fas fa-play-circle"></i> Aulas <small style="font-weight:500;color:var(--text-secondary);margin-left:6px">' + (plano.totalAulasVistas ? 'Somente aulas ainda não vistas, em ordem pedagógica' : '100% do catálogo em ordem pedagógica') + '</small></span>' +
+          '<span class="macro-badge revisao" style="padding:12px 22px"><i class="fas fa-rotate-left"></i> Revisões espaçadas <small style="font-weight:500;color:var(--text-secondary);margin-left:6px">' + (plano.totalAulasVistas ? 'D+1, D+7 e D+30; novos ciclos também para as aulas vistas' : 'D+1, D+7 e D+30 após cada aula') + '</small></span>' +
         '</div>' +
         semanasHtml;
 }
