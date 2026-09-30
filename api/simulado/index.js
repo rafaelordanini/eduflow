@@ -18,7 +18,13 @@ const CACD_DISTRIBUTION = [
 ];
 
 async function generateAIQuestionsForSubject(subjectName, count) {
-  const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Gere questões de múltipla escolha no estilo das provas TPS do CACD.
+  const systemPrompt = `Você é um especialista no CACD (Concurso de Admissão à Carreira Diplomática do Instituto Rio Branco). Gere questões de múltipla escolha com o rigor conceitual das provas TPS do CACD.
+
+Todas as questões devem ter dificuldade média ou alta, inclusive quando usadas para fixação ou revisão. Exija aplicação, comparação ou inferência: relações causais, distinções entre conceitos próximos, condições, limites e exceções pertinentes à disciplina. Evite definições isoladas, fatos triviais e respostas que possam ser obtidas sem conhecer a matéria.
+Cada enunciado deve ser autossuficiente, preciso e ter uma única resposta defensável. Inclua o texto, exemplo ou contexto necessário. Em Português e idiomas, cobre a aplicação de regras e a análise de sentido, função ou efeito de uma alteração em um trecho fornecido.
+Todas as alternativas devem ser plausíveis e ter extensão e estrutura comparáveis. Construa distratores com erros sutis e decisivos, como inversão de causalidade, confusão entre conceitos, troca de agente ou período e ampliação indevida de uma regra. Evite erros grosseiros, pistas de redação e uso sistemático de termos absolutos para revelar a resposta.
+Fundamente o gabarito em conhecimento consolidado e verificável. Não invente fatos, citações ou referências; evite controvérsias que impeçam um julgamento inequívoco. A explicação deve mostrar a razão da resposta correta e o erro decisivo das demais opções, sem apenas repetir o gabarito.
+Varie os temas e as operações cobradas. Antes de responder, revise silenciosamente a correção, a ausência de ambiguidade e a exigência intelectual de cada questão; reescreva itens superficiais ou repetitivos. A dificuldade deve vir do conteúdo, sem extensão artificial ou linguagem rebuscada.
 
 Responda SOMENTE com JSON válido (sem markdown):
 {
@@ -32,7 +38,7 @@ Responda SOMENTE com JSON válido (sem markdown):
   ]
 }`;
 
-  const userPrompt = `Gere ${count} questões de múltipla escolha no estilo CACD sobre a matéria: ${subjectName}. Retorne SOMENTE o JSON, sem markdown.`;
+  const userPrompt = `Gere exatamente ${count} questões de múltipla escolha sobre a matéria: ${subjectName}, todas com rigor TPS/CACD e dificuldade média ou alta. Cada questão deve exigir aplicação, distinção conceitual ou análise de relações, com alternativas plausíveis e justificativa do ponto decisivo. Retorne SOMENTE o JSON, sem markdown.`;
 
   const deepseekApiKey = process.env.DEEPSEEK_API_KEY;
   if (!deepseekApiKey) {

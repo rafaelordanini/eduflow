@@ -82,7 +82,7 @@ test('makes one proportional, cached-prompt DeepSeek request', async t => {
     assert.equal(body.model, 'deepseek-chat');
     assert.equal(body.temperature, 0.3);
     assert.deepEqual(body.response_format, { type: 'json_object' });
-    assert.equal(body.max_tokens, 560);
+    assert.equal(body.max_tokens, 960);
     assert.equal(body.messages[0].content, SYSTEM_PROMPT);
     return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({
       subject: 'História', keywords: ['Tratado'], questoes: [
