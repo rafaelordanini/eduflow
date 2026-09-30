@@ -26,6 +26,57 @@ test('matches the real summary name without depending on case or extension', () 
   assert.equal(exportMimeType('application/vnd.google-apps.document'), 'text/plain');
 });
 
+test('prefers the video summary for duplicate lessons regardless of Drive listing order', () => {
+  const files = [
+    { id: 'order-six', name: 'aula6_resumo.txt' },
+    { id: 'order-seven', name: 'aula7_resumo.txt' },
+    { id: 'title', name: 'M1A4 - Morfologia_resumo.txt' },
+    { id: 'video', name: 'AULA4_RESUMO.TXT' }
+  ];
+  for (const lesson of [
+    { title: 'M1A4 - Morfologia', order_index: 6 },
+    { title: 'aula4', order_index: 7 }
+  ]) {
+    const candidates = summaryFilenames(lesson, 'aula4.mp4');
+    for (const listing of [files, [...files].reverse()]) {
+      assert.equal(findSummaryFile(listing, candidates).id, 'video');
+    }
+  }
+});
+
+test('uses the title before lesson order when the video summary is missing', () => {
+  const candidates = summaryFilenames({ title: 'M1A4 - Morfologia', order_index: 6 }, 'aula4.mp4');
+  const orderSummary = { id: 'order', name: 'aula6_resumo.txt' };
+  const titleSummary = { id: 'title', name: 'M1A4 - MORFOLOGIA_RESUMO.md' };
+  assert.equal(findSummaryFile([orderSummary, titleSummary], candidates).id, 'title');
+  assert.equal(findSummaryFile([orderSummary], candidates).id, 'order');
+  assert.equal(findSummaryFile([], candidates), undefined);
+});
+
+test('downloads the real video summary instead of a mismatched order summary', async t => {
+  const previousFetch = global.fetch;
+  const previousInfo = console.info;
+  t.after(() => { global.fetch = previousFetch; console.info = previousInfo; });
+  console.info = () => {};
+  const requests = [];
+  global.fetch = async url => {
+    requests.push(url);
+    if (requests.length === 1) return { ok: true, json: async () => ({ name: 'aula4.mp4', parents: ['module-one'] }) };
+    if (requests.length === 2) return { ok: true, json: async () => ({ files: [
+      { id: 'wrong-summary', name: 'aula6_resumo.txt', mimeType: 'text/plain' },
+      { id: 'morphology-summary', name: 'aula4_resumo.txt', mimeType: 'text/plain' }
+    ] }) };
+    assert.match(url, /\/morphology-summary\?alt=media/);
+    return { ok: true, text: async () => 'Resumo de Morfologia.' };
+  };
+  const summary = await fetchDriveLessonSummary({
+    title: 'M1A4 - Morfologia', order_index: 6,
+    drive_url: 'https://drive.google.com/file/d/video-four/view'
+  }, 'key');
+  assert.equal(summary, 'Resumo de Morfologia.');
+  assert.equal(requests.length, 3);
+});
+
 test('finds and downloads a summary in the same Google Drive folder', async t => {
   const previousFetch = global.fetch;
   t.after(() => { global.fetch = previousFetch; });
