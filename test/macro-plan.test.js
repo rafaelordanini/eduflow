@@ -21,12 +21,23 @@ const subjects = [
   { id: 8, name: 'História Mundial' },
 ];
 const lessons = [
-  { id: 101, subject_id: 7, title: 'M1A1 — Período Colonial', order_index: 1, duration_minutes: 60 },
+  { id: 101, subject_id: 7, title: 'M1A1 — Período Colonial', order_index: 1, duration_minutes: 60, drive_url: '/file/d/colonial/view' },
   { id: 102, subject_id: 7, title: 'M1A2 — O Bandeirantismo', order_index: 2, duration_minutes: 45 },
   { id: 205, subject_id: 7, title: 'M2A5 — Política Externa Brasileira', order_index: 105, duration_minutes: 60 },
   { id: 801, subject_id: 8, title: 'M1A1 — Absolutismo e Mercantilismo', order_index: 1, duration_minutes: 50 },
   { id: 802, subject_id: 8, title: 'M1A2 — Iluminismo', order_index: 2, duration_minutes: 50 },
 ];
+
+test('planning follows custom positions while retaining each distinct lesson and completion', () => {
+  const reordered = lessons.map(l => ({...l, order_index:l.id === 101 ? 3 : l.id === 205 ? 1 : l.order_index}));
+  const plan = buildCompleteMacroPlan(subjects, reordered, {
+    aulasPorDia:2, dataInicio:'2026-09-30', doneByLessonId:new Map([['102',true]]),
+  });
+  const history = studyItems(plan).filter(item => item.subject_id === 7);
+  assert.deepEqual(history.map(item => item.lesson_id), [205,102,101]);
+  assert.equal(history.find(item => item.lesson_id === 102).done, true);
+  assert.equal(plan.totalAulas, lessons.length);
+});
 
 function allItems(plan) {
   return plan.semanas.flatMap(function(week) { return week.materias; });
@@ -112,7 +123,7 @@ test('inclui 100% das aulas cadastradas exatamente uma vez', function() {
 
 test('ignora cópias antigas ao montar o planejamento e mantém a aula com título iniciado por M', function() {
   const duplicatedLessons = lessons.concat([
-    { id: 999, subject_id: 7, title: 'Panorama geral periodo colonial', order_index: 1, duration_minutes: 0 },
+    { id: 999, subject_id: 7, title: 'Panorama geral periodo colonial', order_index: 1, duration_minutes: 0, drive_url: '/file/d/colonial/preview' },
   ]);
   const plan = buildCompleteMacroPlan(subjects, duplicatedLessons, { aulasPorDia: 2, dataInicio: '2026-07-16' });
   const historyLessonOne = studyItems(plan).filter(function(item) {

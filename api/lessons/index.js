@@ -1,5 +1,6 @@
 const { getSupabase } = require('../../lib/supabase');
 const { cors, requireAuth, requireAdmin } = require('../../lib/middleware');
+const { deduplicateLessons } = require('../../lib/lesson-deduplication');
 
 function convertDriveUrl(url) {
     if (!url || !url.trim()) return '';
@@ -32,11 +33,10 @@ module.exports = async function handler(req, res) {
                 .from('lessons')
                 .select('*')
                 .eq('subject_id', subjectId)
-                .order('order_index');
+                .is('duplicate_of_id', null)
+                .order('order_index').order('id');
             if (error) return res.status(500).json({ error: error.message });
-            // Return every stored row so duplicate imports remain visible and can
-            // be removed explicitly by the user.
-            return res.status(200).json(data || []);
+            return res.status(200).json(deduplicateLessons(data || []));
         }
 
         // ── POST: criar aula (admin) ──
@@ -53,6 +53,7 @@ module.exports = async function handler(req, res) {
                 .from('lessons')
                 .select('order_index')
                 .eq('subject_id', subject_id)
+                .is('duplicate_of_id', null)
                 .order('order_index', { ascending: false })
                 .limit(1);
 
@@ -72,8 +73,31 @@ module.exports = async function handler(req, res) {
                 .select()
                 .single();
 
-            if (error) return res.status(500).json({ error: error.message });
+            if (error) return res.status(error.code === '23505' ? 409 : 500).json({ error: error.code === '23505' ? 'Este vídeo já está cadastrado nesta matéria.' : error.message });
             return res.status(201).json(data);
+        }
+
+        // Order changes are available to the authenticated learner as well as
+        // admins. Route this before the admin-only metadata update branch.
+        if (req.method === 'PUT' && req.body && req.body.lessonId !== undefined) {
+            const user = requireAuth(req, res);
+            if (!user) return;
+            const { lessonId, direction, position } = req.body;
+            const hasDirection = direction !== undefined;
+            const hasPosition = position !== undefined;
+            if (!Number.isInteger(lessonId) || lessonId <= 0 || hasDirection === hasPosition ||
+                (hasDirection && direction !== -1 && direction !== 1) ||
+                (hasPosition && (!Number.isInteger(position) || position < 1))) {
+                return res.status(400).json({ error: 'Informe a aula e uma direção (-1 ou 1) ou posição válida.' });
+            }
+            const { data, error } = await supabase.rpc('reorder_lesson', {
+                p_lesson_id: lessonId,
+                p_direction: hasDirection ? direction : null,
+                p_position: hasPosition ? position : null
+            });
+            if (error) return res.status(error.code === 'P0002' ? 404 : error.code === '22023' ? 400 : 500)
+                .json({ error: error.message });
+            return res.status(200).json(data);
         }
 
         // ── PUT: atualizar aula (admin, id via query param) ──
@@ -99,7 +123,7 @@ module.exports = async function handler(req, res) {
                 .eq('id', id)
                 .select()
                 .single();
-            if (error) return res.status(500).json({ error: error.message });
+            if (error) return res.status(error.code === '23505' ? 409 : 500).json({ error: error.code === '23505' ? 'Este vídeo já está cadastrado nesta matéria.' : error.message });
             if (!data) return res.status(404).json({ error: 'Aula não encontrada.' });
             return res.status(200).json(data);
         }
@@ -123,7 +147,8 @@ module.exports = async function handler(req, res) {
                 .from('lessons')
                 .select('id, order_index')
                 .eq('subject_id', lesson.subject_id)
-                .order('order_index');
+                .is('duplicate_of_id', null)
+                .order('order_index').order('id');
 
             if (remaining) {
                 for (let i = 0; i < remaining.length; i++) {
@@ -133,26 +158,6 @@ module.exports = async function handler(req, res) {
                 }
             }
 
-            return res.status(200).json({ success: true });
-        }
-
-        // PUT — reorder lesson (replaces /api/lessons/reorder)
-        if (req.method === 'PUT') {
-            const admin = requireAdmin(req, res);
-            if (!admin) return;
-            const { lessonId, direction } = req.body || {};
-            if (!lessonId || (direction !== 1 && direction !== -1)) {
-                return res.status(400).json({ error: 'lessonId e direction (1 ou -1) são obrigatórios.' });
-            }
-            const { data: lesson } = await supabase.from('lessons').select('*').eq('id', lessonId).single();
-            if (!lesson) return res.status(404).json({ error: 'Aula não encontrada.' });
-            const { data: all } = await supabase.from('lessons').select('id, order_index').eq('subject_id', lesson.subject_id).order('order_index');
-            const idx = all.findIndex(function(l) { return l.id === lessonId; });
-            const swapIdx = idx + direction;
-            if (swapIdx < 0 || swapIdx >= all.length) return res.status(400).json({ error: 'Não é possível mover nessa direção.' });
-            const tempOrder = all[idx].order_index;
-            await supabase.from('lessons').update({ order_index: all[swapIdx].order_index }).eq('id', all[idx].id);
-            await supabase.from('lessons').update({ order_index: tempOrder }).eq('id', all[swapIdx].id);
             return res.status(200).json({ success: true });
         }
 

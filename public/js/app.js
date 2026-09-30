@@ -45,6 +45,7 @@ var API = {
     updateLesson: function(id, data) { return this.request('PUT', '/api/lessons?id=' + id, data); },
     deleteLesson: function(id) { return this.request('DELETE', '/api/lessons?id=' + id); },
     reorderLesson: function(lessonId, direction) { return this.request('PUT', '/api/lessons', { lessonId: lessonId, direction: direction }); },
+    moveLesson: function(lessonId, position) { return this.request('PUT', '/api/lessons', { lessonId: lessonId, position: position }); },
 
     getProgress: function(lessonId) { return this.request('GET', '/api/activity?resource=progress' + (lessonId ? '&lessonId=' + lessonId : '')); },
     saveProgress: function(data) { return this.request('POST', '/api/activity?resource=progress', data); },
@@ -93,7 +94,7 @@ function enableVisualPreview() {
         {id:10,name:'Direito Internacional',description:'Tratados, organizações e prática diplomática.'},
         {id:11,name:'Política Internacional',description:'Teoria, organismos, integração e conflitos.'}
     ];
-    var counts = {1:48,2:120,3:26,4:24,5:24,6:24,7:30,8:16,9:30,10:24,11:34};
+    var counts = {1:24,2:60,3:26,4:24,5:24,6:24,7:30,8:16,9:30,10:24,11:34};
     var complete = {1:0,2:1,3:1,4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0};
     var lessonsBySubject = {};
     var progress = [];
@@ -147,6 +148,20 @@ function enableVisualPreview() {
         });
         return delayed({ success: true });
     };
+    function previewMove(id, direction, position) {
+        Object.keys(lessonsBySubject).forEach(function(subjectId) {
+            var lessons = lessonsBySubject[subjectId];
+            var index = lessons.findIndex(function(l) { return l.id === id; });
+            if (index < 0) return;
+            var target = position == null ? index + direction : position - 1;
+            if (target < 0 || target >= lessons.length) return;
+            lessons.splice(target, 0, lessons.splice(index, 1)[0]);
+            lessons.forEach(function(l, i) { l.order_index = i + 1; });
+        });
+        return delayed({success:true});
+    }
+    API.reorderLesson = function(id, direction) { return previewMove(id, direction); };
+    API.moveLesson = function(id, position) { return previewMove(id, null, position); };
     API.getProgress = function(lessonId) {
         if (!lessonId) return delayed(progress);
         return delayed(progress.filter(function(p) { return p.lesson_id === lessonId; }));
@@ -891,7 +906,7 @@ function renderAdminSubject() {
         if (!subject) { navigate('admin-dashboard'); return; }
         var lessonsHtml = lessons.length > 0 ? '<div class="lesson-list">' + lessons.map(function(l) {
             var us = l.embed_url ? '<span style="color:var(--success);font-size:.75rem"><i class="fas fa-check"></i> embed</span>' : '<span style="color:var(--text-muted);font-size:.75rem">sem link</span>';
-            return '<div class="lesson-item"><div class="order-num">'+l.order_index+'</div><div class="lesson-info"><div class="lesson-title">'+escapeHtml(l.title)+'</div><div class="lesson-meta">'+l.duration_minutes+' min &middot; '+us+'</div></div><div class="lesson-actions">'+(l.order_index>1?'<button onclick="handleReorderLesson('+l.id+',-1)"><i class="fas fa-chevron-up"></i></button>':'')+(l.order_index<lessons.length?'<button onclick="handleReorderLesson('+l.id+',1)"><i class="fas fa-chevron-down"></i></button>':'')+'<button onclick="handleEditLessonApi('+l.id+')"><i class="fas fa-pen"></i></button><button class="danger" onclick="handleDeleteLessonApi('+l.id+',\''+escapeHtml(l.title).replace(/'/g,"\\'")+'\')"><i class="fas fa-trash"></i></button></div></div>';
+            return '<div class="lesson-item"><div class="order-num">'+l.order_index+'</div><div class="lesson-info"><div class="lesson-title">'+escapeHtml(l.title)+'</div><div class="lesson-meta">'+l.duration_minutes+' min &middot; '+us+'</div></div><div class="lesson-actions">'+renderLessonOrderButtons(l, lessons.indexOf(l), lessons.length)+'<button onclick="handleEditLessonApi('+l.id+')"><i class="fas fa-pen"></i></button><button class="danger" onclick="handleDeleteLessonApi('+l.id+',\''+escapeHtml(l.title).replace(/'/g,"\\'")+'\')"><i class="fas fa-trash"></i></button></div></div>';
         }).join('') + '</div>' : '<div class="empty-state" style="padding:40px"><i class="fas fa-video"></i><h3>Nenhuma aula cadastrada</h3></div>';
 
         app.innerHTML = renderNavbar(adminNav()) + '<div class="container"><div class="page-content">' +
@@ -1302,7 +1317,7 @@ function renderStudentDashboard() {
 /* ============================================================
    VIEW: STUDENT SUBJECT
    ============================================================ */
-function renderStudentSubject() {
+function renderStudentSubject(preserveScroll) {
     var sid = state.selectedSubjectId;
     var app = document.getElementById('app');
     var nav = renderNavbar([{view:'student-dashboard',icon:'fa-th-large',label:'Matérias'}]);
@@ -1313,14 +1328,15 @@ function renderStudentSubject() {
         if (!subject) { navigate('student-dashboard'); return; }
         var pMap = {};
         progressList.forEach(function(p) { pMap[p.lesson_id] = p; });
-        var lh = lessons.length > 0 ? '<div class="lesson-list">' + lessons.map(function(l) {
+        var lh = lessons.length > 0 ? '<div class="lesson-list">' + lessons.map(function(l, index) {
             var p = pMap[l.id];
             var sc = p&&p.completed?'complete':(p&&p.current_time_seconds>0?'in-progress':'pending');
             var si = p&&p.completed?'fa-check-circle':(p&&p.current_time_seconds>0?'fa-clock':'fa-circle');
             var sl = p&&p.completed?'Concluída':(p&&p.current_time_seconds>0?formatTime(p.current_time_seconds):'Não iniciada');
-            return '<div class="lesson-item clickable" onclick="navigate(\'student-lesson\',{lessonId:'+l.id+'})" style="cursor:pointer"><div class="order-num">'+l.order_index+'</div><div class="lesson-info"><div class="lesson-title">'+escapeHtml(l.title)+'</div><div class="lesson-meta">'+l.duration_minutes+' min &middot; '+sl+'</div></div><div class="status-icon '+sc+'"><i class="fas '+si+'"></i></div><div class="lesson-actions"><button type="button" class="danger" title="Excluir aula permanentemente" aria-label="Excluir aula '+escapeHtml(l.title)+' permanentemente" onclick="event.stopPropagation();handleDeleteLessonApi('+l.id+',\''+escapeHtml(l.title).replace(/'/g,"\\'")+'\')"><i class="fas fa-trash"></i></button></div></div>';
+            return '<div class="lesson-item clickable" onclick="navigate(\'student-lesson\',{lessonId:'+l.id+'})" style="cursor:pointer"><div class="order-num">'+l.order_index+'</div><div class="lesson-info"><div class="lesson-title">'+escapeHtml(l.title)+'</div><div class="lesson-meta">'+l.duration_minutes+' min &middot; '+sl+'</div></div><div class="status-icon '+sc+'"><i class="fas '+si+'"></i></div><div class="lesson-actions">'+renderLessonOrderButtons(l,index,lessons.length)+'<button type="button" class="danger" title="Excluir aula permanentemente" aria-label="Excluir aula '+escapeHtml(l.title)+' permanentemente" onclick="event.stopPropagation();handleDeleteLessonApi('+l.id+',\''+escapeHtml(l.title).replace(/'/g,"\\'")+'\')"><i class="fas fa-trash"></i></button></div></div>';
         }).join('') + '</div>' : '<div class="empty-state" style="padding:40px"><i class="fas fa-video"></i><h3>Nenhuma aula disponível</h3></div>';
-        app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="breadcrumb"><a onclick="navigate(\'student-dashboard\')">Matérias</a><span class="sep"><i class="fas fa-chevron-right"></i></span><span>'+escapeHtml(subject.name)+'</span></div><div class="page-header"><h1>'+escapeHtml(subject.name)+'</h1></div>'+lh+'</div></div>';
+        app.innerHTML = nav + '<div class="container"><div class="page-content"><div class="breadcrumb"><a onclick="navigate(\'student-dashboard\')">Matérias</a><span class="sep"><i class="fas fa-chevron-right"></i></span><span>'+escapeHtml(subject.name)+'</span></div><div class="page-header"><h1>'+escapeHtml(subject.name)+'</h1><p class="page-subtitle">Use as setas para mudar a ordem ou escolha a posição de uma aula.</p></div>'+lh+'</div></div>';
+        if (typeof preserveScroll === 'number') window.scrollTo(0, preserveScroll);
     }).catch(function(err) { showToast(err.message,'error'); });
 }
 
@@ -2839,8 +2855,40 @@ function handleDeleteSubject(id, name) {
         API.deleteSubject(id).then(function(){showToast('Excluída');render();}).catch(function(e){showToast(e.message,'error');});
     });
 }
+var lessonOrderSaving = false;
+function renderLessonOrderButtons(lesson, index, count) {
+    return '<button type="button" title="Subir aula" aria-label="Subir aula"'+(index===0?' disabled':'')+' onclick="event.stopPropagation();handleReorderLesson('+lesson.id+',-1)"><i class="fas fa-chevron-up"></i></button>' +
+        '<button type="button" title="Descer aula" aria-label="Descer aula"'+(index===count-1?' disabled':'')+' onclick="event.stopPropagation();handleReorderLesson('+lesson.id+',1)"><i class="fas fa-chevron-down"></i></button>' +
+        '<button type="button" title="Mover para posição" aria-label="Mover para posição" onclick="event.stopPropagation();handleMoveLesson('+lesson.id+')"><i class="fas fa-sort-numeric-down"></i></button>';
+}
+function saveLessonOrder(request) {
+    if (lessonOrderSaving) return;
+    lessonOrderSaving = true;
+    var scroll = window.scrollY;
+    document.querySelectorAll('.lesson-actions button').forEach(function(b) { b.disabled = true; });
+    request().then(function() {
+        showToast('Ordem das aulas atualizada');
+    }).catch(function(e) {
+        showToast(e.message,'error');
+    }).finally(function() {
+        lessonOrderSaving = false;
+        if (state.view === 'student-subject') renderStudentSubject(scroll);
+        else render();
+    });
+}
 function handleReorderLesson(id, dir) {
-    API.reorderLesson(id, dir).then(function() { render(); }).catch(function(e) { showToast(e.message,'error'); });
+    saveLessonOrder(function() { return API.reorderLesson(id, dir); });
+}
+function handleMoveLesson(id) {
+    API.getLessons(state.selectedSubjectId).then(function(lessons) {
+        var index = lessons.findIndex(function(l) { return l.id === id; });
+        if (index < 0) return;
+        showFormModal('Mover aula', [{name:'position',label:'Nova posição',type:'select',value:String(index+1),options:lessons.map(function(l,i) {
+            return {value:String(i+1),label:(i+1)+' — '+l.title};
+        })}], 'Mover', function(values) {
+            saveLessonOrder(function() { return API.moveLesson(id, Number(values.position)); });
+        });
+    }).catch(function(e) { showToast(e.message,'error'); });
 }
 function handleEditLessonApi(id) {
     API.getLessons(state.selectedSubjectId).then(function(lessons) {

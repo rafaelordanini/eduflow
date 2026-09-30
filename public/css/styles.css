@@ -421,3 +421,6 @@ input,textarea,select{border:1px solid var(--border);border-radius:14px;backgrou
 .simulado-ongoing-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-top:1px solid var(--border-warm)}
 .simulado-ongoing-row:first-of-type{border-top:none}
 .simulado-ongoing-row small{display:block;color:var(--text-secondary);font-size:.82rem;margin-top:4px}
+
+.lesson-item .lesson-actions button:disabled{opacity:.3;cursor:default;pointer-events:none}
+@media(max-width:600px){.lesson-item{flex-wrap:wrap}.lesson-item .lesson-actions{margin-left:auto}}

@@ -15,6 +15,7 @@
 
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
+const { driveFileId } = require('../lib/lesson-deduplication');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -500,11 +501,16 @@ async function main() {
 
     const { data: existingLessons, error: existingErr } = await supabase
       .from('lessons')
-      .select('drive_url')
+      .select('drive_url, embed_url')
       .eq('subject_id', subjectId);
     if (existingErr) throw existingErr;
-    const existingUrls = new Set((existingLessons || []).map((lesson) => lesson.drive_url));
-    const missingRows = rows.filter((row) => !existingUrls.has(row.drive_url));
+    const existingIds = new Set((existingLessons || []).map(driveFileId).filter(Boolean));
+    const missingRows = rows.filter((row) => {
+      const id = driveFileId(row);
+      if (id && existingIds.has(id)) return false;
+      if (id) existingIds.add(id);
+      return true;
+    });
     totalSkipped += rows.length - missingRows.length;
 
     // Inserir em lotes de 50. A verificação explícita torna o importador
