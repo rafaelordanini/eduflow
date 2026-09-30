@@ -41,6 +41,7 @@ function setup(t, rpcError) {
       const query = {
         select() { return query; },
         eq(key, value) { calls.push({ table, key, value }); return query; },
+        is(key, value) { calls.push({ table, key, value }); return query; },
         order() { return query; },
         limit() { return query; },
         maybeSingle() { return Promise.resolve({ data: tableResults[table] }); },

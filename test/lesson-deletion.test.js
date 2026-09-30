@@ -10,10 +10,9 @@ test('student lesson rows expose an accessible permanent-delete action', () => {
   assert.match(app, /Esta ação não pode ser desfeita/);
 });
 
-test('lessons API returns all stored rows and permits authenticated deletion', () => {
+test('lessons API hides archived copies and permits authenticated deletion', () => {
   const endpoint = fs.readFileSync('api/lessons/index.js', 'utf8');
 
-  assert.doesNotMatch(endpoint, /deduplicateLessons\(data\)/);
+  assert.match(endpoint, /\.is\('duplicate_of_id', null\)/);
   assert.match(endpoint, /if \(req\.method === 'DELETE'\)[\s\S]*?requireAuth\(req, res\)/);
 });
-
