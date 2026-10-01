@@ -1467,6 +1467,8 @@ function toggleReading(lessonId, idx, checked) {
 }
 
 function renderQuestionsSection(lessonId, subjectName, lessonTitle) {
+    _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0, loading: false };
+    _questoesAtivas = [];
     return '<div class="questions-section">' +
         '<h3><i class="fas fa-question-circle"></i> Questões CACD</h3>' +
         '<p style="font-size:.88rem;color:var(--text-muted);margin-bottom:16px">Seleção inteligente de quatro assertivas no estilo TPS do CACD para este tópico.</p>' +
@@ -1482,6 +1484,10 @@ var _currentSubject = '';
 var _currentLesson = '';
 
 function gerarQuestoes(lessonId, subjectName, lessonTitle) {
+    if (_lessonQuestoesMeta.lessonId === lessonId && _lessonQuestoesMeta.currentCount > 0) {
+        return gerarMaisQuestoes(lessonId, subjectName, lessonTitle);
+    }
+    if (_lessonQuestoesMeta.loading) return;
     _currentSubject = subjectName || '';
     _currentLesson = lessonTitle || '';
     var btn = document.getElementById('gen-questions-btn');
@@ -1489,108 +1495,107 @@ function gerarQuestoes(lessonId, subjectName, lessonTitle) {
     if (btn) { btn.disabled = true; btn.innerHTML = '<img src="/baron-reading-sm.png" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" onerror="this.style.display=\'none\'"> Gerando questões…'; }
     baronFloatPose('reading', 10000);
     out.innerHTML = '';
-    _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0 };
-    API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 4 }).then(function(data) {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Regerar Questões'; }
+    _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0, loading: true };
+    var requestMeta = _lessonQuestoesMeta;
+    _questoesAtivas = [];
+    return API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 4 }).then(function(data) {
+        if (_lessonQuestoesMeta !== requestMeta || document.getElementById('questions-output') !== out) return;
+        requestMeta.loading = false;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões'; }
         var questoes = data.questoes || [];
         _lessonQuestoesMeta.currentCount = questoes.length;
         renderQuestoes(questoes, out);
+        appendMaisQuestoesBtn(out, lessonId, subjectName, lessonTitle);
     }).catch(function(err) {
+        if (_lessonQuestoesMeta !== requestMeta || document.getElementById('questions-output') !== out) return;
+        requestMeta.loading = false;
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-brain"></i> Tentar Novamente'; }
         out.innerHTML = '<div style="color:var(--danger);font-size:.88rem"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
     });
 }
 
-function appendMaisQuestoesBtn(container, lessonId, subjectName, lessonTitle, currentCount) {
+function appendMaisQuestoesBtn(container, lessonId, subjectName, lessonTitle) {
     var existing = container.querySelector('.mais-questoes-btn');
     if (existing) existing.remove();
     var btn = document.createElement('button');
     btn.className = 'btn btn-secondary mais-questoes-btn';
     btn.style.marginTop = '12px';
-    btn.innerHTML = '<i class="fas fa-plus"></i> Mais questões';
-    btn.onclick = function() { gerarMaisQuestoes(lessonId, subjectName, lessonTitle, currentCount); };
+    btn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões';
+    btn.onclick = function() { gerarMaisQuestoes(lessonId, subjectName, lessonTitle); };
     container.appendChild(btn);
 }
 
-function gerarMaisQuestoes(lessonId, subjectName, lessonTitle, currentCount) {
+function gerarMaisQuestoes(lessonId, subjectName, lessonTitle) {
     var out = document.getElementById('questions-output');
-    var maisBtn = out ? out.querySelector('.mais-questoes-btn') : null;
-    if (maisBtn) { maisBtn.disabled = true; maisBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando…'; }
-    API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 5, offset: currentCount, forceNew: true }).then(function(data) {
+    var meta = _lessonQuestoesMeta;
+    if (!out || meta.lessonId !== lessonId || meta.loading) return;
+    var maisBtn = out.querySelector('.mais-questoes-btn');
+    var topBtn = document.getElementById('gen-questions-btn');
+    meta.loading = true;
+    [maisBtn, topBtn].forEach(function(btn) {
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando…'; }
+    });
+    return API.generateQuestions({
+        lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 4,
+        excludeQuestions: _questoesAtivas.map(function(q) { return { id: q.id || q.question_id, enunciado: q.enunciado }; })
+    }).then(function(data) {
+        if (_lessonQuestoesMeta !== meta || document.getElementById('questions-output') !== out) return;
         var newQuestoes = data.questoes || [];
-        var newCount = currentCount + newQuestoes.length;
-        // Append new question cards
-        var tempDiv = document.createElement('div');
-        var startIdx = currentCount;
-        var html = newQuestoes.map(function(q, qi) {
-            var idx = startIdx + qi;
-            var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
-                var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
-                if (!text) return '';
-                return '<label class="questao-opcao" for="q' + idx + op + '">' +
-                    '<input type="radio" name="q' + idx + '" id="q' + idx + op + '" value="' + op + '">' +
-                    '<span class="opcao-letra">' + op + ')</span>' +
-                    '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
-                    '</label>';
-            }).join('');
-            return '<div class="questao-card" id="qcard-' + idx + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
-                buildTopicBadge(q.id, q.subject, q.topic) +
-                '<div class="questao-enunciado"><strong>Questão ' + (idx+1) + '.</strong></div>' + renderEnunciado(q) +
-                opcoesHtml +
-                '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + idx + ')">' +
-                  '<i class="fas fa-check"></i> Conferir Resposta' +
-                '</button>' +
-                '<div class="questao-gabarito" id="qgab-' + idx + '"></div>' +
-                '<div class="questao-explicacao" id="qexp-' + idx + '">' + escapeHtml(q.explicacao || '') + '</div>' +
-            '</div>';
-        }).join('');
-        tempDiv.innerHTML = html;
-        // Remove mais btn, insert new cards before score, re-add mais btn
-        if (maisBtn) maisBtn.remove();
+        if (newQuestoes.length !== 4) throw new Error('Não foi possível obter quatro novas questões. Tente novamente.');
+        var startIdx = _questoesAtivas.length;
         var scoreEl = out.querySelector('.questoes-score');
-        while (tempDiv.firstChild) {
-            if (scoreEl) out.insertBefore(tempDiv.firstChild, scoreEl);
-            else out.appendChild(tempDiv.firstChild);
-        }
-        // Extend _questoesAtivas
+        var html = newQuestoes.map(function(q, qi) { return renderQuestaoCard(q, startIdx + qi); }).join('');
+        if (scoreEl) scoreEl.insertAdjacentHTML('beforebegin', html);
+        else out.insertAdjacentHTML('beforeend', html);
         _questoesAtivas = _questoesAtivas.concat(newQuestoes);
-        appendMaisQuestoesBtn(out, lessonId, subjectName, lessonTitle, newCount);
+        meta.currentCount = _questoesAtivas.length;
+        updateQuestoesScore();
+        appendMaisQuestoesBtn(out, lessonId, subjectName, lessonTitle);
     }).catch(function(err) {
-        if (maisBtn) { maisBtn.disabled = false; maisBtn.innerHTML = '<i class="fas fa-plus"></i> Mais questões'; }
-        showToast('Erro ao gerar mais questões: ' + err.message, 'error');
+        if (_lessonQuestoesMeta === meta && document.getElementById('questions-output') === out) {
+            showToast('Erro ao gerar mais questões: ' + err.message, 'error');
+        }
+    }).finally(function() {
+        meta.loading = false;
+        if (_lessonQuestoesMeta !== meta || document.getElementById('questions-output') !== out) return;
+        [out.querySelector('.mais-questoes-btn'), topBtn].forEach(function(btn) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões'; }
+        });
     });
 }
 
 var _questoesAtivas = [];
 
-function renderQuestoes(questoes, container) {
-    if (!questoes || questoes.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);font-size:.88rem">Nenhuma questão disponível.</p>'; return; }
-    _questoesAtivas = questoes;
-    var html = questoes.map(function(q, qi) {
-        var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
-            var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
-            if (!text) return '';
-            return '<label class="questao-opcao" for="q' + qi + op + '">' +
-                '<input type="radio" name="q' + qi + '" id="q' + qi + op + '" value="' + op + '">' +
-                '<span class="opcao-letra">' + op + ')</span>' +
-                '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
-                '</label>';
-        }).join('');
-        var procedencia = q.exam === 'INÉDITA'
-            ? '[Inédita - Fixação]'
-            : '[TPS ' + (q.year || '—') + ' - Oficial]';
-        var fonte = '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(procedencia) + '</div>';
-        return '<div class="questao-card" id="qcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
-            buildTopicBadge(q.id, q.subject, q.topic) +
-            '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q) +
-            fonte + opcoesHtml +
-            '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ')">' +
-              '<i class="fas fa-check"></i> Conferir Resposta' +
-            '</button>' +
-            '<div class="questao-gabarito" id="qgab-' + qi + '"></div>' +
-            '<div class="questao-explicacao" id="qexp-' + qi + '">' + escapeHtml(q.explicacao || '') + '</div>' +
-        '</div>';
+function renderQuestaoCard(q, qi) {
+    var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
+        var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
+        if (!text) return '';
+        return '<label class="questao-opcao" for="q' + qi + op + '">' +
+            '<input type="radio" name="q' + qi + '" id="q' + qi + op + '" value="' + op + '">' +
+            '<span class="opcao-letra">' + op + ')</span>' +
+            '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
+            '</label>';
     }).join('');
+    var procedencia = q.exam === 'INÉDITA'
+        ? '[Inédita - Fixação]'
+        : '[TPS ' + (q.year || '—') + ' - Oficial]';
+    var fonte = '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(procedencia) + '</div>';
+    return '<div class="questao-card" id="qcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
+        buildTopicBadge(q.id, q.subject, q.topic) +
+        '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q) +
+        fonte + opcoesHtml +
+        '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ')">' +
+          '<i class="fas fa-check"></i> Conferir Resposta' +
+        '</button>' +
+        '<div class="questao-gabarito" id="qgab-' + qi + '"></div>' +
+        '<div class="questao-explicacao" id="qexp-' + qi + '">' + escapeHtml(q.explicacao || '') + '</div>' +
+    '</div>';
+}
+
+function renderQuestoes(questoes, container) {
+    _questoesAtivas = questoes || [];
+    if (_questoesAtivas.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);font-size:.88rem">Nenhuma questão disponível.</p>'; return; }
+    var html = questoes.map(renderQuestaoCard).join('');
     html += '<div class="questoes-score" id="questoes-score"></div>';
     container.innerHTML = html;
 }
@@ -1639,6 +1644,11 @@ function updateQuestoesScore() {
     var total = document.querySelectorAll('.questao-card').length;
     var answered = document.querySelectorAll('.questao-gabarito.show').length;
     var correct = document.querySelectorAll('.questao-gabarito.show.correct').length;
+    if (answered !== total || total === 0) {
+        scoreEl.classList.remove('show');
+        scoreEl.innerHTML = '';
+        return;
+    }
     if (answered === total && total > 0) {
         scoreEl.classList.add('show');
         var pct = Math.round(correct/total*100);
