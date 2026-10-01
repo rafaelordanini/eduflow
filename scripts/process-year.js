@@ -6,6 +6,8 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const { extractGabarito, extractGabaritoTabela } = require('./parse-tps');
+const { applyOfficialAnswerKey } = require('../lib/official-answer-key');
 
 const year = process.argv[2];
 const filePath = process.argv[3];
@@ -74,7 +76,9 @@ async function main() {
 
   console.log(`[${year}] ${fullText.length} chars — chamando DeepSeek...`);
 
-  const questoes = await extractQuestions(String(fullText), year);
+  const extracted = await extractQuestions(String(fullText), year);
+  const officialAnswers = extractGabaritoTabela(String(fullText)) || extractGabarito(String(fullText));
+  const questoes = applyOfficialAnswerKey(extracted, officialAnswers);
   console.log(`[${year}] ${questoes.length} itens extraídos`);
 
   const outDir = path.join(__dirname, '..', 'output');

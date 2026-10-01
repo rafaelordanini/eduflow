@@ -21,6 +21,8 @@ require('dotenv').config();
 const { google } = require('googleapis');
 const pdfParse = require('pdf-parse');
 const { createClient } = require('@supabase/supabase-js');
+const { extractGabarito, extractGabaritoTabela } = require('./parse-tps');
+const { applyOfficialAnswerKey } = require('../lib/official-answer-key');
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -205,7 +207,9 @@ async function processYear(year, authClient) {
   console.log(`  [${year}] Calling DeepSeek (${DEEPSEEK_MODEL}) for question extraction...`);
   let questoes;
   try {
-    questoes = await extractQuestionsFromText(fullText, year);
+    const extracted = await extractQuestionsFromText(fullText, year);
+    const officialAnswers = extractGabaritoTabela(fullText) || extractGabarito(fullText);
+    questoes = applyOfficialAnswerKey(extracted, officialAnswers);
     console.log(`  [${year}] Extracted ${questoes.length} items`);
   } catch (e) {
     console.error(`  [${year}] AI extraction failed: ${e.message}`);

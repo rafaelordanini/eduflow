@@ -307,7 +307,7 @@ function generateSQL(rows, year) {
   return lines.join('\n');
 }
 
-module.exports = { parseTPS, generateSQL, extractGabarito, extractItems };
+module.exports = { parseTPS, generateSQL, extractGabarito, extractGabaritoTabela, extractItems };
 
 // Se rodado direto: node parse-tps.js <year> <arquivo>
 if (require.main === module) {
