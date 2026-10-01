@@ -1467,6 +1467,8 @@ function toggleReading(lessonId, idx, checked) {
 }
 
 function renderQuestionsSection(lessonId, subjectName, lessonTitle) {
+    _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0, loading: false };
+    _questoesAtivas = [];
     return '<div class="questions-section">' +
         '<h3><i class="fas fa-question-circle"></i> Questões CACD</h3>' +
         '<p style="font-size:.88rem;color:var(--text-muted);margin-bottom:16px">Seleção inteligente de quatro assertivas no estilo TPS do CACD para este tópico.</p>' +
@@ -1482,6 +1484,10 @@ var _currentSubject = '';
 var _currentLesson = '';
 
 function gerarQuestoes(lessonId, subjectName, lessonTitle) {
+    if (_lessonQuestoesMeta.lessonId === lessonId && _lessonQuestoesMeta.currentCount > 0) {
+        return gerarMaisQuestoes(lessonId, subjectName, lessonTitle);
+    }
+    if (_lessonQuestoesMeta.loading) return;
     _currentSubject = subjectName || '';
     _currentLesson = lessonTitle || '';
     var btn = document.getElementById('gen-questions-btn');
@@ -1489,108 +1495,107 @@ function gerarQuestoes(lessonId, subjectName, lessonTitle) {
     if (btn) { btn.disabled = true; btn.innerHTML = '<img src="/baron-reading-sm.png" style="width:20px;height:20px;border-radius:50%;vertical-align:middle;margin-right:6px" onerror="this.style.display=\'none\'"> Gerando questões…'; }
     baronFloatPose('reading', 10000);
     out.innerHTML = '';
-    _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0 };
-    API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 4 }).then(function(data) {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync"></i> Regerar Questões'; }
+    _lessonQuestoesMeta = { lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, currentCount: 0, loading: true };
+    var requestMeta = _lessonQuestoesMeta;
+    _questoesAtivas = [];
+    return API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 4 }).then(function(data) {
+        if (_lessonQuestoesMeta !== requestMeta || document.getElementById('questions-output') !== out) return;
+        requestMeta.loading = false;
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões'; }
         var questoes = data.questoes || [];
         _lessonQuestoesMeta.currentCount = questoes.length;
         renderQuestoes(questoes, out);
+        appendMaisQuestoesBtn(out, lessonId, subjectName, lessonTitle);
     }).catch(function(err) {
+        if (_lessonQuestoesMeta !== requestMeta || document.getElementById('questions-output') !== out) return;
+        requestMeta.loading = false;
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-brain"></i> Tentar Novamente'; }
         out.innerHTML = '<div style="color:var(--danger);font-size:.88rem"><i class="fas fa-exclamation-triangle"></i> ' + escapeHtml(err.message) + '</div>';
     });
 }
 
-function appendMaisQuestoesBtn(container, lessonId, subjectName, lessonTitle, currentCount) {
+function appendMaisQuestoesBtn(container, lessonId, subjectName, lessonTitle) {
     var existing = container.querySelector('.mais-questoes-btn');
     if (existing) existing.remove();
     var btn = document.createElement('button');
     btn.className = 'btn btn-secondary mais-questoes-btn';
     btn.style.marginTop = '12px';
-    btn.innerHTML = '<i class="fas fa-plus"></i> Mais questões';
-    btn.onclick = function() { gerarMaisQuestoes(lessonId, subjectName, lessonTitle, currentCount); };
+    btn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões';
+    btn.onclick = function() { gerarMaisQuestoes(lessonId, subjectName, lessonTitle); };
     container.appendChild(btn);
 }
 
-function gerarMaisQuestoes(lessonId, subjectName, lessonTitle, currentCount) {
+function gerarMaisQuestoes(lessonId, subjectName, lessonTitle) {
     var out = document.getElementById('questions-output');
-    var maisBtn = out ? out.querySelector('.mais-questoes-btn') : null;
-    if (maisBtn) { maisBtn.disabled = true; maisBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando…'; }
-    API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 5, offset: currentCount, forceNew: true }).then(function(data) {
+    var meta = _lessonQuestoesMeta;
+    if (!out || meta.lessonId !== lessonId || meta.loading) return;
+    var maisBtn = out.querySelector('.mais-questoes-btn');
+    var topBtn = document.getElementById('gen-questions-btn');
+    meta.loading = true;
+    [maisBtn, topBtn].forEach(function(btn) {
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando…'; }
+    });
+    return API.generateQuestions({
+        lessonId: lessonId, subjectName: subjectName, lessonTitle: lessonTitle, count: 4,
+        excludeQuestions: _questoesAtivas.map(function(q) { return { id: q.id || q.question_id, enunciado: q.enunciado }; })
+    }).then(function(data) {
+        if (_lessonQuestoesMeta !== meta || document.getElementById('questions-output') !== out) return;
         var newQuestoes = data.questoes || [];
-        var newCount = currentCount + newQuestoes.length;
-        // Append new question cards
-        var tempDiv = document.createElement('div');
-        var startIdx = currentCount;
-        var html = newQuestoes.map(function(q, qi) {
-            var idx = startIdx + qi;
-            var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
-                var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
-                if (!text) return '';
-                return '<label class="questao-opcao" for="q' + idx + op + '">' +
-                    '<input type="radio" name="q' + idx + '" id="q' + idx + op + '" value="' + op + '">' +
-                    '<span class="opcao-letra">' + op + ')</span>' +
-                    '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
-                    '</label>';
-            }).join('');
-            return '<div class="questao-card" id="qcard-' + idx + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
-                buildTopicBadge(q.id, q.subject, q.topic) +
-                '<div class="questao-enunciado"><strong>Questão ' + (idx+1) + '.</strong></div>' + renderEnunciado(q) +
-                opcoesHtml +
-                '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + idx + ')">' +
-                  '<i class="fas fa-check"></i> Conferir Resposta' +
-                '</button>' +
-                '<div class="questao-gabarito" id="qgab-' + idx + '"></div>' +
-                '<div class="questao-explicacao" id="qexp-' + idx + '">' + escapeHtml(q.explicacao || '') + '</div>' +
-            '</div>';
-        }).join('');
-        tempDiv.innerHTML = html;
-        // Remove mais btn, insert new cards before score, re-add mais btn
-        if (maisBtn) maisBtn.remove();
+        if (newQuestoes.length !== 4) throw new Error('Não foi possível obter quatro novas questões. Tente novamente.');
+        var startIdx = _questoesAtivas.length;
         var scoreEl = out.querySelector('.questoes-score');
-        while (tempDiv.firstChild) {
-            if (scoreEl) out.insertBefore(tempDiv.firstChild, scoreEl);
-            else out.appendChild(tempDiv.firstChild);
-        }
-        // Extend _questoesAtivas
+        var html = newQuestoes.map(function(q, qi) { return renderQuestaoCard(q, startIdx + qi); }).join('');
+        if (scoreEl) scoreEl.insertAdjacentHTML('beforebegin', html);
+        else out.insertAdjacentHTML('beforeend', html);
         _questoesAtivas = _questoesAtivas.concat(newQuestoes);
-        appendMaisQuestoesBtn(out, lessonId, subjectName, lessonTitle, newCount);
+        meta.currentCount = _questoesAtivas.length;
+        updateQuestoesScore();
+        appendMaisQuestoesBtn(out, lessonId, subjectName, lessonTitle);
     }).catch(function(err) {
-        if (maisBtn) { maisBtn.disabled = false; maisBtn.innerHTML = '<i class="fas fa-plus"></i> Mais questões'; }
-        showToast('Erro ao gerar mais questões: ' + err.message, 'error');
+        if (_lessonQuestoesMeta === meta && document.getElementById('questions-output') === out) {
+            showToast('Erro ao gerar mais questões: ' + err.message, 'error');
+        }
+    }).finally(function() {
+        meta.loading = false;
+        if (_lessonQuestoesMeta !== meta || document.getElementById('questions-output') !== out) return;
+        [out.querySelector('.mais-questoes-btn'), topBtn].forEach(function(btn) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões'; }
+        });
     });
 }
 
 var _questoesAtivas = [];
 
-function renderQuestoes(questoes, container) {
-    if (!questoes || questoes.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);font-size:.88rem">Nenhuma questão disponível.</p>'; return; }
-    _questoesAtivas = questoes;
-    var html = questoes.map(function(q, qi) {
-        var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
-            var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
-            if (!text) return '';
-            return '<label class="questao-opcao" for="q' + qi + op + '">' +
-                '<input type="radio" name="q' + qi + '" id="q' + qi + op + '" value="' + op + '">' +
-                '<span class="opcao-letra">' + op + ')</span>' +
-                '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
-                '</label>';
-        }).join('');
-        var procedencia = q.exam === 'INÉDITA'
-            ? '[Inédita - Fixação]'
-            : '[TPS ' + (q.year || '—') + ' - Oficial]';
-        var fonte = '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(procedencia) + '</div>';
-        return '<div class="questao-card" id="qcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
-            buildTopicBadge(q.id, q.subject, q.topic) +
-            '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q) +
-            fonte + opcoesHtml +
-            '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ')">' +
-              '<i class="fas fa-check"></i> Conferir Resposta' +
-            '</button>' +
-            '<div class="questao-gabarito" id="qgab-' + qi + '"></div>' +
-            '<div class="questao-explicacao" id="qexp-' + qi + '">' + escapeHtml(q.explicacao || '') + '</div>' +
-        '</div>';
+function renderQuestaoCard(q, qi) {
+    var opcoesHtml = ['a','b','c','d','e'].map(function(op) {
+        var text = q.opcoes && q.opcoes[op] ? q.opcoes[op] : '';
+        if (!text) return '';
+        return '<label class="questao-opcao" for="q' + qi + op + '">' +
+            '<input type="radio" name="q' + qi + '" id="q' + qi + op + '" value="' + op + '">' +
+            '<span class="opcao-letra">' + op + ')</span>' +
+            '<span class="opcao-texto">' + escapeHtml(text) + '</span>' +
+            '</label>';
     }).join('');
+    var procedencia = q.exam === 'INÉDITA'
+        ? '[Inédita - Fixação]'
+        : '[TPS ' + (q.year || '—') + ' - Oficial]';
+    var fonte = '<div style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"><i class="fas fa-graduation-cap"></i> ' + escapeHtml(procedencia) + '</div>';
+    return '<div class="questao-card" id="qcard-' + qi + '" data-qid="' + escapeHtml(String(q.id||'')) + '">' +
+        buildTopicBadge(q.id, q.subject, q.topic) +
+        '<div class="questao-enunciado"><strong>Questão ' + (qi+1) + '.</strong></div>' + renderEnunciado(q) +
+        fonte + opcoesHtml +
+        '<button class="btn btn-sm btn-secondary" style="margin-top:12px" onclick="conferirResposta(' + qi + ')">' +
+          '<i class="fas fa-check"></i> Conferir Resposta' +
+        '</button>' +
+        '<div class="questao-gabarito" id="qgab-' + qi + '"></div>' +
+        '<div class="questao-explicacao" id="qexp-' + qi + '">' + escapeHtml(q.explicacao || '') + '</div>' +
+    '</div>';
+}
+
+function renderQuestoes(questoes, container) {
+    _questoesAtivas = questoes || [];
+    if (_questoesAtivas.length === 0) { container.innerHTML = '<p style="color:var(--text-muted);font-size:.88rem">Nenhuma questão disponível.</p>'; return; }
+    var html = questoes.map(renderQuestaoCard).join('');
     html += '<div class="questoes-score" id="questoes-score"></div>';
     container.innerHTML = html;
 }
@@ -1639,6 +1644,11 @@ function updateQuestoesScore() {
     var total = document.querySelectorAll('.questao-card').length;
     var answered = document.querySelectorAll('.questao-gabarito.show').length;
     var correct = document.querySelectorAll('.questao-gabarito.show.correct').length;
+    if (answered !== total || total === 0) {
+        scoreEl.classList.remove('show');
+        scoreEl.innerHTML = '';
+        return;
+    }
     if (answered === total && total > 0) {
         scoreEl.classList.add('show');
         var pct = Math.round(correct/total*100);
@@ -2589,6 +2599,19 @@ function praticaResponder(questionId, chosen, gabarito) {
     API.request('POST', '/api/questions', { action: 'record', subject: '', question_id: questionId, correct: correct }).catch(function(){});
 }
 
+function renderReviewQuestionCard(q, qi, subjectName, preciseTopic) {
+    var qId = 'rev-q-' + qi;
+    return '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
+        '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
+        renderEnunciado(q) +
+        '<div class="review-options">' + Object.keys(q.opcoes || {}).sort().map(function(key) {
+            return '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-' + escapeHtml(key) + '" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || q.question_id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-topic="' + escapeHtml(preciseTopic || '') + '" data-answer="' + escapeHtml(key) + '">' + escapeHtml((q.opcoes || {})[key]) + '</button>';
+        }).join('') + '</div>' +
+        '<div id="' + qId + '-result" style="margin-top:10px;font-size:.85rem;display:none"></div>' +
+        (q.explicacao ? '<div id="' + qId + '-exp" style="display:none;margin-top:8px;padding:10px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem">' + escapeHtml(q.explicacao) + '</div>' : '') +
+    '</div>';
+}
+
 function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
     if (!subjectName) return;
     // A review belongs to a lesson, not merely to a subject. Asking the
@@ -2611,61 +2634,82 @@ function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
     '</div>';
     document.body.appendChild(overlay);
 
-    var request;
-    if (lessonId && preciseTopic) {
-        // Five detailed questions fit reliably in the model response budget. If
-        // generation is temporarily unavailable, keep the review usable with
-        // matching questions that are already in the exam bank.
-        request = API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: preciseTopic, count: 5 })
-            .catch(function() {
-                return API.request('GET', '/api/questions?subject=' + encodeURIComponent(subjectName) + '&topic=' + encodeURIComponent(preciseTopic) + '&source=exam&limit=5');
-            });
-    } else if (preciseTopic) {
-        request = API.request('GET', '/api/questions?subject=' + encodeURIComponent(subjectName) + '&topic=' + encodeURIComponent(preciseTopic) + '&source=exam&limit=10');
-    } else {
-        request = Promise.resolve({ questions: [] });
+    var body = overlay.querySelector('#review-modal-body');
+    var questions = [];
+    var loading = false;
+    var moreBtn = null;
+
+    function appendMoreButton() {
+        if (moreBtn) moreBtn.remove();
+        moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'btn btn-secondary review-more-questions-btn';
+        moreBtn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões';
+        moreBtn.onclick = function() { return loadQuestions(true); };
+        body.appendChild(moreBtn);
     }
 
-    request.then(function(data) {
-        var qs = (data && (data.questoes || data.questions)) || [];
-        var body = document.getElementById('review-modal-body');
-        if (!body) return;
-        if (qs.length === 0) {
-            body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted)">' +
-                '<i class="fas fa-database" style="font-size:2rem;margin-bottom:12px"></i>' +
-                '<p>Ainda não há questões para este tópico.</p>' +
-                '<p style="font-size:.85rem;margin-top:8px">Não exibimos questões de outro conteúdo apenas para completar a revisão.</p>' +
-            '</div>';
-            return;
+    function loadQuestions(more) {
+        if (loading || !overlay.isConnected) return;
+        loading = true;
+        if (moreBtn) { moreBtn.disabled = true; moreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando…'; }
+        var bankUrl = '/api/questions?subject=' + encodeURIComponent(subjectName) + '&topic=' + encodeURIComponent(preciseTopic) + '&source=exam&limit=4';
+        var request;
+        if (lessonId && preciseTopic) {
+            request = API.generateQuestions({
+                lessonId: lessonId, subjectName: subjectName, lessonTitle: preciseTopic, count: 4,
+                excludeQuestions: questions.map(function(q) { return { id: q.id || q.question_id, enunciado: q.enunciado }; })
+            });
+            // Preserve the initial bank fallback without replacing a later batch
+            // with questions already displayed when generation fails.
+            if (!more) request = request.catch(function() { return API.request('GET', bankUrl); });
+        } else if (preciseTopic) {
+            request = API.request('GET', bankUrl + '&offset=' + questions.length);
+        } else {
+            request = Promise.resolve({ questions: [] });
         }
-        var sourceLabel = data && data.source && data.source !== 'bank' ? 'questões de revisão' : 'questões de prova real (CACD TPS)';
-        var html = '<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px">' + qs.length + ' ' + sourceLabel + ' • Responda e confira o gabarito</div>';
-        qs.forEach(function(q, qi) {
-            var qId = 'rev-q-' + qi;
-            html += '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
-                '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
-                renderEnunciado(q) +
-                '<div class="review-options">' + Object.keys(q.opcoes || {}).sort().map(function(key) {
-                    return '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-' + escapeHtml(key) + '" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || q.question_id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-topic="' + escapeHtml(preciseTopic || '') + '" data-answer="' + escapeHtml(key) + '">' + escapeHtml((q.opcoes || {})[key]) + '</button>';
-                }).join('') + '</div>' +
-                '<div id="' + qId + '-result" style="margin-top:10px;font-size:.85rem;display:none"></div>' +
-                (q.explicacao ? '<div id="' + qId + '-exp" style="display:none;margin-top:8px;padding:10px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem">' + escapeHtml(q.explicacao) + '</div>' : '') +
-            '</div>';
-        });
-        body.innerHTML = html;
-        body.onclick = function(e) {
-            var btn = e.target.closest('.review-answer-btn');
-            if (!btn || !body.contains(btn)) return;
-            conferirRevisao(btn.dataset.qid, btn.dataset.questionId, btn.dataset.gabarito, btn.dataset.subject, btn.dataset.answer, btn.dataset.topic);
-        };
-    }).catch(function(err) {
-        var body = document.getElementById('review-modal-body');
+        return request.then(function(data) {
+            if (!overlay.isConnected) return;
+            var qs = (data && (data.questoes || data.questions)) || [];
+            if (more && qs.length !== 4) throw new Error('Não foi possível obter quatro novas questões deste tópico. Tente novamente.');
+            if (!more) {
+                body.innerHTML = '<div id="review-question-count" style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px"></div>';
+            }
+            var html = qs.map(function(q, qi) { return renderReviewQuestionCard(q, questions.length + qi, subjectName, preciseTopic); }).join('');
+            if (moreBtn) moreBtn.remove();
+            body.insertAdjacentHTML('beforeend', html);
+            questions = questions.concat(qs);
+            var count = body.querySelector('#review-question-count');
+            if (count) count.textContent = questions.length + ' questões de revisão • Responda e confira o gabarito';
+            if (!questions.length) {
+                body.insertAdjacentHTML('beforeend', '<p style="color:var(--text-muted)">Ainda não há questões para este tópico.</p>');
+            }
+            appendMoreButton();
+            body.onclick = function(e) {
+                var btn = e.target.closest('.review-answer-btn');
+                if (!btn || !body.contains(btn)) return;
+                conferirRevisao(btn.dataset.qid, btn.dataset.questionId, btn.dataset.gabarito, btn.dataset.subject, btn.dataset.answer, btn.dataset.topic);
+            };
+        }).catch(function(err) {
+            if (!overlay.isConnected) return;
+            if (more) {
+                showToast('Erro ao gerar mais questões: ' + err.message, 'error');
+                return;
+            }
         if (body) body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger)">' +
             '<p>Não foi possível carregar as questões agora.</p>' +
             '<p style="font-size:.82rem;margin-top:8px;color:var(--text-muted)">' + escapeHtml(err && err.message ? err.message : 'Tente novamente em instantes.') + '</p>' +
             '<button type="button" class="btn btn-secondary btn-sm" style="margin-top:14px" onclick="document.getElementById(\'review-modal-overlay\').remove();abrirRevisaoPlano(' + _js(subjectName) + ',' + _js(scheduledTopic || '') + ',' + _jsNull(lessonId) + ',' + _js(lessonTitle || '') + ')"><i class="fas fa-rotate-right"></i> Tentar novamente</button>' +
         '</div>';
-    });
+        }).finally(function() {
+            loading = false;
+            if (moreBtn && overlay.isConnected) {
+                moreBtn.disabled = false;
+                moreBtn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões';
+            }
+        });
+    }
+    return loadQuestions(false);
 }
 
 function conferirRevisao(qId, questionId, gabarito, subjectName, answer, topic) {

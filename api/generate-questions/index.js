@@ -64,6 +64,23 @@ function getQuestionId(question) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function questionText(question) {
+  return String(question && question.enunciado || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function uniqueUnseenQuestions(questions, excluded = []) {
+  const ids = new Set(excluded.map(getQuestionId).filter(id => id != null));
+  const texts = new Set(excluded.map(questionText).filter(Boolean));
+  return (questions || []).filter(question => {
+    const id = getQuestionId(question);
+    const text = questionText(question);
+    if ((id != null && ids.has(id)) || (text && texts.has(text))) return false;
+    if (id != null) ids.add(id);
+    if (text) texts.add(text);
+    return true;
+  });
+}
+
 function formatQuestion(question) {
   const questionId = getQuestionId(question);
   return {
@@ -109,7 +126,7 @@ async function readLessonSummary(lesson) {
   return summary.slice(0, SUMMARY_LIMIT);
 }
 
-async function requestMissingQuestions({ subjectName, lessonTitle, summary, count }) {
+async function requestMissingQuestions({ subjectName, lessonTitle, summary, count, excluded = [] }) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) throw new Error('DEEPSEEK_API_KEY não configurada.');
   const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -119,7 +136,7 @@ async function requestMissingQuestions({ subjectName, lessonTitle, summary, coun
       model: DEEPSEEK_MODEL,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Aula: ${lessonTitle}\nDisciplina: ${subjectName}\nExtraia de 3 a 6 conceitos-chave disponíveis e gere exatamente ${count} assertivas inéditas de fixação no estilo TPS/CACD, todas de dificuldade média ou alta, somente sobre o resumo. Cada assertiva deve cobrar aplicação, distinção conceitual ou análise de uma relação sustentada pelo material. Retorne {"subject":"...","keywords":["..."],"questoes":[{"enunciado":"...","opcoes":{"a":"Certo","b":"Errado"},"gabarito":"a|b","explicacao":"..."}]}.\nRESUMO (máximo de 2500 caracteres):\n${summary}` }
+        { role: 'user', content: `Aula: ${lessonTitle}\nDisciplina: ${subjectName}\nExtraia de 3 a 6 conceitos-chave disponíveis e gere exatamente ${count} assertivas inéditas de fixação no estilo TPS/CACD, todas de dificuldade média ou alta, somente sobre o resumo. Cada assertiva deve cobrar aplicação, distinção conceitual ou análise de uma relação sustentada pelo material. Retorne {"subject":"...","keywords":["..."],"questoes":[{"enunciado":"...","opcoes":{"a":"Certo","b":"Errado"},"gabarito":"a|b","explicacao":"..."}]}.${excluded.length ? `\nNão repita estas assertivas já disponíveis; explore outros aspectos do mesmo assunto:\n${JSON.stringify(excluded.map(q => q.enunciado))}` : ''}\nRESUMO (máximo de 2500 caracteres):\n${summary}` }
       ],
       temperature: 0.3,
       response_format: { type: 'json_object' },
@@ -131,7 +148,7 @@ async function requestMissingQuestions({ subjectName, lessonTitle, summary, coun
   const content = payload.choices && payload.choices[0] && payload.choices[0].message.content;
   if (!content) throw new Error('Resposta vazia da DeepSeek.');
   const result = JSON.parse(content);
-  const questions = normalizeTrueFalseQuestions(result.questoes).filter(hasValidJudgmentStatement);
+  const questions = uniqueUnseenQuestions(normalizeTrueFalseQuestions(result.questoes).filter(hasValidJudgmentStatement), excluded);
   if (questions.length !== count) throw new Error('A DeepSeek não retornou todas as assertivas solicitadas.');
   return { ...result, questoes: questions };
 }
@@ -161,8 +178,8 @@ async function associateQuestions(supabase, lessonId, questions) {
   if (error) throw new Error(`Não foi possível associar as questões: ${error.message}`);
 }
 
-async function selectForUser(supabase, lessonId, userId) {
-  const associated = await getAssociatedQuestions(supabase, lessonId);
+async function selectForUser(supabase, lessonId, userId, excluded = []) {
+  const associated = uniqueUnseenQuestions(await getAssociatedQuestions(supabase, lessonId), excluded);
   if (!associated.length) return [];
   const ids = [...new Set(associated.map(getQuestionId).filter(id => id != null))];
   if (!ids.length) return rankAssociatedQuestions(associated, []).slice(0, TARGET_COUNT);
@@ -196,13 +213,14 @@ async function handler(req, res) {
     const lessonId = req.body && req.body.lessonId;
     if (!lessonId) return res.status(400).json({ error: 'Informe o lessonId.' });
 
+    const excluded = Array.isArray(req.body.excludeQuestions) ? req.body.excludeQuestions : [];
     const supabase = getSupabase();
     const { data: lesson, error: lessonError } = await supabase.from('lessons')
       .select('id, title, subject_id, order_index, drive_url, embed_url, subjects(name)').eq('id', lessonId).single();
     if (lessonError || !lesson) return res.status(404).json({ error: 'Aula não encontrada.' });
     const subjectName = lesson.subjects && lesson.subjects.name;
 
-    let selected = await selectForUser(supabase, lessonId, user.id);
+    let selected = await selectForUser(supabase, lessonId, user.id, excluded);
     if (selected.length === TARGET_COUNT) {
       return res.status(200).json({ questoes: selected.map(formatQuestion), cached: true, source: 'bank' });
     }
@@ -210,7 +228,7 @@ async function handler(req, res) {
     const associated = await getAssociatedQuestions(supabase, lessonId);
     await findAndAssociateOfficialQuestions(supabase, lesson, subjectName,
       associated.map(getQuestionId).filter(id => id != null));
-    selected = await selectForUser(supabase, lessonId, user.id);
+    selected = await selectForUser(supabase, lessonId, user.id, excluded);
     if (selected.length === TARGET_COUNT) {
       return res.status(200).json({ questoes: selected.map(formatQuestion), cached: true, source: 'bank' });
     }
@@ -218,7 +236,8 @@ async function handler(req, res) {
     const missing = TARGET_COUNT - selected.length;
     const summary = await readLessonSummary(lesson);
 
-    const generated = await requestMissingQuestions({ subjectName, lessonTitle: lesson.title, summary, count: missing });
+    const generated = await requestMissingQuestions({ subjectName, lessonTitle: lesson.title, summary, count: missing,
+      excluded: (await getAssociatedQuestions(supabase, lessonId)).concat(excluded) });
     const rows = generated.questoes.map(question => ({
       source: 'ai', year: null, subject: subjectName, topic: lesson.title,
       enunciado: question.enunciado, opcoes: question.opcoes,
@@ -246,3 +265,6 @@ module.exports.rankAssociatedQuestions = rankAssociatedQuestions;
 module.exports.readLessonSummary = readLessonSummary;
 module.exports.requestMissingQuestions = requestMissingQuestions;
 module.exports.SYSTEM_PROMPT = SYSTEM_PROMPT;
+
+module.exports.uniqueUnseenQuestions = uniqueUnseenQuestions;
+module.exports.selectForUser = selectForUser;
