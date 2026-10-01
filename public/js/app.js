@@ -2599,6 +2599,19 @@ function praticaResponder(questionId, chosen, gabarito) {
     API.request('POST', '/api/questions', { action: 'record', subject: '', question_id: questionId, correct: correct }).catch(function(){});
 }
 
+function renderReviewQuestionCard(q, qi, subjectName, preciseTopic) {
+    var qId = 'rev-q-' + qi;
+    return '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
+        '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
+        renderEnunciado(q) +
+        '<div class="review-options">' + Object.keys(q.opcoes || {}).sort().map(function(key) {
+            return '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-' + escapeHtml(key) + '" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || q.question_id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-topic="' + escapeHtml(preciseTopic || '') + '" data-answer="' + escapeHtml(key) + '">' + escapeHtml((q.opcoes || {})[key]) + '</button>';
+        }).join('') + '</div>' +
+        '<div id="' + qId + '-result" style="margin-top:10px;font-size:.85rem;display:none"></div>' +
+        (q.explicacao ? '<div id="' + qId + '-exp" style="display:none;margin-top:8px;padding:10px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem">' + escapeHtml(q.explicacao) + '</div>' : '') +
+    '</div>';
+}
+
 function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
     if (!subjectName) return;
     // A review belongs to a lesson, not merely to a subject. Asking the
@@ -2621,61 +2634,82 @@ function abrirRevisaoPlano(subjectName, scheduledTopic, lessonId, lessonTitle) {
     '</div>';
     document.body.appendChild(overlay);
 
-    var request;
-    if (lessonId && preciseTopic) {
-        // Five detailed questions fit reliably in the model response budget. If
-        // generation is temporarily unavailable, keep the review usable with
-        // matching questions that are already in the exam bank.
-        request = API.generateQuestions({ lessonId: lessonId, subjectName: subjectName, lessonTitle: preciseTopic, count: 5 })
-            .catch(function() {
-                return API.request('GET', '/api/questions?subject=' + encodeURIComponent(subjectName) + '&topic=' + encodeURIComponent(preciseTopic) + '&source=exam&limit=5');
-            });
-    } else if (preciseTopic) {
-        request = API.request('GET', '/api/questions?subject=' + encodeURIComponent(subjectName) + '&topic=' + encodeURIComponent(preciseTopic) + '&source=exam&limit=10');
-    } else {
-        request = Promise.resolve({ questions: [] });
+    var body = overlay.querySelector('#review-modal-body');
+    var questions = [];
+    var loading = false;
+    var moreBtn = null;
+
+    function appendMoreButton() {
+        if (moreBtn) moreBtn.remove();
+        moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'btn btn-secondary review-more-questions-btn';
+        moreBtn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões';
+        moreBtn.onclick = function() { return loadQuestions(true); };
+        body.appendChild(moreBtn);
     }
 
-    request.then(function(data) {
-        var qs = (data && (data.questoes || data.questions)) || [];
-        var body = document.getElementById('review-modal-body');
-        if (!body) return;
-        if (qs.length === 0) {
-            body.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted)">' +
-                '<i class="fas fa-database" style="font-size:2rem;margin-bottom:12px"></i>' +
-                '<p>Ainda não há questões para este tópico.</p>' +
-                '<p style="font-size:.85rem;margin-top:8px">Não exibimos questões de outro conteúdo apenas para completar a revisão.</p>' +
-            '</div>';
-            return;
+    function loadQuestions(more) {
+        if (loading || !overlay.isConnected) return;
+        loading = true;
+        if (moreBtn) { moreBtn.disabled = true; moreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando…'; }
+        var bankUrl = '/api/questions?subject=' + encodeURIComponent(subjectName) + '&topic=' + encodeURIComponent(preciseTopic) + '&source=exam&limit=4';
+        var request;
+        if (lessonId && preciseTopic) {
+            request = API.generateQuestions({
+                lessonId: lessonId, subjectName: subjectName, lessonTitle: preciseTopic, count: 4,
+                excludeQuestions: questions.map(function(q) { return { id: q.id || q.question_id, enunciado: q.enunciado }; })
+            });
+            // Preserve the initial bank fallback without replacing a later batch
+            // with questions already displayed when generation fails.
+            if (!more) request = request.catch(function() { return API.request('GET', bankUrl); });
+        } else if (preciseTopic) {
+            request = API.request('GET', bankUrl + '&offset=' + questions.length);
+        } else {
+            request = Promise.resolve({ questions: [] });
         }
-        var sourceLabel = data && data.source && data.source !== 'bank' ? 'questões de revisão' : 'questões de prova real (CACD TPS)';
-        var html = '<div style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px">' + qs.length + ' ' + sourceLabel + ' • Responda e confira o gabarito</div>';
-        qs.forEach(function(q, qi) {
-            var qId = 'rev-q-' + qi;
-            html += '<div style="margin-bottom:20px;padding:16px;background:var(--surface-hover);border-radius:var(--radius-md);border:1px solid var(--border)">' +
-                '<div style="font-size:.82rem;color:var(--accent);font-weight:600;margin-bottom:8px">QUESTÃO ' + (qi + 1) + ' · ' + escapeHtml(q.subject || '') + '</div>' +
-                renderEnunciado(q) +
-                '<div class="review-options">' + Object.keys(q.opcoes || {}).sort().map(function(key) {
-                    return '<button type="button" class="btn btn-secondary btn-sm review-answer-btn" id="' + qId + '-' + escapeHtml(key) + '" data-qid="' + escapeHtml(qId) + '" data-question-id="' + escapeHtml(q.id || q.question_id || '') + '" data-gabarito="' + escapeHtml(q.gabarito || '') + '" data-subject="' + escapeHtml(subjectName || '') + '" data-topic="' + escapeHtml(preciseTopic || '') + '" data-answer="' + escapeHtml(key) + '">' + escapeHtml((q.opcoes || {})[key]) + '</button>';
-                }).join('') + '</div>' +
-                '<div id="' + qId + '-result" style="margin-top:10px;font-size:.85rem;display:none"></div>' +
-                (q.explicacao ? '<div id="' + qId + '-exp" style="display:none;margin-top:8px;padding:10px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:.83rem">' + escapeHtml(q.explicacao) + '</div>' : '') +
-            '</div>';
-        });
-        body.innerHTML = html;
-        body.onclick = function(e) {
-            var btn = e.target.closest('.review-answer-btn');
-            if (!btn || !body.contains(btn)) return;
-            conferirRevisao(btn.dataset.qid, btn.dataset.questionId, btn.dataset.gabarito, btn.dataset.subject, btn.dataset.answer, btn.dataset.topic);
-        };
-    }).catch(function(err) {
-        var body = document.getElementById('review-modal-body');
+        return request.then(function(data) {
+            if (!overlay.isConnected) return;
+            var qs = (data && (data.questoes || data.questions)) || [];
+            if (more && qs.length !== 4) throw new Error('Não foi possível obter quatro novas questões deste tópico. Tente novamente.');
+            if (!more) {
+                body.innerHTML = '<div id="review-question-count" style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px"></div>';
+            }
+            var html = qs.map(function(q, qi) { return renderReviewQuestionCard(q, questions.length + qi, subjectName, preciseTopic); }).join('');
+            if (moreBtn) moreBtn.remove();
+            body.insertAdjacentHTML('beforeend', html);
+            questions = questions.concat(qs);
+            var count = body.querySelector('#review-question-count');
+            if (count) count.textContent = questions.length + ' questões de revisão • Responda e confira o gabarito';
+            if (!questions.length) {
+                body.insertAdjacentHTML('beforeend', '<p style="color:var(--text-muted)">Ainda não há questões para este tópico.</p>');
+            }
+            appendMoreButton();
+            body.onclick = function(e) {
+                var btn = e.target.closest('.review-answer-btn');
+                if (!btn || !body.contains(btn)) return;
+                conferirRevisao(btn.dataset.qid, btn.dataset.questionId, btn.dataset.gabarito, btn.dataset.subject, btn.dataset.answer, btn.dataset.topic);
+            };
+        }).catch(function(err) {
+            if (!overlay.isConnected) return;
+            if (more) {
+                showToast('Erro ao gerar mais questões: ' + err.message, 'error');
+                return;
+            }
         if (body) body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger)">' +
             '<p>Não foi possível carregar as questões agora.</p>' +
             '<p style="font-size:.82rem;margin-top:8px;color:var(--text-muted)">' + escapeHtml(err && err.message ? err.message : 'Tente novamente em instantes.') + '</p>' +
             '<button type="button" class="btn btn-secondary btn-sm" style="margin-top:14px" onclick="document.getElementById(\'review-modal-overlay\').remove();abrirRevisaoPlano(' + _js(subjectName) + ',' + _js(scheduledTopic || '') + ',' + _jsNull(lessonId) + ',' + _js(lessonTitle || '') + ')"><i class="fas fa-rotate-right"></i> Tentar novamente</button>' +
         '</div>';
-    });
+        }).finally(function() {
+            loading = false;
+            if (moreBtn && overlay.isConnected) {
+                moreBtn.disabled = false;
+                moreBtn.innerHTML = '<i class="fas fa-plus"></i> Gerar mais questões';
+            }
+        });
+    }
+    return loadQuestions(false);
 }
 
 function conferirRevisao(qId, questionId, gabarito, subjectName, answer, topic) {

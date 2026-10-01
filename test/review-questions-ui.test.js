@@ -10,8 +10,10 @@ test('review generation uses a response-sized batch and falls back to the exam b
   const reviewSource = appSource.slice(start, end);
 
   assert.ok(start >= 0 && end > start, 'review function should exist');
-  assert.match(reviewSource, /lessonTitle: preciseTopic, count: 5/);
-  assert.match(reviewSource, /\.catch\(function\(\) \{[\s\S]*source=exam&limit=5/);
+  assert.match(reviewSource, /lessonTitle: preciseTopic, count: 4/);
+  assert.match(reviewSource, /source=exam&limit=4/);
   assert.match(reviewSource, /Tentar novamente/);
-  assert.match(reviewSource, /class="review-options"/);
+  assert.match(appSource, /class="review-options"/);
+  assert.match(reviewSource, /Gerar mais questões/);
+  assert.match(reviewSource, /excludeQuestions: questions\.map/);
 });
